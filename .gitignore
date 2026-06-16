@@ -1,0 +1,13 @@
+# .NET 
+bin/
+obj/
+*.user
+*.suo
+
+# VS Code beáll.
+.vscode/
+
+# helyi szelfik 
+wwwroot/uploads/selfies/*
+
+!wwwroot/uploads/selfies/.gitkeep
