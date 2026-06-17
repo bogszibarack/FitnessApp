@@ -3,8 +3,10 @@ import 'package:intl/intl.dart';
 
 import '../../models/daily_health_data.dart';
 import '../../services/apple_health_service.dart';
-import '../../widgets/activity_rings.dart';
-import '../../widgets/calorie_ring.dart';
+import '../../services/home_service.dart';
+import '../../utils/platform_utils.dart';
+import '../../widgets/health_data_panel.dart';
+import '../../widgets/nutrition_summary_card.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -14,16 +16,17 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  static const _moveColor = Color(0xFFFA114F);
-  static const _exerciseColor = Color(0xFF92E82A);
-  static const _standColor = Color(0xFF41CFFF);
   static const _accentGreen = Color(0xFF34C759);
+  static const _primary = Color(0xFF1E88E5);
 
+  final _homeService = HomeService.instance;
   final _healthService = AppleHealthService.instance;
   DailyHealthData _data = DailyHealthData.empty();
+  MealCalories _meals = const MealCalories();
   bool _loading = true;
   bool _permissionNeeded = false;
   String? _error;
+  String _dataSource = '';
 
   @override
   void initState() {
@@ -37,36 +40,21 @@ class _HomeScreenState extends State<HomeScreen> {
       _error = null;
     });
 
-    if (!_healthService.isSupported) {
-      setState(() {
-        _data = DailyHealthData.empty();
-        _loading = false;
-        _permissionNeeded = false;
-      });
-      return;
-    }
-
     try {
-      final hasPermission = await _healthService.hasPermissions();
-      if (!hasPermission) {
-        setState(() {
-          _data = DailyHealthData.empty();
-          _loading = false;
-          _permissionNeeded = true;
-        });
-        return;
-      }
-
-      final data = await _healthService.fetchToday();
+      final result = await _homeService.loadToday();
       if (!mounted) return;
       setState(() {
-        _data = data;
+        _data = result.data;
+        _meals = result.meals;
+        _permissionNeeded = result.permissionNeeded;
+        _dataSource = result.source;
         _loading = false;
-        _permissionNeeded = false;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
+        _data = DailyHealthData.empty();
+        _meals = const MealCalories();
         _error = e.toString();
         _loading = false;
       });
@@ -80,7 +68,7 @@ class _HomeScreenState extends State<HomeScreen> {
       await _loadData();
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Apple Health hozzaferes megtagadva.')),
+        const SnackBar(content: Text('Apple Health hozzáférés megtagadva.')),
       );
     }
   }
@@ -90,6 +78,11 @@ class _HomeScreenState extends State<HomeScreen> {
   String _formatDistance(double km) {
     if (km < 10) return '${km.toStringAsFixed(2).replaceAll('.', ',')} KM';
     return '${km.toStringAsFixed(1).replaceAll('.', ',')} KM';
+  }
+
+  int _weekOfYear(DateTime date) {
+    final dayOfYear = date.difference(DateTime(date.year, 1, 1)).inDays + 1;
+    return ((dayOfYear - date.weekday + 10) / 7).floor();
   }
 
   @override
@@ -128,7 +121,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       if (_permissionNeeded) ...[
                         const SizedBox(height: 16),
-                        _buildHealthBanner(),
+                        _buildHealthPermissionCard(),
+                      ],
+                      if (!_loading && !isAppleHealthPlatform) ...[
+                        const SizedBox(height: 16),
+                        _buildPlatformInfoCard(),
                       ],
                       if (_error != null) ...[
                         const SizedBox(height: 16),
@@ -141,17 +138,31 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: Center(child: CircularProgressIndicator()),
                         )
                       else ...[
-                        _buildActivityCard(),
+                        HealthDataPanel(
+                          data: _data,
+                          isLiveAppleHealth: _dataSource == 'merged' || _dataSource == 'apple_health',
+                          formatNumber: _formatNumber,
+                          formatDistance: _formatDistance,
+                        ),
                         const SizedBox(height: 28),
-                        _buildSectionHeader('Összefoglaló', 'Részletek'),
+                        _buildSectionHeader('Táplálkozás', 'Naplóban'),
                         const SizedBox(height: 12),
-                        _buildCalorieSummaryCard(),
-                        const SizedBox(height: 28),
-                        _buildSectionHeader('Táplálkozás', 'Több'),
+                        NutritionSummaryCard(
+                          consumed: _data.caloriesConsumed,
+                          burned: _data.caloriesBurned,
+                          goal: _data.calorieGoal,
+                          remaining: _data.caloriesRemaining,
+                          carbs: _data.carbsGrams,
+                          carbsGoal: _data.carbsGoalGrams,
+                          protein: _data.proteinGrams,
+                          proteinGoal: _data.proteinGoalGrams,
+                          fat: _data.fatGrams,
+                          fatGoal: _data.fatGoalGrams,
+                        ),
                         const SizedBox(height: 12),
-                        _buildMealsCard(),
+                        _buildMealsPreview(),
                         const SizedBox(height: 28),
-                        _buildDiscoverHeader(),
+                        _buildSectionHeader('Felfedezés', ''),
                         const SizedBox(height: 12),
                         _buildFeedPost(),
                         const SizedBox(height: 24),
@@ -167,37 +178,92 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildHealthBanner() {
+  Widget _buildMealsPreview() {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.restaurant_menu, color: Colors.grey.shade600, size: 22),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Reggeli ${_meals.reggeli} · Ebéd ${_meals.ebed} · Vacsora ${_meals.vacsora} kcal — részletek a Napló tabon',
+              style: TextStyle(fontSize: 13, color: Colors.grey.shade700, height: 1.4),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHealthPermissionCard() {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1C1C1E),
-        borderRadius: BorderRadius.circular(14),
+        gradient: LinearGradient(
+          colors: [_primary, _primary.withValues(alpha: 0.85)],
+        ),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Row(
             children: [
-              Icon(Icons.favorite, color: _moveColor, size: 20),
+              Icon(Icons.health_and_safety_outlined, color: Colors.white, size: 22),
               SizedBox(width: 8),
               Text(
-                'Apple Health csatlakoztatása',
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 15),
+                'Apple Health hozzáférés',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 16),
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Engedélyezd a hozzáférést, hogy a valós aktivitás- és kalóriaadataid jelenjenek meg.',
-            style: TextStyle(color: Colors.grey.shade400, fontSize: 13, height: 1.4),
+          const SizedBox(height: 10),
+          const Text(
+            'iPhone-on engedélyezd az Egészség appot a valós lépés, távolság és kalória adatokhoz.',
+            style: TextStyle(color: Colors.white70, fontSize: 13, height: 1.45),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           FilledButton(
             onPressed: _connectAppleHealth,
-            style: FilledButton.styleFrom(backgroundColor: _accentGreen),
-            child: const Text('Csatlakozás'),
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: _primary,
+            ),
+            child: const Text('Engedély megadása'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPlatformInfoCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF8E1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFFFE082)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.info_outline, color: Color(0xFFF57C00), size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              isAppleHealthPlatform
+                  ? 'Az aktivitás adatok 0-k, amíg nem adsz Apple Health engedélyt.'
+                  : 'Chrome / Windows: Apple Health nem elérhető. A mozgás demo (0), a táplálkozás a backendről. Étkezés naplózás a Napló tabon.',
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade800, height: 1.4),
+            ),
           ),
         ],
       ),
@@ -213,7 +279,14 @@ class _HomeScreenState extends State<HomeScreen> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.red.shade200),
       ),
-      child: Text(_error!, style: TextStyle(color: Colors.red.shade800, fontSize: 13)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(_error!, style: TextStyle(color: Colors.red.shade800, fontSize: 13)),
+          const SizedBox(height: 8),
+          const Text('Ellenőrizd: dotnet run fut-e a 5150-es porton?', style: TextStyle(fontSize: 12)),
+        ],
+      ),
     );
   }
 
@@ -226,8 +299,8 @@ class _HomeScreenState extends State<HomeScreen> {
           Colors.orange.shade700,
         ),
         const SizedBox(width: 12),
-        if (_data.isFromAppleHealth)
-          _buildStatChip(Icons.favorite, 'Health', _moveColor),
+        if (_dataSource == 'merged' || _dataSource == 'apple_health')
+          _buildStatChip(Icons.favorite, 'Élő adat', _accentGreen),
         const Spacer(),
         IconButton(
           onPressed: _loadData,
@@ -257,174 +330,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildActivityCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1C1C1E),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Text(
-                'Tevékenységgyűrűk',
-                style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w600),
-              ),
-              const Spacer(),
-              if (_data.isFromAppleHealth)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: _accentGreen.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Text(
-                    'Apple Health',
-                    style: TextStyle(color: _accentGreen, fontSize: 11, fontWeight: FontWeight.w600),
-                  ),
-                ),
-              Icon(Icons.chevron_right, color: Colors.grey.shade600, size: 22),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              ActivityRings(
-                size: 130,
-                strokeWidth: 13,
-                gap: 5,
-                rings: [
-                  ActivityRingData(
-                    label: 'Mozgás',
-                    current: '${_data.moveKcal}',
-                    goal: '${_data.moveGoalKcal}',
-                    unit: 'KCAL',
-                    color: _moveColor,
-                    progress: _data.moveProgress,
-                  ),
-                  ActivityRingData(
-                    label: 'Gyakorlat',
-                    current: '${_data.exerciseMinutes}',
-                    goal: '${_data.exerciseGoalMinutes}',
-                    unit: 'PERC',
-                    color: _exerciseColor,
-                    progress: _data.exerciseProgress,
-                  ),
-                  ActivityRingData(
-                    label: 'Állás',
-                    current: '${_data.standHours}',
-                    goal: '${_data.standGoalHours}',
-                    unit: 'ÓRA',
-                    color: _standColor,
-                    progress: _data.standProgress,
-                  ),
-                ],
-              ),
-              const SizedBox(width: 20),
-              Expanded(
-                child: Column(
-                  children: [
-                    _buildRingStat('Mozgás', '${_data.moveKcal}/${_data.moveGoalKcal} KCAL', _moveColor),
-                    const SizedBox(height: 14),
-                    _buildRingStat(
-                      'Gyakorlat',
-                      '${_data.exerciseMinutes}/${_data.exerciseGoalMinutes} PERC',
-                      _exerciseColor,
-                    ),
-                    const SizedBox(height: 14),
-                    _buildRingStat(
-                      'Állás',
-                      '${_data.standHours}/${_data.standGoalHours} ÓRA',
-                      _standColor,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              Expanded(
-                child: _buildMiniMetricCard(
-                  'Lépésszám',
-                  _formatNumber(_data.steps),
-                  const Color(0xFFBF5AF2),
-                  Icons.directions_walk,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildMiniMetricCard(
-                  'Távolság',
-                  _formatDistance(_data.distanceKm),
-                  const Color(0xFF0A84FF),
-                  Icons.route,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRingStat(String label, String value, Color color) {
-    return Row(
-      children: [
-        Container(
-          width: 8,
-          height: 8,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
-              Text(
-                value,
-                style: TextStyle(color: color, fontSize: 14, fontWeight: FontWeight.w700),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildMiniMetricCard(String label, String value, Color color, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFF2C2C2E),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 14, color: color),
-              const SizedBox(width: 4),
-              Text(label, style: TextStyle(color: Colors.grey.shade500, fontSize: 11)),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: TextStyle(color: color, fontSize: 20, fontWeight: FontWeight.w700),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildSectionHeader(String title, String action) {
     return Row(
       children: [
@@ -433,149 +338,11 @@ class _HomeScreenState extends State<HomeScreen> {
           style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Colors.black87),
         ),
         const Spacer(),
-        Text(
-          action,
-          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: _accentGreen),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCalorieSummaryCard() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              _buildCalorieSideStat('${_data.caloriesConsumed}', 'Elfogyasztott'),
-              CalorieRing(
-                remaining: _data.caloriesRemaining,
-                progress: _data.calorieProgress,
-                color: _accentGreen,
-              ),
-              _buildCalorieSideStat('${_data.caloriesBurned}', 'Elégetett'),
-            ],
+        if (action.isNotEmpty)
+          Text(
+            action,
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: _accentGreen),
           ),
-          const SizedBox(height: 24),
-          MacroBar(
-            label: 'Szénhidrátok',
-            current: _data.carbsGrams,
-            goal: _data.carbsGoalGrams,
-            progress: _data.carbsProgress,
-          ),
-          const SizedBox(height: 14),
-          MacroBar(
-            label: 'Fehérje',
-            current: _data.proteinGrams,
-            goal: _data.proteinGoalGrams,
-            progress: _data.proteinProgress,
-          ),
-          const SizedBox(height: 14),
-          MacroBar(
-            label: 'Zsír',
-            current: _data.fatGrams,
-            goal: _data.fatGoalGrams,
-            progress: _data.fatProgress,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCalorieSideStat(String value, String label) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: Colors.black87),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-          textAlign: TextAlign.center,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildMealsCard() {
-    final mealBudget = (_data.calorieGoal / 3).round();
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Column(
-        children: [
-          _buildMealRow(Icons.free_breakfast_outlined, 'Reggeli', 0, mealBudget, showDivider: true),
-          _buildMealRow(Icons.lunch_dining_outlined, 'Ebéd', 0, mealBudget, showDivider: true),
-          _buildMealRow(Icons.dinner_dining_outlined, 'Vacsora', 0, mealBudget, showDivider: false),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMealRow(IconData icon, String name, int current, int goal, {required bool showDivider}) {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          child: Row(
-            children: [
-              Icon(icon, size: 22, color: Colors.grey.shade700),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text(name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
-                        Icon(Icons.chevron_right, size: 18, color: Colors.grey.shade500),
-                      ],
-                    ),
-                    Text(
-                      '$current / $goal kcal',
-                      style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                width: 36,
-                height: 36,
-                decoration: const BoxDecoration(color: Colors.black87, shape: BoxShape.circle),
-                child: const Icon(Icons.add, color: Colors.white, size: 20),
-              ),
-            ],
-          ),
-        ),
-        if (showDivider) Divider(height: 1, indent: 50, color: Colors.grey.shade200),
-      ],
-    );
-  }
-
-  Widget _buildDiscoverHeader() {
-    return Row(
-      children: [
-        const Text(
-          'Felfedezés',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Colors.black87),
-        ),
-        Icon(Icons.keyboard_arrow_down, color: Colors.grey.shade700),
-        const Spacer(),
-        IconButton(onPressed: () {}, icon: const Icon(Icons.search), color: Colors.black87),
-        IconButton(onPressed: () {}, icon: const Icon(Icons.notifications_outlined), color: Colors.black87),
       ],
     );
   }
@@ -612,7 +379,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 TextButton(
                   onPressed: () {},
                   style: TextButton.styleFrom(
-                    foregroundColor: const Color(0xFF1E88E5),
+                    foregroundColor: _primary,
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                   ),
                   child: const Text('+ Követés', style: TextStyle(fontWeight: FontWeight.w600)),
@@ -684,10 +451,5 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ],
     );
-  }
-
-  int _weekOfYear(DateTime date) {
-    final dayOfYear = date.difference(DateTime(date.year, 1, 1)).inDays + 1;
-    return ((dayOfYear - date.weekday + 10) / 7).floor();
   }
 }

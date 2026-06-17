@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 import 'home/home_screen.dart';
+import 'nutrition/naplo_screen.dart';
 import 'settings/settings_screen.dart';
+import 'workout/workout_screen.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
@@ -15,7 +17,8 @@ class _MainShellState extends State<MainShell> {
 
   static const _screens = <Widget>[
     HomeScreen(),
-    _WorkoutPlaceholder(),
+    NaploScreen(),
+    WorkoutScreen(),
     SettingsScreen(),
   ];
 
@@ -36,6 +39,11 @@ class _MainShellState extends State<MainShell> {
             label: 'Home',
           ),
           NavigationDestination(
+            icon: Icon(Icons.menu_book_outlined),
+            selectedIcon: Icon(Icons.menu_book),
+            label: 'Napló',
+          ),
+          NavigationDestination(
             icon: Icon(Icons.fitness_center_outlined),
             selectedIcon: Icon(Icons.fitness_center),
             label: 'Edzés',
@@ -46,41 +54,6 @@ class _MainShellState extends State<MainShell> {
             label: 'Profil',
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _WorkoutPlaceholder extends StatelessWidget {
-  const _WorkoutPlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey.shade50,
-      appBar: AppBar(
-        title: const Text('Edzés'),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
-        elevation: 0.5,
-      ),
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.fitness_center, size: 56, color: Colors.grey.shade400),
-            const SizedBox(height: 16),
-            const Text(
-              'Edzés modul hamarosan',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Itt indíthatod majd az edzéseidet.',
-              style: TextStyle(color: Colors.grey.shade600),
-            ),
-          ],
-        ),
       ),
     );
   }

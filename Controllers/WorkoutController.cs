@@ -556,6 +556,43 @@ namespace FitnessBackend.Controllers
             return edzes_tortenet;
         }
 
+        // 7/b. BEFEJEZETT EDZÉS MÓDOSÍTÁSA
+        [HttpPut("history/{edzes_id:int}")]
+        public ActionResult<WorkoutSession> EdzesTortenetModositasa(int edzes_id, [FromBody] WorkoutSession modositott)
+        {
+            var edzes = edzes_tortenet.FirstOrDefault(e => e.Id == edzes_id);
+            if (edzes == null)
+            {
+                return NotFound("Nincs ilyen befejezett edzes.");
+            }
+
+            if (!string.IsNullOrWhiteSpace(modositott.Title))
+            {
+                edzes.Title = modositott.Title;
+            }
+
+            if (modositott.Exercises != null)
+            {
+                edzes.Exercises = modositott.Exercises;
+            }
+
+            return Ok(edzes);
+        }
+
+        // 7/c. BEFEJEZETT EDZÉS TÖRLÉSE
+        [HttpDelete("history/{edzes_id:int}")]
+        public ActionResult<string> EdzesTortenetTorlese(int edzes_id)
+        {
+            var edzes = edzes_tortenet.FirstOrDefault(e => e.Id == edzes_id);
+            if (edzes == null)
+            {
+                return NotFound("Nincs ilyen befejezett edzes.");
+            }
+
+            edzes_tortenet.Remove(edzes);
+            return Ok($"Edzes torolve: {edzes.Title}");
+        }
+
         // 8. PROGRESSZIÓ BEÁLLÍTÁS — user csúszka mentése (alapértelmezett)
         [HttpGet("progresszio-beallitas")]
         public ProgresszioBeallitas ProgresszioBeallitasLekerdezese()

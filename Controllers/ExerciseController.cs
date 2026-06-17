@@ -102,22 +102,11 @@ namespace FitnessBackend.Controllers
         }
 
         // Telefon keresőmező: Id VAGY Név alapján keres (Hevy: "Search exercise")
+        // Query: ?keresoszo=squat  (üres vagy hiányzó = minden gyakorlat)
         [HttpGet("kereso")]
-        public async Task<List<Exercise>> KeresoMezo(string keresoszó)
+        public async Task<List<Exercise>> KeresoMezo([FromQuery] string? keresoszo = null)
         {
-            if (osszes_gyakorlat.Count == 0)
-            {
-                await LetoltesMinden();
-            }
-
-            if (string.IsNullOrWhiteSpace(keresoszó))
-            {
-                return osszes_gyakorlat;
-            }
-
-            return osszes_gyakorlat
-                .Where(gyakorlat => IlleszkedikKeresoszore(gyakorlat, keresoszó))
-                .ToList();
+            return await GyakorlatKereses(kereses: keresoszo);
         }
 
         // Hevy: kereső + izom + felszerelés + sportág szűrés együtt (Add Exercise képernyő)
@@ -298,6 +287,26 @@ namespace FitnessBackend.Controllers
                 await LetoltesMinden();
             }
             return osszes_gyakorlat;
+        }
+
+        // Egy gyakorlat részletei (képek, leírás) — Hevy: gyakorlat infó
+        [HttpGet("{gyakorlat_id}")]
+        public async Task<ActionResult<Exercise>> GyakorlatLekerdezese(string gyakorlat_id)
+        {
+            if (osszes_gyakorlat.Count == 0)
+            {
+                await LetoltesMinden();
+            }
+
+            var talalat = osszes_gyakorlat
+                .FirstOrDefault(g => g.Id.Equals(gyakorlat_id, StringComparison.OrdinalIgnoreCase));
+
+            if (talalat == null)
+            {
+                return NotFound($"Nincs ilyen gyakorlat: {gyakorlat_id}");
+            }
+
+            return Ok(talalat);
         }
 
         [HttpGet("kategoria/{valasztott_kategoria}")]

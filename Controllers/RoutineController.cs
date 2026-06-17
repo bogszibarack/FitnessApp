@@ -32,28 +32,52 @@ namespace FitnessBackend.Controllers
             return Ok(harom_variacio);
         }
 
-        // 2. ALAP SABLONOK — Hevy: "Beginner Push/Pull/Legs"
+        // 2. ALAP SABLONOK — helyett üres (AI ajánlások használata a Flutterben)
         [HttpGet("alap-sablonok")]
-        public async Task<ActionResult<List<Routine>>> AlapSablonok()
+        public ActionResult<List<Routine>> AlapSablonok()
         {
-            var exercise_controller = new ExerciseController();
-            var osszes_gyakorlat = await exercise_controller.OsszesGyakorlat();
+            return Ok(new List<Routine>());
+        }
 
-            var gym_gyakorlatok = osszes_gyakorlat
-                .Where(g => g.Category.Equals("gym", StringComparison.OrdinalIgnoreCase))
-                .ToList();
+        // 2/b. RUTIN MÓDOSÍTÁSA (Mentéseim szerkesztése)
+        [HttpPut("{rutin_id}")]
+        public ActionResult<Routine> RutinModositasa(string rutin_id, [FromBody] Routine modositott)
+        {
+            var rutin = EdzesTervTarolo.MentettRutinok
+                .FirstOrDefault(r => r.Id.Equals(rutin_id, StringComparison.OrdinalIgnoreCase));
 
-            var sablonok = new List<Routine>
+            if (rutin == null)
             {
-                SablonOsszeallitasa("Push", "beginner", "Chest", "gym",
-                    new[] { "Chest", "Shoulders", "Triceps" }, gym_gyakorlatok),
-                SablonOsszeallitasa("Pull", "beginner", "Upper Back", "gym",
-                    new[] { "Lats", "Upper Back", "Biceps" }, gym_gyakorlatok),
-                SablonOsszeallitasa("Legs", "beginner", "Quadriceps", "gym",
-                    new[] { "Quadriceps", "Hamstrings", "Glutes" }, gym_gyakorlatok)
-            };
+                return NotFound("Nincs ilyen mentett rutin.");
+            }
 
-            return Ok(sablonok);
+            if (!string.IsNullOrWhiteSpace(modositott.Title))
+            {
+                rutin.Title = modositott.Title;
+            }
+
+            if (modositott.ExerciseIds != null && modositott.ExerciseIds.Count > 0)
+            {
+                rutin.ExerciseIds = modositott.ExerciseIds;
+                rutin.ExerciseNames = modositott.ExerciseNames ?? modositott.ExerciseIds;
+            }
+
+            if (modositott.GyakorlatSablonok != null && modositott.GyakorlatSablonok.Count > 0)
+            {
+                rutin.GyakorlatSablonok = modositott.GyakorlatSablonok;
+            }
+
+            if (!string.IsNullOrWhiteSpace(modositott.Difficulty))
+            {
+                rutin.Difficulty = modositott.Difficulty;
+            }
+
+            if (!string.IsNullOrWhiteSpace(modositott.TargetMuscle))
+            {
+                rutin.TargetMuscle = modositott.TargetMuscle;
+            }
+
+            return Ok(rutin);
         }
 
         // 3. MENTÉS — ha megtetszik az egyik variáció (Hevy: rutin elmentése)
@@ -108,13 +132,94 @@ namespace FitnessBackend.Controllers
             return Ok($"Rutin torolve: {torlendo.Title}");
         }
 
+        private static readonly string[] PplPushIzomok = { "Chest", "Shoulders", "Triceps" };
+        private static readonly string[] PplPullIzomok = { "Lats", "Upper Back", "Traps", "Biceps" };
+        private static readonly string[] PplLegsIzomok = { "Quadriceps", "Hamstrings", "Glutes", "Calves" };
+
         private static List<Exercise> GyakorlatokSzuresre(List<Exercise> osszes_gyakorlat, AiGeneraloKeres keres)
         {
-            return osszes_gyakorlat
-                .Where(g => g.Category.Equals(keres.SportCategory, StringComparison.OrdinalIgnoreCase))
+            if (keres.SportCategory.Equals("yoga", StringComparison.OrdinalIgnoreCase))
+            {
+                return osszes_gyakorlat
+                    .Where(g => g.Category.Equals("yoga", StringComparison.OrdinalIgnoreCase))
+                    .Where(g => SzintEgyezik(keres.Difficulty, g.Level))
+                    .ToList();
+            }
+
+            var gym_gyakorlatok = osszes_gyakorlat
+                .Where(g => g.Category.Equals("gym", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            if (keres.TargetMuscle.Equals("Push", StringComparison.OrdinalIgnoreCase))
+            {
+                return PplSzures(gym_gyakorlatok, PplPushIzomok, keres);
+            }
+
+            if (keres.TargetMuscle.Equals("Pull", StringComparison.OrdinalIgnoreCase))
+            {
+                return PplSzures(gym_gyakorlatok, PplPullIzomok, keres);
+            }
+
+            if (keres.TargetMuscle.Equals("Legs", StringComparison.OrdinalIgnoreCase))
+            {
+                return PplSzures(gym_gyakorlatok, PplLegsIzomok, keres);
+            }
+
+            if (keres.TargetMuscle.Equals("Bench", StringComparison.OrdinalIgnoreCase))
+            {
+                return PowerliftingSzures(gym_gyakorlatok, new[] { "bench" }, "Chest", keres);
+            }
+
+            if (keres.TargetMuscle.Equals("Squat", StringComparison.OrdinalIgnoreCase))
+            {
+                return PowerliftingSzures(gym_gyakorlatok, new[] { "squat" }, "Quadriceps", keres);
+            }
+
+            if (keres.TargetMuscle.Equals("Deadlift", StringComparison.OrdinalIgnoreCase))
+            {
+                return PowerliftingSzures(gym_gyakorlatok, new[] { "deadlift" }, "Hamstrings", keres);
+            }
+
+            return gym_gyakorlatok
                 .Where(g => g.MuscleGroup.Equals(keres.TargetMuscle, StringComparison.OrdinalIgnoreCase)
                     || IzomEgyezik(keres.TargetMuscle, g.MuscleGroup))
                 .Where(g => SzintEgyezik(keres.Difficulty, g.Level))
+                .ToList();
+        }
+
+        private static List<Exercise> PplSzures(List<Exercise> gym_gyakorlatok, string[] izom_csoportok, AiGeneraloKeres keres)
+        {
+            return gym_gyakorlatok
+                .Where(g => izom_csoportok.Any(izom => g.MuscleGroup.Equals(izom, StringComparison.OrdinalIgnoreCase)))
+                .Where(g => SzintEgyezik(keres.Difficulty, g.Level))
+                .ToList();
+        }
+
+        private static List<Exercise> PowerliftingSzures(
+            List<Exercise> gym_gyakorlatok,
+            string[] kulcsszavak,
+            string tartalek_izom,
+            AiGeneraloKeres keres)
+        {
+            var fo_gyakorlatok = gym_gyakorlatok
+                .Where(g => kulcsszavak.Any(k => g.Name.Contains(k, StringComparison.OrdinalIgnoreCase)))
+                .Where(g => SzintEgyezik(keres.Difficulty, g.Level))
+                .ToList();
+
+            if (fo_gyakorlatok.Count >= 3)
+            {
+                return fo_gyakorlatok;
+            }
+
+            var kiegeszito = gym_gyakorlatok
+                .Where(g => g.MuscleGroup.Equals(tartalek_izom, StringComparison.OrdinalIgnoreCase))
+                .Where(g => SzintEgyezik(keres.Difficulty, g.Level))
+                .ToList();
+
+            return fo_gyakorlatok
+                .Concat(kiegeszito)
+                .GroupBy(g => g.Id)
+                .Select(csoport => csoport.First())
                 .ToList();
         }
 
@@ -152,21 +257,32 @@ namespace FitnessBackend.Controllers
             var variaciok = new List<Routine>();
             var mar_hasznalt_idk = new HashSet<string>();
             int gyakorlat_szam = GyakorlatSzamNehézségSzerint(keres.Difficulty);
+            var ppl_izomok = PplIzomCsoportok(keres.TargetMuscle);
 
             for (int i = 1; i <= 3; i++)
             {
-                var valasztott_gyakorlatok = szurt_gyakorlatok
-                    .Where(g => !mar_hasznalt_idk.Contains(g.Id))
-                    .OrderBy(_ => Random.Shared.Next())
-                    .Take(gyakorlat_szam)
-                    .ToList();
+                List<Exercise> valasztott_gyakorlatok;
 
-                if (valasztott_gyakorlatok.Count < gyakorlat_szam)
+                if (ppl_izomok != null)
+                {
+                    valasztott_gyakorlatok = KiegyensulyozottValasztas(
+                        szurt_gyakorlatok, ppl_izomok, gyakorlat_szam, mar_hasznalt_idk);
+                }
+                else
                 {
                     valasztott_gyakorlatok = szurt_gyakorlatok
+                        .Where(g => !mar_hasznalt_idk.Contains(g.Id))
                         .OrderBy(_ => Random.Shared.Next())
                         .Take(gyakorlat_szam)
                         .ToList();
+
+                    if (valasztott_gyakorlatok.Count < gyakorlat_szam)
+                    {
+                        valasztott_gyakorlatok = szurt_gyakorlatok
+                            .OrderBy(_ => Random.Shared.Next())
+                            .Take(gyakorlat_szam)
+                            .ToList();
+                    }
                 }
 
                 foreach (var g in valasztott_gyakorlatok)
@@ -178,7 +294,7 @@ namespace FitnessBackend.Controllers
                 {
                     Id = $"AI_TEMP_{Random.Shared.Next(10000, 99999)}_{i}",
                     CreatorName = "AI Edzesterv",
-                    Title = $"AI {keres.TargetMuscle} - Variacio {char.ConvertFromUtf32(64 + i)}",
+                    Title = VariacioCim(keres, i),
                     Difficulty = keres.Difficulty,
                     TargetMuscle = keres.TargetMuscle,
                     SportCategory = keres.SportCategory,
@@ -188,6 +304,74 @@ namespace FitnessBackend.Controllers
             }
 
             return variaciok;
+        }
+
+        private static string[]? PplIzomCsoportok(string target_muscle)
+        {
+            if (target_muscle.Equals("Push", StringComparison.OrdinalIgnoreCase)) return PplPushIzomok;
+            if (target_muscle.Equals("Pull", StringComparison.OrdinalIgnoreCase)) return PplPullIzomok;
+            if (target_muscle.Equals("Legs", StringComparison.OrdinalIgnoreCase)) return PplLegsIzomok;
+            return null;
+        }
+
+        private static List<Exercise> KiegyensulyozottValasztas(
+            List<Exercise> pool,
+            string[] izom_csoportok,
+            int cel_szam,
+            HashSet<string> mar_hasznalt_idk)
+        {
+            var valasztott = new List<Exercise>();
+            int izomonkent = Math.Max(1, cel_szam / izom_csoportok.Length);
+
+            foreach (var izom in izom_csoportok)
+            {
+                var csoportbol = pool
+                    .Where(g => g.MuscleGroup.Equals(izom, StringComparison.OrdinalIgnoreCase))
+                    .Where(g => !mar_hasznalt_idk.Contains(g.Id))
+                    .Where(g => !valasztott.Any(v => v.Id == g.Id))
+                    .OrderBy(_ => Random.Shared.Next())
+                    .Take(izomonkent)
+                    .ToList();
+
+                valasztott.AddRange(csoportbol);
+            }
+
+            while (valasztott.Count < cel_szam)
+            {
+                var extra = pool
+                    .Where(g => !mar_hasznalt_idk.Contains(g.Id))
+                    .Where(g => !valasztott.Any(v => v.Id == g.Id))
+                    .OrderBy(_ => Random.Shared.Next())
+                    .FirstOrDefault();
+
+                if (extra == null) break;
+                valasztott.Add(extra);
+            }
+
+            return valasztott.Take(cel_szam).ToList();
+        }
+
+        private static string VariacioCim(AiGeneraloKeres keres, int sorszam)
+        {
+            string betu = char.ConvertFromUtf32(64 + sorszam);
+
+            if (keres.SportCategory.Equals("yoga", StringComparison.OrdinalIgnoreCase))
+            {
+                return $"AI Yoga - Variacio {betu}";
+            }
+
+            string cimke = keres.TargetMuscle switch
+            {
+                "Push" => "Push",
+                "Pull" => "Pull",
+                "Legs" => "Legs",
+                "Bench" => "Powerlifting Bench",
+                "Squat" => "Powerlifting Squat",
+                "Deadlift" => "Powerlifting Deadlift",
+                _ => keres.TargetMuscle
+            };
+
+            return $"AI {cimke} - Variacio {betu}";
         }
 
         private static Routine SablonOsszeallitasa(

@@ -1,9 +1,8 @@
-import 'dart:io';
-
 import 'package:flutter/services.dart';
 import 'package:health/health.dart';
 
 import '../models/daily_health_data.dart';
+import '../utils/platform_utils.dart';
 
 class AppleHealthService {
   AppleHealthService._();
@@ -14,7 +13,7 @@ class AppleHealthService {
   final Health _health = Health();
   bool _configured = false;
 
-  bool get isSupported => Platform.isIOS;
+  bool get isSupported => isAppleHealthPlatform;
 
   static const _readTypes = [
     HealthDataType.ACTIVE_ENERGY_BURNED,
