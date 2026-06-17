@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../models/beallitas_models.dart';
+import '../../services/apple_health_service.dart';
 import '../../services/beallitasok_service.dart';
 
 // --- Alap detail scaffold ---
@@ -709,6 +710,20 @@ class _IntegraciokScreenState extends State<IntegraciokScreen> {
     if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Integraciok mentve!')));
   }
 
+  Future<void> _appleHealthValtas(bool value) async {
+    setState(() => _appleHealth = value);
+    if (value && AppleHealthService.instance.isSupported) {
+      final granted = await AppleHealthService.instance.requestPermissions();
+      if (!mounted) return;
+      if (!granted) {
+        setState(() => _appleHealth = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Apple Health hozzaferes szukseges.')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return _DetailScaffold(
@@ -718,7 +733,14 @@ class _IntegraciokScreenState extends State<IntegraciokScreen> {
           ? const Center(child: CircularProgressIndicator())
           : ListView(
               children: [
-                SwitchListTile(title: const Text('Apple Health'), value: _appleHealth, onChanged: (v) => setState(() => _appleHealth = v)),
+                SwitchListTile(
+                  title: const Text('Apple Health'),
+                  subtitle: AppleHealthService.instance.isSupported
+                      ? const Text('Aktivitas es kaloria adatok az Apple Fitnessbol')
+                      : const Text('Csak iOS eszkozon erheto el'),
+                  value: _appleHealth,
+                  onChanged: AppleHealthService.instance.isSupported ? _appleHealthValtas : null,
+                ),
                 SwitchListTile(title: const Text('Apple Watch'), value: _appleWatch, onChanged: (v) => setState(() => _appleWatch = v)),
                 SwitchListTile(title: const Text('Google Fit'), value: _googleFit, onChanged: (v) => setState(() => _googleFit = v)),
                 SwitchListTile(title: const Text('Strava'), value: _strava, onChanged: (v) => setState(() => _strava = v)),

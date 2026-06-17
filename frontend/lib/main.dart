@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'screens/settings/settings_screen.dart';
+import 'screens/main_shell.dart';
 
 void main() {
   runApp(const FitnessApp());
@@ -19,7 +19,7 @@ class FitnessApp extends StatelessWidget {
         scaffoldBackgroundColor: Colors.grey.shade50,
         useMaterial3: true,
       ),
-      home: const SettingsScreen(),
+      home: const MainShell(),
     );
   }
 }

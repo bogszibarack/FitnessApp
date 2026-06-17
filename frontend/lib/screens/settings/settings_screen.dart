@@ -179,14 +179,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ],
                   ),
                 ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: 2,
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.home_outlined), label: 'Home'),
-          NavigationDestination(icon: Icon(Icons.fitness_center), label: 'Workout'),
-          NavigationDestination(icon: Icon(Icons.person_outline), label: 'Profil'),
-        ],
-      ),
     );
   }
 }

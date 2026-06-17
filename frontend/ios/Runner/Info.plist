@@ -45,5 +45,9 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSHealthShareUsageDescription</key>
+	<string>Az alkalmazas az Apple Health adatait hasznalja a napi aktivitas es kaloria osszefoglalo megjelenitesehez.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>Az alkalmazas Apple Health adatokat irhat az edzeseid es taplalkozasod rogzitesehez.</string>
 </dict>
 </plist>
