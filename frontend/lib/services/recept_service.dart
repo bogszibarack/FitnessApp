@@ -65,7 +65,10 @@ class ReceptService {
 
   void _ellenorzes(http.Response response) {
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('Recept API hiba (${response.statusCode}): ${response.body}');
+      if (response.statusCode == 429) {
+        throw Exception('429: Túl sok kérés');
+      }
+      throw Exception('Recept API hiba (${response.statusCode})');
     }
   }
 }

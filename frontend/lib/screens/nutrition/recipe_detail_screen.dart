@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../config/api_config.dart';
 import '../../models/nutrition_models.dart';
 import '../../services/nutrition_service.dart';
 import '../../services/recept_service.dart';
@@ -97,7 +98,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
             foregroundColor: Colors.black87,
             flexibleSpace: FlexibleSpaceBar(
               background: r.kepUrl.isNotEmpty
-                  ? Image.network(r.kepUrl, fit: BoxFit.cover,
+                  ? Image.network(ApiConfig.kep(r.kepUrl), fit: BoxFit.cover,
                       errorBuilder: (_, __, ___) => ColoredBox(color: Colors.grey.shade300))
                   : ColoredBox(color: Colors.grey.shade300, child: const Icon(Icons.restaurant, size: 64)),
             ),
@@ -111,7 +112,11 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                   Text(r.nev, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
                   const SizedBox(height: 6),
                   Text(
-                    '${r.kategoria} · ${r.szarmazasiTerulet} · ~${r.becsultKaloria} kcal/adag',
+                    [
+                      r.kategoria,
+                      if (r.szarmazasiTerulet.isNotEmpty) r.szarmazasiTerulet,
+                      '~${r.becsultKaloria} kcal/adag',
+                    ].join(' · '),
                     style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
                   ),
                   if (r.yazioCimkek.isNotEmpty) ...[

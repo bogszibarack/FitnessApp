@@ -38,8 +38,9 @@ namespace FitnessBackend.Models
         public string Id { get; set; } = "";
         public string Nev { get; set; } = "";
         public string Ikon { get; set; } = "";
-        public string SzuresTipus { get; set; } = "mealdb_kategoria";
-        public string MealDbKategoria { get; set; } = "";
+
+        // Spoonacular complexSearch query-fragment, pl. "diet=vegan&maxCarbs=25"
+        public string SpoonParam { get; set; } = "";
     }
 
     public class KaloriaTartomany
@@ -52,5 +53,13 @@ namespace FitnessBackend.Models
     public static class ReceptTarolo
     {
         public static List<ReceptListaElem> KedvencReceptek { get; } = new List<ReceptListaElem>();
+    }
+
+    // Recept hozzáadása a naplóhoz (Yazio: recept → napló)
+    public class ReceptNaplobaKeres
+    {
+        public string ReceptId { get; set; } = "";
+        public double AdagSzam { get; set; } = 1;
+        public string EtkezesTipus { get; set; } = "reggeli";
     }
 }

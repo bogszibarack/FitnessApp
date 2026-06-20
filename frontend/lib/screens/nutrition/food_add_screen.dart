@@ -2,9 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../config/api_config.dart';
 import '../../models/nutrition_models.dart';
 import '../../services/nutrition_service.dart';
 import '../../widgets/nutrition_diary_widgets.dart';
+import 'barcode_scan_screen.dart';
 import 'recipes_screen.dart';
 
 /// Étel keresés és hozzáadás étkezéshez (Open Food Facts API).
@@ -98,6 +100,19 @@ class _FoodAddScreenState extends State<FoodAddScreen> {
     if (friss == true && mounted) Navigator.of(context).pop(true);
   }
 
+  Future<void> _vonalkod() async {
+    final etel = await Navigator.of(context).push<FoodItemModel>(
+      MaterialPageRoute(builder: (_) => const BarcodeScanScreen()),
+    );
+    if (etel != null && mounted) {
+      setState(() {
+        _talalatok = [etel, ..._talalatok.where((e) => e.id != etel.id)];
+        _kivalasztottId = etel.id;
+        _gramm = 100;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -108,6 +123,11 @@ class _FoodAddScreenState extends State<FoodAddScreen> {
         foregroundColor: Colors.black87,
         elevation: 0.5,
         actions: [
+          IconButton(
+            onPressed: _vonalkod,
+            icon: const Icon(Icons.qr_code_scanner),
+            tooltip: 'Vonalkód beolvasása',
+          ),
           TextButton.icon(
             onPressed: _receptek,
             icon: const Icon(Icons.menu_book_outlined, size: 18),
@@ -168,7 +188,7 @@ class _FoodAddScreenState extends State<FoodAddScreen> {
                       ClipRRect(
                         borderRadius: BorderRadius.circular(8),
                         child: Image.network(
-                          etel.imageUrl,
+                          ApiConfig.kep(etel.imageUrl),
                           width: 52,
                           height: 52,
                           fit: BoxFit.cover,

@@ -22,6 +22,15 @@ class NutritionService {
     return lista.map((e) => FoodItemModel.fromJson(e as Map<String, dynamic>)).toList();
   }
 
+  /// Termék lekérése vonalkód alapján (Open Food Facts a backenden át).
+  Future<FoodItemModel> vonalkodKereses(String vonalkod) async {
+    final response = await http
+        .get(Uri.parse('$_base/api/nutrition/vonalkod/$vonalkod'))
+        .timeout(const Duration(seconds: 20));
+    _ellenorzes(response);
+    return FoodItemModel.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
+  }
+
   Future<DailyNutritionModel> maiNaplo() async {
     final response = await http.get(Uri.parse('$_base/api/nutrition/mai-naplo')).timeout(const Duration(seconds: 10));
     _ellenorzes(response);
