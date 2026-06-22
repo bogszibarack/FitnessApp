@@ -52,6 +52,8 @@ class LoggedSetModel {
         'celIsmetles': celIsmetles,
         'rpe': rpe,
         'elvegezve': elvegezve,
+        'elozoSulyKg': elozoSulyKg,
+        'elozoIsmetles': elozoIsmetles,
       };
 
   LoggedSetModel copyWith({

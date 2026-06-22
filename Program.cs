@@ -14,10 +14,16 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// Spoonacular API kulcs betöltése: appsettings.json (Spoonacular:ApiKey) vagy SPOONACULAR_API_KEY env változó
+// Spoonacular API kulcs (receptekhez)
 FitnessBackend.Models.SpoonacularConfig.ApiKey =
     builder.Configuration["Spoonacular:ApiKey"]
     ?? Environment.GetEnvironmentVariable("SPOONACULAR_API_KEY")
+    ?? "";
+
+// USDA FoodData Central API kulcs (étel kereséshez — ingyenes, korlátlan)
+FitnessBackend.Models.UsdaConfig.ApiKey =
+    builder.Configuration["Usda:ApiKey"]
+    ?? Environment.GetEnvironmentVariable("USDA_API_KEY")
     ?? "";
 
 var szelfi_mappa = Path.Combine(app.Environment.WebRootPath, "uploads", "selfies");

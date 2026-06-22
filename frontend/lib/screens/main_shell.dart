@@ -14,24 +14,32 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int _selectedIndex = 0;
-
-  static const _screens = <Widget>[
-    HomeScreen(),
-    NaploScreen(),
-    WorkoutScreen(),
-    SettingsScreen(),
-  ];
+  // Home tab verzió — ha növekszik, a HomeScreen újratölti az adatait
+  int _homeVersion = 0;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: IndexedStack(
         index: _selectedIndex,
-        children: _screens,
+        children: [
+          HomeScreen(key: ValueKey(_homeVersion)),
+          const NaploScreen(),
+          const WorkoutScreen(),
+          const SettingsScreen(),
+        ],
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
-        onDestinationSelected: (index) => setState(() => _selectedIndex = index),
+        onDestinationSelected: (index) {
+          setState(() {
+            // Ha vissza navigálunk a Home tabra, frissítjük az adatokat
+            if (index == 0 && _selectedIndex != 0) {
+              _homeVersion++;
+            }
+            _selectedIndex = index;
+          });
+        },
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.home_outlined),

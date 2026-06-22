@@ -78,13 +78,13 @@ namespace FitnessBackend.Models
                 {
                     SetNumber = sorozat.SetNumber,
                     Bemelegites = sorozat.Bemelegites,
-                    Weight = 0,
-                    Reps = 0,
-                    CelIsmetles = SorozatCelMeghatarozasa(sorozat),
+                    Weight = sorozat.Weight,
+                    Reps = sorozat.Reps,
+                    CelIsmetles = sorozat.CelIsmetles.Length > 0 ? sorozat.CelIsmetles : SorozatCelMeghatarozasa(sorozat),
                     Rpe = 0,
                     Elvegezve = false,
-                    ElozoSulyKg = sorozat.Elvegezve ? sorozat.Weight : sorozat.ElozoSulyKg,
-                    ElozoIsmetles = sorozat.Elvegezve ? sorozat.Reps : sorozat.ElozoIsmetles
+                    ElozoSulyKg = sorozat.ElozoSulyKg,
+                    ElozoIsmetles = sorozat.ElozoIsmetles
                 }).ToList()
             }).ToList();
         }

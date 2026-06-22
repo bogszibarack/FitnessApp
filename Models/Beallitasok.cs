@@ -359,55 +359,54 @@ namespace FitnessBackend.Models
             {
                 new()
                 {
-                    Cim = "Fiok",
+                    Cim = "Fiókom",
                     Elemek = new List<BeallitasMenuElem>
                     {
-                        new() { Id = "profil", Cimke = "Profil", Ikon = "user", ApiUt = $"{api_alap}/profil" },
-                        new() { Id = "fiok", Cimke = "Fiok", Ikon = "lock", ApiUt = $"{api_alap}/fiok" },
-                        new() { Id = "tagsag", Cimke = "Tagsag kezelese", Ikon = "pro", ApiUt = $"{api_alap}/tagsag", ProFunkcio = true },
-                        new() { Id = "ertesitesek", Cimke = "Ertesitesek", Ikon = "bell", ApiUt = $"{api_alap}/ertesitesek" }
+                        new() { Id = "profil",       Cimke = "Profil",         Ikon = "user",  ApiUt = $"{api_alap}/profil" },
+                        new() { Id = "fiok",         Cimke = "Fiók",           Ikon = "lock",  ApiUt = $"{api_alap}/fiok" },
+                        new() { Id = "ertesitesek",  Cimke = "Értesítések",    Ikon = "bell",  ApiUt = $"{api_alap}/ertesitesek" }
                     }
                 },
                 new()
                 {
-                    Cim = "Preferenciak",
+                    Cim = "Preferenciák",
                     Elemek = new List<BeallitasMenuElem>
                     {
-                        new() { Id = "edzes", Cimke = "Edzesek", Ikon = "dumbbell", ApiUt = $"{api_alap}/edzes" },
-                        new() { Id = "privat-szocial", Cimke = "Privat es kozosseg", Ikon = "shield", ApiUt = $"{api_alap}/privat-szocial" },
-                        new() { Id = "egyseg", Cimke = "Mertekegysegek", Ikon = "ruler", ApiUt = $"{api_alap}/egyseg" },
-                        new() { Id = "nyelv", Cimke = "Nyelv", Ikon = "flag", ApiUt = $"{api_alap}/nyelv" },
-                        new() { Id = "integraciok", Cimke = "Apple Health", Ikon = "heart", ApiUt = $"{api_alap}/integraciok" }
+                        new() { Id = "edzes",           Cimke = "Edzések",               Ikon = "dumbbell", ApiUt = $"{api_alap}/edzes" },
+                        new() { Id = "privat-szocial",  Cimke = "Adatvédelem & közösség", Ikon = "shield",   ApiUt = $"{api_alap}/privat-szocial" },
+                        new() { Id = "egyseg",          Cimke = "Mértékegységek",         Ikon = "ruler",    ApiUt = $"{api_alap}/egyseg" },
+                        new() { Id = "nyelv",           Cimke = "Nyelv",                  Ikon = "flag",     ApiUt = $"{api_alap}/nyelv" },
+                        new() { Id = "integraciok",     Cimke = "Apple Health",           Ikon = "heart",    ApiUt = $"{api_alap}/integraciok" }
                     }
                 },
                 new()
                 {
-                    Cim = "Eszkozok es megjelenes",
+                    Cim = "Eszközök és megjelenés",
                     Elemek = new List<BeallitasMenuElem>
                     {
-                        new() { Id = "integraciok-watch", Cimke = "Apple Watch", Ikon = "watch", ApiUt = $"{api_alap}/integraciok" },
-                        new() { Id = "integraciok-all", Cimke = "Integraciok", Ikon = "link", ApiUt = $"{api_alap}/integraciok" },
-                        new() { Id = "tema", Cimke = "Tema", Ikon = "moon", ApiUt = $"{api_alap}/tema" },
-                        new() { Id = "export-import", Cimke = "Export es import", Ikon = "export", ApiUt = $"{api_alap}/export" }
+                        new() { Id = "integraciok-watch", Cimke = "Apple Watch",    Ikon = "watch",  ApiUt = $"{api_alap}/integraciok" },
+                        new() { Id = "integraciok-all",   Cimke = "Integrációk",    Ikon = "link",   ApiUt = $"{api_alap}/integraciok" },
+                        new() { Id = "tema",              Cimke = "Megjelenés",     Ikon = "moon",   ApiUt = $"{api_alap}/tema" },
+                        new() { Id = "export-import",     Cimke = "Export és import", Ikon = "export", ApiUt = $"{api_alap}/export" }
                     }
                 },
                 new()
                 {
-                    Cim = "Utmutatok",
+                    Cim = "Útmutatók",
                     Elemek = new List<BeallitasMenuElem>
                     {
-                        new() { Id = "utmutato-kezdes", Cimke = "Kezdo utmutato", Ikon = "info", ApiUt = "/api/beallitasok/utmutatok/kezdes" },
-                        new() { Id = "utmutato-rutin", Cimke = "Rutin segitseg", Ikon = "clipboard", ApiUt = "/api/beallitasok/utmutatok/rutin" }
+                        new() { Id = "utmutato-kezdes", Cimke = "Kezdő útmutató", Ikon = "info",      ApiUt = "/api/beallitasok/utmutatok/kezdes" },
+                        new() { Id = "utmutato-rutin",  Cimke = "Rutin segítség", Ikon = "clipboard", ApiUt = "/api/beallitasok/utmutatok/rutin" }
                     }
                 },
                 new()
                 {
-                    Cim = "Segitseg",
+                    Cim = "Segítség",
                     Elemek = new List<BeallitasMenuElem>
                     {
-                        new() { Id = "gyik", Cimke = "Gyakori kerdesek", Ikon = "help", ApiUt = "/api/beallitasok/gyik" },
-                        new() { Id = "kapcsolat", Cimke = "Kapcsolat", Ikon = "mail", ApiUt = "/api/beallitasok/kapcsolat" },
-                        new() { Id = "rolunk", Cimke = "Rolunk", Ikon = "logo", ApiUt = "/api/beallitasok/rolunk" }
+                        new() { Id = "gyik",      Cimke = "Gyakori kérdések", Ikon = "help", ApiUt = "/api/beallitasok/gyik" },
+                        new() { Id = "kapcsolat", Cimke = "Kapcsolat",        Ikon = "mail", ApiUt = "/api/beallitasok/kapcsolat" },
+                        new() { Id = "rolunk",    Cimke = "Névjegy",          Ikon = "logo", ApiUt = "/api/beallitasok/rolunk" }
                     }
                 }
             };

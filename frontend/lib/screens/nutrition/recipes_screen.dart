@@ -2,10 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../../config/api_config.dart';
 import '../../models/nutrition_models.dart';
 import '../../services/recept_service.dart';
-import '../../widgets/nutrition_diary_widgets.dart';
 import '../../widgets/recipe_filter_widgets.dart';
 import 'recipe_detail_screen.dart';
 
@@ -377,7 +375,35 @@ class _RecipesScreenState extends State<RecipesScreen> {
     );
   }
 
+  // Kártya szín + ikon a recept neve alapján (determinisztikus)
+  static const _szinek = [
+    [Color(0xFF2ECC71), Color(0xFF27AE60)],
+    [Color(0xFF3498DB), Color(0xFF2980B9)],
+    [Color(0xFFE67E22), Color(0xFFD35400)],
+    [Color(0xFF9B59B6), Color(0xFF8E44AD)],
+    [Color(0xFFE74C3C), Color(0xFFC0392B)],
+    [Color(0xFF1ABC9C), Color(0xFF16A085)],
+    [Color(0xFFF39C12), Color(0xFFD68910)],
+    [Color(0xFF2C3E50), Color(0xFF34495E)],
+  ];
+
+  static const _ikonok = [
+    Icons.restaurant_menu,
+    Icons.local_dining,
+    Icons.set_meal,
+    Icons.rice_bowl,
+    Icons.outdoor_grill,
+    Icons.emoji_food_beverage,
+    Icons.soup_kitchen,
+    Icons.bakery_dining,
+  ];
+
   Widget _receptKartya(ReceptListaElemModel r) {
+    final idx = r.nev.hashCode.abs() % _szinek.length;
+    final szinpair = _szinek[idx];
+    final kcal = r.becsultKaloria;
+    final vanKep = r.kepUrl.isNotEmpty;
+
     return InkWell(
       onTap: () => _receptMegnyitas(r),
       borderRadius: BorderRadius.circular(16),
@@ -386,48 +412,52 @@ class _RecipesScreenState extends State<RecipesScreen> {
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
-            BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 8, offset: const Offset(0, 2)),
+            BoxShadow(color: Colors.black.withValues(alpha: 0.07), blurRadius: 10, offset: const Offset(0, 3)),
           ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Expanded(
-              flex: 3,
-              child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
-                child: r.kepUrl.isNotEmpty
+            // Kép vagy gradiens fejléc
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              child: SizedBox(
+                height: 90,
+                child: vanKep
                     ? Image.network(
-                        ApiConfig.kep(r.kepUrl),
+                        r.kepUrl,
                         fit: BoxFit.cover,
-                        loadingBuilder: (context, child, progress) =>
-                            progress == null ? child : _kepHelyettes(),
-                        errorBuilder: (_, __, ___) => _kepHelyettes(),
+                        loadingBuilder: (_, child, progress) =>
+                            progress == null ? child : _gradiensHatter(szinpair, kcal),
+                        errorBuilder: (_, __, ___) => _gradiensHatter(szinpair, kcal),
                       )
-                    : _kepHelyettes(),
+                    : _gradiensHatter(szinpair, kcal),
               ),
             ),
+            // Recept neve + makrók
             Expanded(
-              flex: 4,
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      r.nev,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, height: 1.2),
+                    Expanded(
+                      child: Text(
+                        r.nev,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5, height: 1.25),
+                      ),
                     ),
-                    const SizedBox(height: 6),
-                    const MakroFejlec(cim: ''),
-                    MakroErtekSor(
-                      kcal: r.becsultKaloria.toDouble(),
-                      feherje: r.becsultFeherje,
-                      szenhidrat: r.becsultSzenhidrat,
-                      zsir: r.becsultZsir,
-                      balOszlop: false,
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        _makroPill('F', r.becsultFeherje.toStringAsFixed(0), const Color(0xFF3498DB)),
+                        const SizedBox(width: 4),
+                        _makroPill('Sz', r.becsultSzenhidrat.toStringAsFixed(0), const Color(0xFFE67E22)),
+                        const SizedBox(width: 4),
+                        _makroPill('Zs', r.becsultZsir.toStringAsFixed(0), const Color(0xFF9B59B6)),
+                      ],
                     ),
                   ],
                 ),
@@ -439,10 +469,38 @@ class _RecipesScreenState extends State<RecipesScreen> {
     );
   }
 
-  Widget _kepHelyettes() {
-    return ColoredBox(
-      color: const Color(0xFFE8F5E9),
-      child: Center(child: Icon(Icons.restaurant_menu, size: 36, color: Colors.green.shade300)),
+  Widget _gradiensHatter(List<Color> szinek, int kcal) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(colors: szinek, begin: Alignment.topLeft, end: Alignment.bottomRight),
+      ),
+      child: Align(
+        alignment: Alignment.bottomLeft,
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: Row(
+            children: [
+              const Icon(Icons.local_fire_department, size: 13, color: Colors.white70),
+              const SizedBox(width: 2),
+              Text('$kcal kcal', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _makroPill(String cimke, String ertek, Color szin) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+      decoration: BoxDecoration(
+        color: szin.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        '$cimke $ertek g',
+        style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: szin),
+      ),
     );
   }
 }

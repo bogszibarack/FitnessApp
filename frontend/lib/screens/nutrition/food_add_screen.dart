@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../../config/api_config.dart';
 import '../../models/nutrition_models.dart';
 import '../../services/nutrition_service.dart';
 import '../../widgets/nutrition_diary_widgets.dart';
@@ -184,19 +183,7 @@ class _FoodAddScreenState extends State<FoodAddScreen> {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (etel.imageUrl.isNotEmpty)
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.network(
-                          ApiConfig.kep(etel.imageUrl),
-                          width: 52,
-                          height: 52,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, e, st) => _kepPlaceholder(),
-                        ),
-                      )
-                    else
-                      _kepPlaceholder(),
+                    _etelIkon(etel),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
@@ -292,12 +279,44 @@ class _FoodAddScreenState extends State<FoodAddScreen> {
     );
   }
 
-  Widget _kepPlaceholder() {
+  Widget _etelIkon(FoodItemModel etel) {
+    // Ikon + szín a makrók alapján
+    final kcal = etel.calories;
+    Color szin;
+    IconData ikon;
+    if (etel.protein > etel.carbs && etel.protein > etel.fat) {
+      szin = const Color(0xFF3498DB);
+      ikon = Icons.fitness_center;
+    } else if (etel.fat > etel.carbs) {
+      szin = const Color(0xFF9B59B6);
+      ikon = Icons.opacity;
+    } else if (kcal < 100) {
+      szin = const Color(0xFF2ECC71);
+      ikon = Icons.eco;
+    } else {
+      szin = const Color(0xFFE67E22);
+      ikon = Icons.grain;
+    }
+
     return Container(
       width: 52,
       height: 52,
-      decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
-      child: Icon(Icons.fastfood, color: Colors.grey.shade400),
+      decoration: BoxDecoration(
+        color: szin.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(ikon, color: szin, size: 20),
+          const SizedBox(height: 2),
+          Text(
+            '${kcal.round()}',
+            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: szin),
+          ),
+          Text('kcal', style: TextStyle(fontSize: 8, color: szin.withValues(alpha: 0.7))),
+        ],
+      ),
     );
   }
 }

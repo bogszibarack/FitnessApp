@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../config/api_config.dart';
 import '../../models/routine_model.dart';
@@ -20,10 +21,13 @@ class WorkoutScreen extends StatefulWidget {
 class _WorkoutScreenState extends State<WorkoutScreen> {
   static const _proYellow = Color(0xFFFFD60A);
 
+  static const _progresszioPrefKey = 'utolso_progresszio';
+
   final _service = WorkoutService.instance;
   List<RoutineModel> _aiRutinok = [];
   List<RoutineModel> _sajatRutinok = [];
   List<WorkoutSessionModel> _befejezettEdzesek = [];
+  double _progresszio = 5.0;
   bool _betolt = true;
   bool _hiba = false;
   bool _aiNyitva = true;
@@ -42,6 +46,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
       _hiba = false;
     });
     try {
+      final prefs = await SharedPreferences.getInstance();
       final eredmenyek = await Future.wait([
         _service.aiAjanlatok(targetMuscle: 'Chest'),
         _service.sajatRutinok(),
@@ -49,6 +54,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
       ]);
       if (!mounted) return;
       setState(() {
+        _progresszio = (prefs.getDouble(_progresszioPrefKey) ?? 5.0).clamp(0.0, 20.0);
         _aiRutinok = eredmenyek[0] as List<RoutineModel>;
         _sajatRutinok = eredmenyek[1] as List<RoutineModel>;
         _befejezettEdzesek = eredmenyek[2] as List<WorkoutSessionModel>;
@@ -169,6 +175,75 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     ).then((_) => _betoltes());
   }
 
+  Future<void> _kovetkezoEdzesInditasa(WorkoutSessionModel forras) async {
+    if (!await _kezelFutoEdzest()) return;
+    try {
+      final szorzo = 1 + _progresszio / 100;
+
+      // Az elvégzett sorozatok progressziós változata
+      final modositottGyakorlatok = forras.exercises.map((gy) {
+        final modositottSorozatok = gy.sets
+            .where((s) => s.elvegezve)
+            .toList()
+            .asMap()
+            .entries
+            .map((e) => e.value.copyWith(
+                  setNumber: e.key + 1,
+                  weight: double.parse(
+                      (e.value.weight * szorzo).toStringAsFixed(1)),
+                  reps: e.value.reps,
+                  elvegezve: false,
+                  celIsmetles: '${e.value.reps}',
+                  elozoSulyKg: e.value.weight,
+                  elozoIsmetles: e.value.reps,
+                ))
+            .toList();
+        if (modositottSorozatok.isEmpty) return null;
+        return LoggedExerciseModel(
+          exerciseId: gy.exerciseId,
+          exerciseName: gy.exerciseName,
+          sets: modositottSorozatok,
+        );
+      }).whereType<LoggedExerciseModel>().toList();
+
+      if (modositottGyakorlatok.isEmpty) {
+        _uzenet('Nincs elvégzett sorozat ebben az edzésben.', hiba: true);
+        return;
+      }
+
+      // A cím NEM tartalmazza a % jelzést (a forrásnév alapján)
+      final alapNev = forras.megjelenitettCim
+          .replaceAll(RegExp(r'\s*\+[\d.]+%'), '');
+      final progresszioCimke = _progresszio == 0
+          ? alapNev
+          : '$alapNev +${_progresszio.toStringAsFixed(1)}%';
+
+      // 1. Indítjuk az edzést a gyakorlatlistával
+      final rutin = RoutineModel(
+        id: '',
+        title: progresszioCimke,
+        difficulty: 'intermediate',
+        targetMuscle: 'Full Body',
+        sportCategory: 'gym',
+        exerciseIds: modositottGyakorlatok.map((e) => e.exerciseId).toList(),
+        exerciseNames: modositottGyakorlatok.map((e) => e.exerciseName).toList(),
+        gyakorlatSablonok: modositottGyakorlatok,
+      );
+      await _service.rutinInditasa(rutin, mentett: false);
+
+      // 2. Azonnali sorozat-frissítés: a backend esetleg 0-ra reset-eli a súlyt,
+      //    ezért explicit elküldjük a helyes értékeket minden gyakorlathoz
+      for (final gy in modositottGyakorlatok) {
+        await _service.sorozatokFrissitese(gy.exerciseId, gy.sets);
+      }
+
+      if (!mounted) return;
+      _nyissonAktivEdzest(progresszioCimke);
+    } catch (e) {
+      _uzenet('$e', hiba: true);
+    }
+  }
+
   void _uzenet(String szoveg, {bool hiba = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -200,6 +275,8 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
               else if (_hiba)
                 SliverFillRemaining(hasScrollBody: false, child: _buildHiba())
               else ...[
+                if (_befejezettEdzesek.isNotEmpty)
+                  _buildKovetkezoEdzesSliver(),
                 _buildAiSliver(),
                 SliverToBoxAdapter(child: _buildMenteseimFejlec()),
                 _buildSajatRutinokSliver(),
@@ -334,6 +411,64 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
             FilledButton(onPressed: _betoltes, child: const Text('Újra')),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildKovetkezoEdzesSliver() {
+    final legutobbiEdzesek = _befejezettEdzesek.take(3).toList();
+    return SliverToBoxAdapter(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 10),
+            child: Row(
+              children: [
+                const Text('🚀', style: TextStyle(fontSize: 18)),
+                const SizedBox(width: 8),
+                const Text(
+                  'Következő edzés',
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Colors.black87),
+                ),
+                const SizedBox(width: 10),
+                if (_progresszio > 0)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF00BFA5).withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '+${_progresszio.toStringAsFixed(1)}%',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF00897B),
+                      ),
+                    ),
+                  )
+                else
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Text(
+                      'Pihenő',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.blue),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          ...legutobbiEdzesek.map((edzes) => _KovetkezoEdzesKartya(
+                edzes: edzes,
+                progresszio: _progresszio,
+                onInditas: () => _kovetkezoEdzesInditasa(edzes),
+              )),
+        ],
       ),
     );
   }
@@ -622,6 +757,236 @@ class _RutinKartya extends StatelessWidget {
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+class _KovetkezoEdzesKartya extends StatelessWidget {
+  const _KovetkezoEdzesKartya({
+    required this.edzes,
+    required this.progresszio,
+    required this.onInditas,
+  });
+
+  final WorkoutSessionModel edzes;
+  final double progresszio;
+  final VoidCallback onInditas;
+
+  static const _teal = Color(0xFF00897B);
+  static const _tealLight = Color(0xFF00BFA5);
+
+  @override
+  Widget build(BuildContext context) {
+    final szorzo = 1 + progresszio / 100;
+    final elvegzettGyakorlatok = edzes.exercises
+        .where((gy) => gy.sets.any((s) => s.elvegezve))
+        .toList();
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF0F2027), Color(0xFF1A3A35)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: _teal.withValues(alpha: 0.35)),
+        boxShadow: [
+          BoxShadow(
+            color: _teal.withValues(alpha: 0.15),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Fejléc
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        edzes.megjelenitettCim,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        edzes.datumSzoveg,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.white.withValues(alpha: 0.45),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Progresszió badge
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: progresszio > 0
+                        ? _tealLight.withValues(alpha: 0.2)
+                        : Colors.blue.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: progresszio > 0
+                          ? _tealLight.withValues(alpha: 0.5)
+                          : Colors.blue.withValues(alpha: 0.4),
+                    ),
+                  ),
+                  child: Text(
+                    progresszio > 0
+                        ? '+${progresszio.toStringAsFixed(1)}%'
+                        : 'Pihenő',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      color: progresszio > 0 ? _tealLight : Colors.lightBlueAccent,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+
+            // Gyakorlatok listája módosított súlyokkal
+            if (elvegzettGyakorlatok.isNotEmpty) ...[
+              ...elvegzettGyakorlatok.take(4).map((gy) {
+                final elvegzettSorozatok = gy.sets.where((s) => s.elvegezve).toList();
+                final maxSulyRegi = elvegzettSorozatok
+                    .map((s) => s.weight)
+                    .fold(0.0, (a, b) => a > b ? a : b);
+                final maxSulyUj = maxSulyRegi * szorzo;
+                final sorozatSzam = elvegzettSorozatok.length;
+
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 7),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 4,
+                        height: 4,
+                        margin: const EdgeInsets.only(right: 8, top: 1),
+                        decoration: BoxDecoration(
+                          color: _tealLight.withValues(alpha: 0.7),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      Expanded(
+                        child: Text(
+                          gy.exerciseName,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.white.withValues(alpha: 0.8),
+                            fontWeight: FontWeight.w500,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      if (maxSulyRegi > 0)
+                        Row(
+                          children: [
+                            Text(
+                              '${maxSulyRegi.toStringAsFixed(maxSulyRegi == maxSulyRegi.roundToDouble() ? 0 : 1)} kg',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.white.withValues(alpha: 0.35),
+                                decoration: progresszio > 0 ? TextDecoration.lineThrough : null,
+                              ),
+                            ),
+                            if (progresszio > 0) ...[
+                              const Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 4),
+                                child: Icon(Icons.arrow_forward_rounded, size: 12, color: Color(0xFF00BFA5)),
+                              ),
+                              Text(
+                                '${maxSulyUj.toStringAsFixed(maxSulyUj == maxSulyUj.roundToDouble() ? 0 : 1)} kg',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: _tealLight,
+                                ),
+                              ),
+                            ],
+                            const SizedBox(width: 6),
+                            Text(
+                              '× $sorozatSzam',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.white.withValues(alpha: 0.3),
+                              ),
+                            ),
+                          ],
+                        )
+                      else
+                        Text(
+                          '$sorozatSzam sorozat',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.white.withValues(alpha: 0.4),
+                          ),
+                        ),
+                    ],
+                  ),
+                );
+              }),
+              if (elvegzettGyakorlatok.length > 4)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8, left: 12),
+                  child: Text(
+                    '+ ${elvegzettGyakorlatok.length - 4} további gyakorlat',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.white.withValues(alpha: 0.35),
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 10),
+            ],
+
+            // Indítás gomb
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: onInditas,
+                style: FilledButton.styleFrom(
+                  backgroundColor: _teal,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.play_arrow_rounded, size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      progresszio > 0
+                          ? 'Indítás +${progresszio.toStringAsFixed(1)}% súllyal'
+                          : 'Indítás (változatlan súlyok)',
+                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -3,9 +3,8 @@ import 'package:intl/intl.dart';
 
 import '../../models/daily_health_data.dart';
 import '../../models/nutrition_models.dart';
-import '../../services/apple_health_service.dart';
 import '../../services/home_service.dart';
-import '../../utils/platform_utils.dart';
+import '../../services/streak_service.dart';
 import '../../widgets/health_data_panel.dart';
 import '../../widgets/nutrition_diary_widgets.dart';
 import 'food_add_screen.dart';
@@ -24,18 +23,24 @@ class _NaploScreenState extends State<NaploScreen> {
   static const _accentGreen = Color(0xFF34C759);
 
   final _homeService = HomeService.instance;
-  final _healthService = AppleHealthService.instance;
+  final _streakService = StreakService.instance;
   DailyHealthData _data = DailyHealthData.empty();
   DailyNutritionModel? _naplo;
   bool _loading = true;
-  bool _permissionNeeded = false;
   String? _error;
   String _dataSource = '';
+  int _streak = 0;
 
   @override
   void initState() {
     super.initState();
     _loadData();
+    _loadStreak();
+  }
+
+  Future<void> _loadStreak() async {
+    final s = await _streakService.getStreak();
+    if (mounted) setState(() => _streak = s);
   }
 
   Future<void> _loadData() async {
@@ -50,7 +55,6 @@ class _NaploScreenState extends State<NaploScreen> {
       setState(() {
         _data = result.data;
         _naplo = result.naplo;
-        _permissionNeeded = result.permissionNeeded;
         _dataSource = result.source;
         _loading = false;
       });
@@ -62,18 +66,6 @@ class _NaploScreenState extends State<NaploScreen> {
         _error = e.toString();
         _loading = false;
       });
-    }
-  }
-
-  Future<void> _connectAppleHealth() async {
-    final granted = await _healthService.requestPermissions();
-    if (!mounted) return;
-    if (granted) {
-      await _loadData();
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Apple Health hozzáférés megtagadva.')),
-      );
     }
   }
 
@@ -95,7 +87,11 @@ class _NaploScreenState extends State<NaploScreen> {
     final friss = await Navigator.of(context).push<bool>(
       MaterialPageRoute(builder: (_) => FoodAddScreen(etkezesTipus: tipus)),
     );
-    if (friss == true) await _loadData();
+    if (friss == true) {
+      final ujStreak = await _streakService.onFoodLogged();
+      if (mounted) setState(() => _streak = ujStreak);
+      await _loadData();
+    }
   }
 
   Future<void> _receptek() async {
@@ -135,14 +131,6 @@ class _NaploScreenState extends State<NaploScreen> {
                         _napRovid(),
                         style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w800, color: Colors.black87),
                       ),
-                      if (_permissionNeeded) ...[
-                        const SizedBox(height: 16),
-                        _buildHealthPermissionCard(),
-                      ],
-                      if (!_loading && !isAppleHealthPlatform) ...[
-                        const SizedBox(height: 12),
-                        _buildPlatformInfoCard(),
-                      ],
                       if (_error != null) ...[
                         const SizedBox(height: 12),
                         _buildErrorBanner(),
@@ -236,48 +224,6 @@ class _NaploScreenState extends State<NaploScreen> {
     );
   }
 
-  Widget _buildHealthPermissionCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _accentGreen.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _accentGreen.withValues(alpha: 0.3)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('Apple Health', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-          const SizedBox(height: 8),
-          const Text('Engedélyezd a lépések és elégetett kalória megjelenítéséhez.', style: TextStyle(fontSize: 13, height: 1.4)),
-          const SizedBox(height: 12),
-          FilledButton(
-            onPressed: _connectAppleHealth,
-            style: FilledButton.styleFrom(backgroundColor: _accentGreen),
-            child: const Text('Engedély megadása'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPlatformInfoCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Text(
-        'A táplálkozás a backendről jön. Mozgás: ${isAppleHealthPlatform ? "Apple Health" : "demo (0)"}.',
-        style: TextStyle(fontSize: 12, color: Colors.grey.shade700, height: 1.4),
-      ),
-    );
-  }
-
   Widget _buildErrorBanner() {
     return Container(
       width: double.infinity,
@@ -301,24 +247,37 @@ class _NaploScreenState extends State<NaploScreen> {
   Widget _buildTopBar() {
     return Row(
       children: [
-        _buildStatChip(Icons.diamond_outlined, '20', Colors.blue.shade400),
-        const SizedBox(width: 12),
-        _buildStatChip(Icons.local_fire_department_outlined, '${_data.caloriesBurned}', Colors.grey.shade600),
+        _buildStreakChip(),
         const Spacer(),
         IconButton(onPressed: _loadData, icon: const Icon(Icons.refresh), color: Colors.black87),
-        IconButton(onPressed: () {}, icon: const Icon(Icons.calendar_today_outlined), color: Colors.black87),
       ],
     );
   }
 
-  Widget _buildStatChip(IconData icon, String value, Color color) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 20, color: color),
-        const SizedBox(width: 4),
-        Text(value, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
-      ],
+  Widget _buildStreakChip() {
+    final color = _streak > 0 ? const Color(0xFFFF6D00) : Colors.grey.shade400;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: _streak > 0 ? const Color(0xFFFFF3E0) : Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _streak > 0 ? const Color(0xFFFF9800) : Colors.grey.shade300),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            _streak > 0 ? Icons.local_fire_department : Icons.local_fire_department_outlined,
+            size: 18,
+            color: color,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            '$_streak nap',
+            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: color),
+          ),
+        ],
+      ),
     );
   }
 

@@ -37,7 +37,7 @@ class HealthDataPanel extends StatelessWidget {
     return Row(
       children: [
         const Text(
-          'Mai mozgas',
+          'Mai mozgás',
           style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Colors.black87),
         ),
         const Spacer(),
@@ -85,28 +85,28 @@ class HealthDataPanel extends StatelessWidget {
       children: [
         _MetricTile(
           icon: Icons.directions_walk_rounded,
-          label: 'Lepes',
+          label: 'Lépés',
           value: formatNumber(data.steps),
-          unit: 'lepes',
+          unit: 'lépés',
           color: const Color(0xFF7C4DFF),
         ),
         _MetricTile(
           icon: Icons.route_rounded,
-          label: 'Tavolsag',
+          label: 'Távolság',
           value: formatDistance(data.distanceKm).replaceAll(' KM', ''),
           unit: 'km',
           color: _primary,
         ),
         _MetricTile(
           icon: Icons.local_fire_department_rounded,
-          label: 'Aktiv kaloria',
+          label: 'Aktív kalória',
           value: '${data.moveKcal}',
           unit: 'kcal',
           color: const Color(0xFFFF6D00),
         ),
         _MetricTile(
           icon: Icons.timer_outlined,
-          label: 'Edzes ido',
+          label: 'Edzés idő',
           value: '${data.exerciseMinutes}',
           unit: 'perc',
           color: const Color(0xFF00BFA5),
@@ -135,12 +135,12 @@ class HealthDataPanel extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Napi celok (Apple Health)',
+            'Napi célok',
             style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey.shade700),
           ),
           const SizedBox(height: 14),
           _GoalBar(
-            label: 'Mozgas',
+            label: 'Mozgás',
             current: data.moveKcal,
             goal: data.moveGoalKcal,
             unit: 'kcal',
@@ -148,7 +148,7 @@ class HealthDataPanel extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           _GoalBar(
-            label: 'Edzes',
+            label: 'Edzés',
             current: data.exerciseMinutes,
             goal: data.exerciseGoalMinutes,
             unit: 'perc',
@@ -156,10 +156,10 @@ class HealthDataPanel extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           _GoalBar(
-            label: 'Allas',
+            label: 'Állás',
             current: data.standHours,
             goal: data.standGoalHours,
-            unit: 'ora',
+            unit: 'óra',
             color: _primary,
           ),
         ],

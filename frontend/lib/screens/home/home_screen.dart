@@ -4,7 +4,7 @@ import 'package:intl/intl.dart';
 import '../../models/daily_health_data.dart';
 import '../../services/apple_health_service.dart';
 import '../../services/home_service.dart';
-import '../../utils/platform_utils.dart';
+import '../../services/streak_service.dart';
 import '../../widgets/health_data_panel.dart';
 import '../../widgets/nutrition_summary_card.dart';
 
@@ -27,6 +27,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _permissionNeeded = false;
   String? _error;
   String _dataSource = '';
+  int _streak = 0;
 
   @override
   void initState() {
@@ -43,11 +44,14 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final result = await _homeService.loadToday();
       if (!mounted) return;
+      final streak = await StreakService.frissitEsKap(result.data.caloriesConsumed > 0);
+      if (!mounted) return;
       setState(() {
         _data = result.data;
         _meals = result.meals;
         _permissionNeeded = result.permissionNeeded;
         _dataSource = result.source;
+        _streak = streak;
         _loading = false;
       });
     } catch (e) {
@@ -123,10 +127,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         const SizedBox(height: 16),
                         _buildHealthPermissionCard(),
                       ],
-                      if (!_loading && !isAppleHealthPlatform) ...[
-                        const SizedBox(height: 16),
-                        _buildPlatformInfoCard(),
-                      ],
                       if (_error != null) ...[
                         const SizedBox(height: 16),
                         _buildErrorBanner(),
@@ -179,24 +179,68 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildMealsPreview() {
+    final vanAdat = _meals.reggeli > 0 || _meals.ebed > 0 || _meals.vacsora > 0 || _meals.nasi > 0;
+
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: Colors.grey.shade100),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2))],
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.restaurant_menu, color: Colors.grey.shade600, size: 22),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              'Reggeli ${_meals.reggeli} · Ebéd ${_meals.ebed} · Vacsora ${_meals.vacsora} kcal — részletek a Napló tabon',
-              style: TextStyle(fontSize: 13, color: Colors.grey.shade700, height: 1.4),
-            ),
+          Row(
+            children: [
+              const Icon(Icons.restaurant_menu, color: Color(0xFF34C759), size: 18),
+              const SizedBox(width: 8),
+              const Text('Étkezések', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+              const Spacer(),
+              if (!vanAdat)
+                Text('Nincs adat', style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _etkezesCsik('Reggeli', _meals.reggeli, const Color(0xFFFF9F43)),
+              const SizedBox(width: 8),
+              _etkezesCsik('Ebéd', _meals.ebed, const Color(0xFF4A90D9)),
+              const SizedBox(width: 8),
+              _etkezesCsik('Vacsora', _meals.vacsora, const Color(0xFF34C759)),
+              if (_meals.nasi > 0) ...[
+                const SizedBox(width: 8),
+                _etkezesCsik('Nasi', _meals.nasi, const Color(0xFF9B59B6)),
+              ],
+            ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _etkezesCsik(String cimke, int kcal, Color szin) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+        decoration: BoxDecoration(
+          color: szin.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(cimke, style: TextStyle(fontSize: 10, color: szin, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 4),
+            Text(
+              '$kcal',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: szin),
+            ),
+            Text('kcal', style: TextStyle(fontSize: 9, color: szin.withValues(alpha: 0.7))),
+          ],
+        ),
       ),
     );
   }
@@ -243,33 +287,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildPlatformInfoCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF8E1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFFFE082)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(Icons.info_outline, color: Color(0xFFF57C00), size: 20),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              isAppleHealthPlatform
-                  ? 'Az aktivitás adatok 0-k, amíg nem adsz Apple Health engedélyt.'
-                  : 'Chrome / Windows: Apple Health nem elérhető. A mozgás demo (0), a táplálkozás a backendről. Étkezés naplózás a Napló tabon.',
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade800, height: 1.4),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildErrorBanner() {
     return Container(
       width: double.infinity,
@@ -284,7 +301,7 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           Text(_error!, style: TextStyle(color: Colors.red.shade800, fontSize: 13)),
           const SizedBox(height: 8),
-          const Text('Ellenőrizd: dotnet run fut-e a 5150-es porton?', style: TextStyle(fontSize: 12)),
+          const Text('Ellenőrizd: fut-e a háttér szerver (dotnet run)?', style: TextStyle(fontSize: 12)),
         ],
       ),
     );
@@ -293,40 +310,50 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildTopBar() {
     return Row(
       children: [
-        _buildStatChip(
-          Icons.local_fire_department_outlined,
-          '${_data.moveKcal}',
-          Colors.orange.shade700,
-        ),
-        const SizedBox(width: 12),
-        if (_dataSource == 'merged' || _dataSource == 'apple_health')
-          _buildStatChip(Icons.favorite, 'Élő adat', _accentGreen),
+        _buildStreakChip(),
         const Spacer(),
         IconButton(
           onPressed: _loadData,
           icon: const Icon(Icons.refresh),
           color: Colors.black87,
         ),
-        IconButton(
-          onPressed: () {},
-          icon: const Icon(Icons.calendar_today_outlined),
-          color: Colors.black87,
-        ),
       ],
     );
   }
 
-  Widget _buildStatChip(IconData icon, String value, Color color) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 20, color: color),
-        const SizedBox(width: 4),
-        Text(
-          value,
-          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: Colors.black87),
-        ),
-      ],
+  Widget _buildStreakChip() {
+    final aktiv = _streak > 0;
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        gradient: aktiv
+            ? const LinearGradient(colors: [Color(0xFFFF6D00), Color(0xFFFFB300)])
+            : null,
+        color: aktiv ? null : Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: aktiv
+            ? [BoxShadow(color: const Color(0xFFFF6D00).withValues(alpha: 0.35), blurRadius: 8, offset: const Offset(0, 2))]
+            : [],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '🔥',
+            style: TextStyle(fontSize: aktiv ? 18 : 16),
+          ),
+          const SizedBox(width: 5),
+          Text(
+            _streak > 0 ? '$_streak nap' : 'Streak',
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 14,
+              color: aktiv ? Colors.white : Colors.grey.shade500,
+            ),
+          ),
+        ],
+      ),
     );
   }
 

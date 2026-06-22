@@ -6,6 +6,7 @@ import '../../models/workout_models.dart';
 import '../../services/workout_service.dart';
 import '../../widgets/exercise_workout_widgets.dart';
 import 'add_exercise_screen.dart';
+import 'workout_summary_screen.dart';
 
 class ActiveWorkoutScreen extends StatefulWidget {
   const ActiveWorkoutScreen({super.key, required this.edzesCim});
@@ -68,76 +69,27 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
   }
 
   Future<void> _befejezes() async {
-    final mentRutin = ValueNotifier<bool>(false);
-    final cimController = TextEditingController(text: widget.edzesCim);
+    if (_edzes == null) return;
+    _stopper?.cancel();
 
-    final megerosites = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Edzés befejezése'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Idő: ${_formazottIdo()}'),
-            Text('Sorozatok: ${_edzes?.osszSorozatSzam ?? 0}'),
-            Text('Térfogat: ${(_edzes?.osszTomegKg ?? 0).toStringAsFixed(0)} kg'),
-            const SizedBox(height: 16),
-            TextField(
-              controller: cimController,
-              decoration: const InputDecoration(
-                labelText: 'Edzés neve',
-                hintText: 'pl. Pull, Üres edzés...',
-                border: OutlineInputBorder(),
-                isDense: true,
-              ),
-            ),
-            ValueListenableBuilder<bool>(
-              valueListenable: mentRutin,
-              builder: (_, ment, child) => CheckboxListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Mentés saját rutinként (ugyanazzal a névvel)'),
-                value: ment,
-                onChanged: (v) => mentRutin.value = v ?? false,
-                controlAffinity: ListTileControlAffinity.leading,
-              ),
-            ),
-          ],
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => WorkoutSummaryScreen(
+          edzes: _edzes!,
+          onMentes: (cim, mentRutin, progresszioSzazalek) async {
+            if (cim.isNotEmpty) {
+              await _service.edzesCimFrissitese(cim);
+            }
+            final befejezett = await _service.edzesBefejezese();
+            if (mentRutin) {
+              await _service.rutinMenteseEdzesbol(edzes: befejezett, rutinCim: cim);
+            }
+            if (mounted) Navigator.of(context).popUntil((r) => r.isFirst || !r.isCurrent);
+          },
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Mégse')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Befejezés')),
-        ],
       ),
     );
-
-    if (megerosites != true) return;
-
-    try {
-      final cim = cimController.text.trim().isEmpty ? widget.edzesCim : cimController.text.trim();
-      if (cim.isNotEmpty) {
-        await _service.edzesCimFrissitese(cim);
-      }
-      final befejezett = await _service.edzesBefejezese();
-
-      if (mentRutin.value) {
-        await _service.rutinMenteseEdzesbol(edzes: befejezett, rutinCim: cim);
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Rutin elmentve: $cim')),
-        );
-      }
-
-      cimController.dispose();
-      if (!mounted) return;
-      Navigator.of(context).pop();
-    } catch (e) {
-      cimController.dispose();
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$e'), backgroundColor: Colors.red.shade700),
-      );
-    }
   }
 
   Future<void> _elvetes() async {

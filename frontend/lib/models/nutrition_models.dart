@@ -261,7 +261,10 @@ class ReceptReszletesModel extends ReceptListaElemModel {
       becsultSzenhidrat: (json['becsultSzenhidrat'] as num?)?.toDouble() ?? 0,
       becsultZsir: (json['becsultZsir'] as num?)?.toDouble() ?? 0,
       hozzavaloSzam: (json['hozzavaloSzam'] as num?)?.round() ?? 0,
-      yazioCimkek: (json['yazioCimkek'] as List<dynamic>? ?? []).map((e) => e.toString()).toList(),
+      yazioCimkek: [
+        ...(json['yazioCimkek'] as List<dynamic>? ?? []).map((e) => e.toString()),
+        ...(json['cimkek'] as List<dynamic>? ?? []).map((e) => e.toString()),
+      ],
       leiras: json['leiras'] as String? ?? '',
       youtubeUrl: json['youtubeUrl'] as String? ?? '',
       szarmazasiTerulet: json['szarmazasiTerulet'] as String? ?? '',

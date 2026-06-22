@@ -16,16 +16,27 @@ class ReceptKategoriaKartya extends StatelessWidget {
   final VoidCallback onTap;
 
   static const _stilusok = <String, _KategoriaStilus>{
-    'reggeli': _KategoriaStilus(Color(0xFFFF9F43), Color(0xFFFFD59A), Icons.free_breakfast),
-    'ebed': _KategoriaStilus(Color(0xFF4A90D9), Color(0xFFA8D4FF), Icons.lunch_dining),
-    'vacsora': _KategoriaStilus(Color(0xFF34C759), Color(0xFFA8E6B8), Icons.dinner_dining),
-    'magas_feherje': _KategoriaStilus(Color(0xFFE85D75), Color(0xFFFFB3C1), Icons.egg_alt),
-    'vega': _KategoriaStilus(Color(0xFF7ED957), Color(0xFFC8F5A8), Icons.spa),
-    'vegan': _KategoriaStilus(Color(0xFF2D6A4F), Color(0xFF95D5B2), Icons.eco),
+    // TheMealDB kategóriák
+    'Chicken':    _KategoriaStilus(Color(0xFFFF9F43), Color(0xFFFFD59A), Icons.set_meal),
+    'Beef':       _KategoriaStilus(Color(0xFFE85D75), Color(0xFFFFB3C1), Icons.lunch_dining),
+    'Seafood':    _KategoriaStilus(Color(0xFF4A90D9), Color(0xFFA8D4FF), Icons.water),
+    'Vegetarian': _KategoriaStilus(Color(0xFF7ED957), Color(0xFFC8F5A8), Icons.spa),
+    'Vegan':      _KategoriaStilus(Color(0xFF2D6A4F), Color(0xFF95D5B2), Icons.eco),
+    'Pasta':      _KategoriaStilus(Color(0xFFF4D03F), Color(0xFFFFF3A3), Icons.ramen_dining),
+    'Pork':       _KategoriaStilus(Color(0xFFFF6B6B), Color(0xFFFFB8B8), Icons.lunch_dining),
+    'Lamb':       _KategoriaStilus(Color(0xFF9B59B6), Color(0xFFD7BDE2), Icons.dining),
+    'Breakfast':  _KategoriaStilus(Color(0xFF00B4D8), Color(0xFF90E0EF), Icons.free_breakfast),
+    'Dessert':    _KategoriaStilus(Color(0xFF1ABC9C), Color(0xFFA3E4D7), Icons.cake),
+    // régi Spoonacular IDs (visszafelé kompatibilitás)
+    'reggeli':          _KategoriaStilus(Color(0xFFFF9F43), Color(0xFFFFD59A), Icons.free_breakfast),
+    'ebed':             _KategoriaStilus(Color(0xFF4A90D9), Color(0xFFA8D4FF), Icons.lunch_dining),
+    'vacsora':          _KategoriaStilus(Color(0xFF34C759), Color(0xFFA8E6B8), Icons.dinner_dining),
+    'magas_feherje':    _KategoriaStilus(Color(0xFFE85D75), Color(0xFFFFB3C1), Icons.egg_alt),
+    'vega':             _KategoriaStilus(Color(0xFF7ED957), Color(0xFFC8F5A8), Icons.spa),
+    'vegan':            _KategoriaStilus(Color(0xFF2D6A4F), Color(0xFF95D5B2), Icons.eco),
     'keves_szenhidrat': _KategoriaStilus(Color(0xFF9B59B6), Color(0xFFD7BDE2), Icons.grain),
-    'alacsony_zsir': _KategoriaStilus(Color(0xFF00B4D8), Color(0xFF90E0EF), Icons.water_drop),
-    'cukormentes': _KategoriaStilus(Color(0xFFF4D03F), Color(0xFFFFF3A3), Icons.cake_outlined),
-    'egeszseges': _KategoriaStilus(Color(0xFF1ABC9C), Color(0xFFA3E4D7), Icons.favorite),
+    'alacsony_zsir':    _KategoriaStilus(Color(0xFF00B4D8), Color(0xFF90E0EF), Icons.water_drop),
+    'egeszseges':       _KategoriaStilus(Color(0xFF1ABC9C), Color(0xFFA3E4D7), Icons.favorite),
     'gyors_elkeszites': _KategoriaStilus(Color(0xFFFF6B6B), Color(0xFFFFB8B8), Icons.timer_outlined),
   };
 

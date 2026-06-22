@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../config/api_config.dart';
 import '../../models/nutrition_models.dart';
 import '../../services/nutrition_service.dart';
 import '../../services/recept_service.dart';
@@ -92,15 +91,12 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
-            expandedHeight: 220,
+            expandedHeight: 200,
             pinned: true,
             backgroundColor: Colors.white,
-            foregroundColor: Colors.black87,
+            foregroundColor: Colors.white,
             flexibleSpace: FlexibleSpaceBar(
-              background: r.kepUrl.isNotEmpty
-                  ? Image.network(ApiConfig.kep(r.kepUrl), fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => ColoredBox(color: Colors.grey.shade300))
-                  : ColoredBox(color: Colors.grey.shade300, child: const Icon(Icons.restaurant, size: 64)),
+              background: _receptFejlec(r),
             ),
           ),
           SliverToBoxAdapter(
@@ -186,6 +182,88 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  static const _szinek = [
+    [Color(0xFF2ECC71), Color(0xFF27AE60)],
+    [Color(0xFF3498DB), Color(0xFF2980B9)],
+    [Color(0xFFE67E22), Color(0xFFD35400)],
+    [Color(0xFF9B59B6), Color(0xFF8E44AD)],
+    [Color(0xFFE74C3C), Color(0xFFC0392B)],
+    [Color(0xFF1ABC9C), Color(0xFF16A085)],
+    [Color(0xFFF39C12), Color(0xFFD68910)],
+    [Color(0xFF2C3E50), Color(0xFF34495E)],
+  ];
+
+  Widget _receptFejlec(ReceptReszletesModel r) {
+    final idx = r.nev.hashCode.abs() % _szinek.length;
+    final szinek = _szinek[idx];
+
+    Widget gradiensHatter = Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(colors: szinek, begin: Alignment.topLeft, end: Alignment.bottomRight),
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            right: -20,
+            bottom: -20,
+            child: Icon(Icons.restaurant_menu, size: 160, color: Colors.white.withValues(alpha: 0.1)),
+          ),
+          Positioned(
+            bottom: 20, left: 16, right: 16,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(r.nev, maxLines: 2, overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800,
+                        shadows: [Shadow(blurRadius: 8, color: Colors.black38)])),
+                const SizedBox(height: 4),
+                Text('${r.becsultKaloria} kcal/adag',
+                    style: const TextStyle(color: Colors.white70, fontSize: 13)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (r.kepUrl.isEmpty) return gradiensHatter;
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.network(r.kepUrl, fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => gradiensHatter),
+        // Sötét átmenet alul az olvashatóságért
+        Positioned.fill(
+          child: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Colors.transparent, Colors.black54],
+                stops: [0.5, 1.0],
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          bottom: 20, left: 16, right: 16,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(r.nev, maxLines: 2, overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800,
+                      shadows: [Shadow(blurRadius: 8, color: Colors.black54)])),
+              const SizedBox(height: 4),
+              Text('${r.becsultKaloria} kcal/adag',
+                  style: const TextStyle(color: Colors.white70, fontSize: 13)),
+            ],
+          ),
+        ),
+      ],
     );
   }
 

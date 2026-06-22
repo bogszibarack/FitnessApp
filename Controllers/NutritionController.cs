@@ -19,7 +19,7 @@ namespace FitnessBackend.Controllers
         private const string off_api_alap = "https://world.openfoodfacts.org";
         private const string off_user_agent = "FitnessBackend/1.0 (fitness@local.dev)";
 
-        // 1. ÉTELKERESŐ — Spoonacular ingredient/product keresés (Yazio: keresőmező)
+        // 1. ÉTELKERESŐ — USDA FoodData Central (ingyenes, korlátlan) + offline adatbázis
         // Példa: GET /api/nutrition/kereso?keresoszo=alma
         [HttpGet("kereso")]
         public async Task<ActionResult<List<FoodItem>>> EtelKereso([FromQuery] string keresoszo)
@@ -27,7 +27,7 @@ namespace FitnessBackend.Controllers
             if (string.IsNullOrWhiteSpace(keresoszo))
                 return BadRequest("Add meg a keresoszot: ?keresoszo=alma");
 
-            return Ok(await SpoonKereses(keresoszo));
+            return Ok(await EtelKeresesFo(keresoszo));
         }
 
         // 1/b. Régi útvonal — visszafelé kompatibilitás
@@ -37,7 +37,7 @@ namespace FitnessBackend.Controllers
             if (string.IsNullOrWhiteSpace(etel_neve) || etel_neve.Contains("etel_neve"))
                 return BadRequest("Az etel_neve mezobe ird be a keresett etelt, pl: alma");
 
-            return Ok(await SpoonKereses(etel_neve));
+            return Ok(await EtelKeresesFo(etel_neve));
         }
 
         // 2. VONALKÓD — Open Food Facts (globális termékadat-bázis, kód alapján pontos találat)
@@ -266,7 +266,43 @@ namespace FitnessBackend.Controllers
              .Replace('ó', 'o').Replace('ö', 'o').Replace('ő', 'o')
              .Replace('ú', 'u').Replace('ü', 'u').Replace('ű', 'u');
 
-        // --- Spoonacular étel-keresés ---
+        // --- Fő étel-keresési logika ---
+
+        private async Task<List<FoodItem>> EtelKeresesFo(string keresoszó)
+        {
+            string kulcs = keresoszó.Trim().ToLowerInvariant();
+
+            if (kereses_cache.TryGetValue(kulcs, out var cached) &&
+                DateTime.UtcNow - cached.ido < cache_elettartam &&
+                cached.lista.Count > 0)
+                return cached.lista;
+
+            // 1. Offline adatbázis — azonnali, API nélkül
+            var eredmenyek = OfflineKereses(keresoszó);
+
+            // 2. USDA FoodData Central — ingyenes, korlátlan, pontos tápérték
+            if (UsdaConfig.VanKulcs)
+            {
+                var usda = await UsdaApiSeged.Kereses(keresoszó, 12);
+                foreach (var t in usda)
+                    if (!eredmenyek.Any(e => e.Id == t.Id)) eredmenyek.Add(t);
+            }
+
+            // 3. Ha az USDA nem adott semmit, Spoonacular fallback (ha van napi keret)
+            if (eredmenyek.Count < 3 && SpoonacularConfig.VanKulcs)
+            {
+                var spoon = await SpoonKereses(keresoszó);
+                foreach (var t in spoon)
+                    if (!eredmenyek.Any(e => e.Id == t.Id)) eredmenyek.Add(t);
+            }
+
+            if (eredmenyek.Count > 0)
+                kereses_cache[kulcs] = (DateTime.UtcNow, eredmenyek);
+
+            return eredmenyek;
+        }
+
+        // --- Spoonacular étel-keresés (fallback) ---
 
         private async Task<List<FoodItem>> SpoonKereses(string keresoszó)
         {

@@ -45,7 +45,7 @@ class NutritionSummaryCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              _StatPill(value: '$consumed', label: 'Bevitt', color: const Color(0xFFFF6D00)),
+              _StatPill(value: '$consumed', label: 'Bevitt', color: const Color(0xFFFF6D00), unit: 'kcal'),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -54,7 +54,7 @@ class NutritionSummaryCard extends StatelessWidget {
                       '$remaining',
                       style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: _accent),
                     ),
-                    Text('kcal maradt', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                    Text('kcal maradt ma', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
                     const SizedBox(height: 8),
                     ClipRRect(
                       borderRadius: BorderRadius.circular(8),
@@ -66,20 +66,20 @@ class NutritionSummaryCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Text('Cel: $goal kcal', style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+                    Text('Cél: $goal kcal', style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
                   ],
                 ),
               ),
               const SizedBox(width: 12),
-              _StatPill(value: '$burned', label: 'Elegetett', color: const Color(0xFF00BFA5)),
+              _StatPill(value: '$burned', label: 'Elégetett', color: const Color(0xFF00BFA5), unit: 'kcal'),
             ],
           ),
           const SizedBox(height: 20),
-          _MacroRow(label: 'Szenhidrat', current: carbs, goal: carbsGoal, color: const Color(0xFFFFB300)),
+          _MacroRow(label: 'Szénhidrát', current: carbs, goal: carbsGoal, color: const Color(0xFFFFB300)),
           const SizedBox(height: 10),
-          _MacroRow(label: 'Feherje', current: protein, goal: proteinGoal, color: const Color(0xFFE91E63)),
+          _MacroRow(label: 'Fehérje', current: protein, goal: proteinGoal, color: const Color(0xFFE91E63)),
           const SizedBox(height: 10),
-          _MacroRow(label: 'Zsir', current: fat, goal: fatGoal, color: const Color(0xFF7C4DFF)),
+          _MacroRow(label: 'Zsír', current: fat, goal: fatGoal, color: const Color(0xFF7C4DFF)),
         ],
       ),
     );
@@ -87,17 +87,20 @@ class NutritionSummaryCard extends StatelessWidget {
 }
 
 class _StatPill extends StatelessWidget {
-  const _StatPill({required this.value, required this.label, required this.color});
+  const _StatPill({required this.value, required this.label, required this.color, this.unit = ''});
 
   final String value;
   final String label;
   final Color color;
+  final String unit;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
         Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: color)),
+        if (unit.isNotEmpty)
+          Text(unit, style: TextStyle(fontSize: 10, color: color.withValues(alpha: 0.7))),
         Text(label, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
       ],
     );
