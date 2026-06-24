@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../models/community_models.dart';
 import '../../models/daily_health_data.dart';
 import '../../services/apple_health_service.dart';
+import '../../services/community_service.dart';
 import '../../services/home_service.dart';
 import '../../services/streak_service.dart';
 import '../../widgets/health_data_panel.dart';
 import '../../widgets/nutrition_summary_card.dart';
+import '../community/community_screen.dart';
+import '../community/community_widgets.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -21,8 +25,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final _homeService = HomeService.instance;
   final _healthService = AppleHealthService.instance;
+  final _communityService = CommunityService.instance;
   DailyHealthData _data = DailyHealthData.empty();
   MealCalories _meals = const MealCalories();
+  List<CommunityPosztModel> _feedElonezet = [];
   bool _loading = true;
   bool _permissionNeeded = false;
   String? _error;
@@ -45,10 +51,17 @@ class _HomeScreenState extends State<HomeScreen> {
       final result = await _homeService.loadToday();
       if (!mounted) return;
       final streak = await StreakService.frissitEsKap(result.data.caloriesConsumed > 0);
+      // Feed előnézet betöltése (csak az első 2 poszt)
+      List<CommunityPosztModel> feedElonezet = [];
+      try {
+        final lista = await _communityService.feed();
+        feedElonezet = lista.take(2).toList();
+      } catch (_) {}
       if (!mounted) return;
       setState(() {
         _data = result.data;
         _meals = result.meals;
+        _feedElonezet = feedElonezet;
         _permissionNeeded = result.permissionNeeded;
         _dataSource = result.source;
         _streak = streak;
@@ -162,9 +175,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         const SizedBox(height: 12),
                         _buildMealsPreview(),
                         const SizedBox(height: 28),
-                        _buildSectionHeader('Felfedezés', ''),
-                        const SizedBox(height: 12),
-                        _buildFeedPost(),
+                        _buildFeedElonezet(),
                         const SizedBox(height: 24),
                       ],
                     ],
@@ -374,8 +385,70 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildFeedPost() {
+  Widget _buildFeedElonezet() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionHeader('Felfedezés', ''),
+        const SizedBox(height: 12),
+        if (_feedElonezet.isEmpty)
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 28),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
+            child: Center(
+              child: Column(
+                children: [
+                  Icon(Icons.people_outline, size: 36, color: Colors.grey.shade400),
+                  const SizedBox(height: 8),
+                  Text('Töltse be a közösségi feedet',
+                      style: TextStyle(fontSize: 13, color: Colors.grey.shade500)),
+                ],
+              ),
+            ),
+          )
+        else
+          ..._feedElonezet.map((poszt) => _HomeFeedKartya(poszt: poszt)),
+        const SizedBox(height: 10),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const _CommunityFullPage(),
+                ),
+              );
+            },
+            icon: const Icon(Icons.people, size: 18),
+            label: const Text('Összes megtekintése', style: TextStyle(fontWeight: FontWeight.w600)),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─── Home feed kártya (kompakt) ───────────────────────────────────────────────
+
+class _HomeFeedKartya extends StatelessWidget {
+  const _HomeFeedKartya({required this.poszt});
+  final CommunityPosztModel poszt;
+
+  @override
+  Widget build(BuildContext context) {
+    final elvegzettSorozatok = poszt.edzes.exercises.fold(
+        0, (sum, gy) => sum + gy.sets.where((s) => s.elvegezve).length);
     return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -384,99 +457,52 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 20,
-                  backgroundColor: Colors.grey.shade300,
-                  child: Text('D', style: TextStyle(fontWeight: FontWeight.w700, color: Colors.grey.shade700)),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('domspill84', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                      Text('egy órája', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-                    ],
-                  ),
-                ),
-                TextButton(
-                  onPressed: () {},
-                  style: TextButton.styleFrom(
-                    foregroundColor: _primary,
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                  ),
-                  child: const Text('+ Követés', style: TextStyle(fontWeight: FontWeight.w600)),
-                ),
-              ],
-            ),
-          ),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Fan bike', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
-                SizedBox(height: 4),
-                Text(
-                  'Utolsó intervallum edzés: 8 kör, 10 mp munka, 20 mp pihenő.',
-                  style: TextStyle(fontSize: 14, color: Colors.black87, height: 1.4),
-                ),
-                SizedBox(height: 8),
-                Row(
+          Row(
+            children: [
+              AvatarKor(nev: poszt.userName, meret: 36),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Idő', style: TextStyle(fontSize: 13, color: Colors.black54)),
-                    SizedBox(width: 6),
-                    Text('27 perc', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                    Text(poszt.userName,
+                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                    Text(poszt.idoSzoveg,
+                        style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
                   ],
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          Container(
-            height: 200,
-            margin: const EdgeInsets.symmetric(horizontal: 16),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Colors.grey.shade300, Colors.grey.shade400],
               ),
-            ),
-            child: Center(child: Icon(Icons.pedal_bike, size: 64, color: Colors.grey.shade600)),
+              Row(
+                children: [
+                  Icon(Icons.favorite, size: 14, color: Colors.red.shade300),
+                  const SizedBox(width: 3),
+                  Text('${poszt.likeSzam}',
+                      style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+                ],
+              ),
+            ],
           ),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                _buildEngagementButton(Icons.thumb_up_outlined, '15'),
-                const SizedBox(width: 20),
-                _buildEngagementButton(Icons.chat_bubble_outline, null),
-                const SizedBox(width: 20),
-                _buildEngagementButton(Icons.ios_share, null),
-              ],
-            ),
+          const SizedBox(height: 10),
+          Text(poszt.edzes.title,
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 4),
+          Text(
+            '${poszt.edzes.exercises.length} gyakorlat · $elvegzettSorozatok sorozat · ${poszt.megye}',
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
           ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildEngagementButton(IconData icon, String? count) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 20, color: Colors.grey.shade700),
-        if (count != null) ...[
-          const SizedBox(width: 4),
-          Text(count, style: TextStyle(color: Colors.grey.shade700, fontSize: 13)),
-        ],
-      ],
-    );
+// ─── Közösség teljes képernyő (push navigáció home-ból) ──────────────────────
+
+class _CommunityFullPage extends StatelessWidget {
+  const _CommunityFullPage();
+
+  @override
+  Widget build(BuildContext context) {
+    return const CommunityScreen();
   }
 }

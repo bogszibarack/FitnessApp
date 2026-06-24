@@ -41,35 +41,30 @@ class HealthDataPanel extends StatelessWidget {
           style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Colors.black87),
         ),
         const Spacer(),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-          decoration: BoxDecoration(
-            color: isLiveAppleHealth ? const Color(0xFFE8F5E9) : const Color(0xFFE3F2FD),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: isLiveAppleHealth ? const Color(0xFF34C759) : _primary,
+        if (isLiveAppleHealth)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: const Color(0xFFE8F5E9),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFF34C759)),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.favorite, size: 14, color: Color(0xFF34C759)),
+                SizedBox(width: 4),
+                Text(
+                  'Apple Health',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF2E7D32),
+                  ),
+                ),
+              ],
             ),
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                isLiveAppleHealth ? Icons.favorite : Icons.cloud_outlined,
-                size: 14,
-                color: isLiveAppleHealth ? const Color(0xFF34C759) : _primary,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                isLiveAppleHealth ? 'Apple Health' : 'Backend / demo',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: isLiveAppleHealth ? const Color(0xFF2E7D32) : _primary,
-                ),
-              ),
-            ],
-          ),
-        ),
       ],
     );
   }

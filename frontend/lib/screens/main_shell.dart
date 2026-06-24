@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'community/community_screen.dart';
 import 'home/home_screen.dart';
 import 'nutrition/naplo_screen.dart';
 import 'settings/settings_screen.dart';
@@ -14,7 +15,6 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int _selectedIndex = 0;
-  // Home tab verzió — ha növekszik, a HomeScreen újratölti az adatait
   int _homeVersion = 0;
 
   @override
@@ -26,6 +26,7 @@ class _MainShellState extends State<MainShell> {
           HomeScreen(key: ValueKey(_homeVersion)),
           const NaploScreen(),
           const WorkoutScreen(),
+          const CommunityScreen(),
           const SettingsScreen(),
         ],
       ),
@@ -33,7 +34,6 @@ class _MainShellState extends State<MainShell> {
         selectedIndex: _selectedIndex,
         onDestinationSelected: (index) {
           setState(() {
-            // Ha vissza navigálunk a Home tabra, frissítjük az adatokat
             if (index == 0 && _selectedIndex != 0) {
               _homeVersion++;
             }
@@ -55,6 +55,11 @@ class _MainShellState extends State<MainShell> {
             icon: Icon(Icons.fitness_center_outlined),
             selectedIcon: Icon(Icons.fitness_center),
             label: 'Edzés',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.people_outline),
+            selectedIcon: Icon(Icons.people),
+            label: 'Közösség',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline),

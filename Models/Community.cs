@@ -50,9 +50,233 @@ namespace FitnessBackend.Models
         public string Regio { get; set; } = "";
     }
 
+    // Követés model
+    public class KovetesInfo
+    {
+        public string Koveto { get; set; } = "";
+        public string Kovetett { get; set; } = "";
+        public DateTime Ota { get; set; }
+    }
+
     public static class CommunityTarolo
     {
-        public static List<CommunityPost> Posztok { get; } = new List<CommunityPost>();
+        public static List<CommunityPost> Posztok { get; } = UjSeedPosztok();
+        public static List<KovetesInfo> Kovetek { get; } = new();
+
+        public static bool KoveteEllenorzes(string koveto, string kovetett)
+            => Kovetek.Any(k => k.Koveto == koveto && k.Kovetett == kovetett);
+
+        private static List<CommunityPost> UjSeedPosztok()
+        {
+            var lista = new List<CommunityPost>();
+            var most = DateTime.Now;
+
+            lista.Add(new CommunityPost
+            {
+                Id = "post_seed001",
+                UserName = "kovacs_bence",
+                Megye = "Budapest",
+                Regio = "Kozep-Magyarorszag",
+                SelfieUrl = "",
+                Megosztva = most.AddHours(-1.5),
+                LikeSzam = 14,
+                Likeolok = new List<string> { "nagy_petra", "toth_david", "szabo_aniko" },
+                Kommentek = new List<CommunityComment>
+                {
+                    new() { Id = "k1", UserName = "nagy_petra", Szoveg = "Szép edzés! 💪", Idobelyeg = most.AddHours(-1) },
+                    new() { Id = "k2", UserName = "toth_david", Szoveg = "Brutális volumen, respect!", Idobelyeg = most.AddMinutes(-40) }
+                },
+                Edzes = new WorkoutSession
+                {
+                    Id = 1001,
+                    Title = "Push – Mellkas & Tricepsz",
+                    IsActive = false,
+                    StartTime = most.AddHours(-3),
+                    Exercises = new List<LoggedExercise>
+                    {
+                        new() { ExerciseId = "bench-press", ExerciseName = "Fekvenyomás", Sets = new List<LoggedSet>
+                        {
+                            new() { SetNumber=1, Weight=80, Reps=10, Elvegezve=true },
+                            new() { SetNumber=2, Weight=90, Reps=8, Elvegezve=true },
+                            new() { SetNumber=3, Weight=100, Reps=6, Elvegezve=true },
+                        }},
+                        new() { ExerciseId = "incline-dumbbell-press", ExerciseName = "Dőlt súlyzós mellnyomás", Sets = new List<LoggedSet>
+                        {
+                            new() { SetNumber=1, Weight=30, Reps=12, Elvegezve=true },
+                            new() { SetNumber=2, Weight=32, Reps=10, Elvegezve=true },
+                        }},
+                        new() { ExerciseId = "tricep-pushdown", ExerciseName = "Tricepsz lehúzás", Sets = new List<LoggedSet>
+                        {
+                            new() { SetNumber=1, Weight=35, Reps=15, Elvegezve=true },
+                            new() { SetNumber=2, Weight=40, Reps=12, Elvegezve=true },
+                        }}
+                    }
+                }
+            });
+
+            lista.Add(new CommunityPost
+            {
+                Id = "post_seed002",
+                UserName = "nagy_petra",
+                Megye = "Pest",
+                Regio = "Kozep-Magyarorszag",
+                SelfieUrl = "",
+                Megosztva = most.AddHours(-4),
+                LikeSzam = 22,
+                Likeolok = new List<string> { "kovacs_bence", "molnar_zoli", "kiss_reka", "varga_mark" },
+                Kommentek = new List<CommunityComment>
+                {
+                    new() { Id = "k3", UserName = "molnar_zoli", Szoveg = "Menő húzós nap! Mekkora az 1RM-ed?", Idobelyeg = most.AddHours(-3.5) },
+                    new() { Id = "k4", UserName = "nagy_petra", Szoveg = "Kb. 80 kg, még dolgozok rajta 😅", Idobelyeg = most.AddHours(-3) }
+                },
+                Edzes = new WorkoutSession
+                {
+                    Id = 1002,
+                    Title = "Pull – Hát & Bicepsz",
+                    IsActive = false,
+                    StartTime = most.AddHours(-6),
+                    Exercises = new List<LoggedExercise>
+                    {
+                        new() { ExerciseId = "deadlift", ExerciseName = "Felhúzás", Sets = new List<LoggedSet>
+                        {
+                            new() { SetNumber=1, Weight=60, Reps=8, Elvegezve=true },
+                            new() { SetNumber=2, Weight=70, Reps=6, Elvegezve=true },
+                            new() { SetNumber=3, Weight=75, Reps=5, Elvegezve=true },
+                        }},
+                        new() { ExerciseId = "lat-pulldown", ExerciseName = "Lat húzás", Sets = new List<LoggedSet>
+                        {
+                            new() { SetNumber=1, Weight=50, Reps=12, Elvegezve=true },
+                            new() { SetNumber=2, Weight=55, Reps=10, Elvegezve=true },
+                        }},
+                        new() { ExerciseId = "barbell-curl", ExerciseName = "Rúd bicepsz hajlítás", Sets = new List<LoggedSet>
+                        {
+                            new() { SetNumber=1, Weight=25, Reps=12, Elvegezve=true },
+                            new() { SetNumber=2, Weight=30, Reps=10, Elvegezve=true },
+                        }}
+                    }
+                }
+            });
+
+            lista.Add(new CommunityPost
+            {
+                Id = "post_seed003",
+                UserName = "molnar_zoli",
+                Megye = "Győr-Moson-Sopron",
+                Regio = "Nyugat-Dunantul",
+                SelfieUrl = "",
+                Megosztva = most.AddHours(-8),
+                LikeSzam = 9,
+                Likeolok = new List<string> { "toth_david", "kiss_reka" },
+                Kommentek = new List<CommunityComment>
+                {
+                    new() { Id = "k5", UserName = "kiss_reka", Szoveg = "Lábnapot sajnálom, de klassz! 🦵", Idobelyeg = most.AddHours(-7) }
+                },
+                Edzes = new WorkoutSession
+                {
+                    Id = 1003,
+                    Title = "Legs – Guggolás fókusz",
+                    IsActive = false,
+                    StartTime = most.AddHours(-10),
+                    Exercises = new List<LoggedExercise>
+                    {
+                        new() { ExerciseId = "squat", ExerciseName = "Guggolás", Sets = new List<LoggedSet>
+                        {
+                            new() { SetNumber=1, Weight=100, Reps=8, Elvegezve=true },
+                            new() { SetNumber=2, Weight=110, Reps=6, Elvegezve=true },
+                            new() { SetNumber=3, Weight=120, Reps=4, Elvegezve=true },
+                        }},
+                        new() { ExerciseId = "leg-press", ExerciseName = "Lábtoló", Sets = new List<LoggedSet>
+                        {
+                            new() { SetNumber=1, Weight=150, Reps=12, Elvegezve=true },
+                            new() { SetNumber=2, Weight=170, Reps=10, Elvegezve=true },
+                        }},
+                        new() { ExerciseId = "leg-curl", ExerciseName = "Combhajlítás", Sets = new List<LoggedSet>
+                        {
+                            new() { SetNumber=1, Weight=40, Reps=15, Elvegezve=true },
+                            new() { SetNumber=2, Weight=45, Reps=12, Elvegezve=true },
+                        }}
+                    }
+                }
+            });
+
+            lista.Add(new CommunityPost
+            {
+                Id = "post_seed004",
+                UserName = "kiss_reka",
+                Megye = "Hajdú-Bihar",
+                Regio = "Eszak-Alfold",
+                SelfieUrl = "",
+                Megosztva = most.AddDays(-1).AddHours(2),
+                LikeSzam = 31,
+                Likeolok = new List<string> { "kovacs_bence", "nagy_petra", "molnar_zoli", "varga_mark", "toth_david" },
+                Kommentek = new List<CommunityComment>
+                {
+                    new() { Id = "k6", UserName = "varga_mark", Szoveg = "Wow az OHP szám komoly!", Idobelyeg = most.AddDays(-1).AddHours(3) },
+                    new() { Id = "k7", UserName = "kovacs_bence", Szoveg = "Beast mode! 🔥", Idobelyeg = most.AddDays(-1).AddHours(4) }
+                },
+                Edzes = new WorkoutSession
+                {
+                    Id = 1004,
+                    Title = "Shoulder & Core",
+                    IsActive = false,
+                    StartTime = most.AddDays(-1),
+                    Exercises = new List<LoggedExercise>
+                    {
+                        new() { ExerciseId = "overhead-press", ExerciseName = "Nyomás felett (OHP)", Sets = new List<LoggedSet>
+                        {
+                            new() { SetNumber=1, Weight=50, Reps=8, Elvegezve=true },
+                            new() { SetNumber=2, Weight=55, Reps=7, Elvegezve=true },
+                            new() { SetNumber=3, Weight=60, Reps=5, Elvegezve=true },
+                        }},
+                        new() { ExerciseId = "lateral-raise", ExerciseName = "Oldalsó emelés", Sets = new List<LoggedSet>
+                        {
+                            new() { SetNumber=1, Weight=10, Reps=15, Elvegezve=true },
+                            new() { SetNumber=2, Weight=12, Reps=12, Elvegezve=true },
+                        }}
+                    }
+                }
+            });
+
+            lista.Add(new CommunityPost
+            {
+                Id = "post_seed005",
+                UserName = "varga_mark",
+                Megye = "Bács-Kiskun",
+                Regio = "Del-Alfold",
+                SelfieUrl = "",
+                Megosztva = most.AddDays(-1).AddHours(-3),
+                LikeSzam = 7,
+                Likeolok = new List<string> { "nagy_petra" },
+                Kommentek = new List<CommunityComment>(),
+                Edzes = new WorkoutSession
+                {
+                    Id = 1005,
+                    Title = "Full Body – erő + kondíció",
+                    IsActive = false,
+                    StartTime = most.AddDays(-1).AddHours(-5),
+                    Exercises = new List<LoggedExercise>
+                    {
+                        new() { ExerciseId = "bench-press", ExerciseName = "Fekvenyomás", Sets = new List<LoggedSet>
+                        {
+                            new() { SetNumber=1, Weight=70, Reps=10, Elvegezve=true },
+                            new() { SetNumber=2, Weight=75, Reps=8, Elvegezve=true },
+                        }},
+                        new() { ExerciseId = "squat", ExerciseName = "Guggolás", Sets = new List<LoggedSet>
+                        {
+                            new() { SetNumber=1, Weight=90, Reps=8, Elvegezve=true },
+                            new() { SetNumber=2, Weight=100, Reps=6, Elvegezve=true },
+                        }},
+                        new() { ExerciseId = "deadlift", ExerciseName = "Felhúzás", Sets = new List<LoggedSet>
+                        {
+                            new() { SetNumber=1, Weight=110, Reps=5, Elvegezve=true },
+                            new() { SetNumber=2, Weight=120, Reps=4, Elvegezve=true },
+                        }}
+                    }
+                }
+            });
+
+            return lista;
+        }
 
         public static readonly List<MegyeInfo> MagyarMegyek = new List<MegyeInfo>
         {

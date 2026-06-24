@@ -234,6 +234,81 @@ namespace FitnessBackend.Controllers
             return Ok(uj_rutin);
         }
 
+        // 13. FELHASZNÁLÓ KERESÉS
+        [HttpGet("felhasznalok")]
+        public ActionResult<List<object>> FelhasznalokKeresese([FromQuery] string? kereses = null)
+        {
+            var osszes = CommunityTarolo.Posztok
+                .GroupBy(p => p.UserName)
+                .Select(g => new
+                {
+                    userName = g.Key,
+                    posztSzam = g.Count(),
+                    osszLike = g.Sum(p => p.LikeSzam),
+                    utolsoEdzes = g.Max(p => p.Megosztva),
+                    legutobbiEdzesCim = g.OrderByDescending(p => p.Megosztva).First().Edzes.Title
+                })
+                .OrderByDescending(u => u.posztSzam);
+
+            if (!string.IsNullOrWhiteSpace(kereses))
+            {
+                var szurt = osszes
+                    .Where(u => u.userName.Contains(kereses, StringComparison.OrdinalIgnoreCase))
+                    .ToList<object>();
+                return Ok(szurt);
+            }
+
+            return Ok(osszes.ToList<object>());
+        }
+
+        // 14. FELHASZNÁLÓ POSZTJAI
+        [HttpGet("felhasznalo/{userName}")]
+        public ActionResult<List<CommunityPost>> FelhasznaloPosztjai(string userName)
+        {
+            var posztok = CommunityTarolo.Posztok
+                .Where(p => p.UserName.Equals(userName, StringComparison.OrdinalIgnoreCase))
+                .OrderByDescending(p => p.Megosztva)
+                .ToList();
+            return Ok(posztok);
+        }
+
+        // 15. KÖVETÉS
+        [HttpPost("kovet/{kovetett}")]
+        public ActionResult KovetesFelvetel(string kovetett, [FromQuery] string koveto)
+        {
+            if (string.IsNullOrWhiteSpace(koveto)) return BadRequest("koveto query param kotelezo.");
+            if (!CommunityTarolo.KoveteEllenorzes(koveto, kovetett))
+            {
+                CommunityTarolo.Kovetek.Add(new KovetesInfo { Koveto = koveto, Kovetett = kovetett, Ota = DateTime.Now });
+            }
+            return Ok(new { koveto, kovetett, kovet = true });
+        }
+
+        // 16. KÖVETÉS VISSZAVONÁSA
+        [HttpDelete("kovet/{kovetett}")]
+        public ActionResult KovetesVisszavonasa(string kovetett, [FromQuery] string koveto)
+        {
+            var elem = CommunityTarolo.Kovetek
+                .FirstOrDefault(k => k.Koveto == koveto && k.Kovetett == kovetett);
+            if (elem != null) CommunityTarolo.Kovetek.Remove(elem);
+            return Ok(new { koveto, kovetett, kovet = false });
+        }
+
+        // 17. KÖVETÉSEK LEKÉRDEZÉSE
+        [HttpGet("kovetesek")]
+        public ActionResult<object> KovetesekLekerdezese([FromQuery] string userName)
+        {
+            var kovetett = CommunityTarolo.Kovetek
+                .Where(k => k.Koveto == userName)
+                .Select(k => k.Kovetett)
+                .ToList();
+            var koveto = CommunityTarolo.Kovetek
+                .Where(k => k.Kovetett == userName)
+                .Select(k => k.Koveto)
+                .ToList();
+            return Ok(new { kovetett, koveto, kovetettSzam = kovetett.Count, kovetoSzam = koveto.Count });
+        }
+
         // --- Segédfüggvények ---
 
         private static string SanitizeFileName(string nev)
