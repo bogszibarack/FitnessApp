@@ -323,6 +323,11 @@ class _HomeScreenState extends State<HomeScreen> {
       children: [
         _buildStreakChip(),
         const Spacer(),
+        Image.asset(
+          'assets/logo.png',
+          height: 28,
+        ),
+        const Spacer(),
         IconButton(
           onPressed: _loadData,
           icon: const Icon(Icons.refresh),

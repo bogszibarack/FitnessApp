@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/beallitas_models.dart';
 import '../../services/beallitasok_service.dart';
 import '../../services/streak_service.dart';
 import '../../widgets/settings_widgets.dart';
+import '../onboarding/onboarding_screen.dart';
 import 'settings_detail_screens.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -95,12 +97,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     onRefresh: _init,
                     child: CustomScrollView(
                       slivers: [
+                        SliverToBoxAdapter(child: _buildBrandHeader()),
                         SliverToBoxAdapter(child: _buildProfilFejlec()),
                         SliverToBoxAdapter(child: _buildSzekciok()),
+                        SliverToBoxAdapter(child: _buildKijelentkezesGomb()),
                         const SliverToBoxAdapter(child: SizedBox(height: 40)),
                       ],
                     ),
                   ),
+      ),
+    );
+  }
+
+  Widget _buildBrandHeader() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+      child: Row(
+        children: [
+          Image.asset('assets/logo.png', height: 26),
+          const SizedBox(width: 10),
+          const Text(
+            'Flexio',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w900,
+              color: Colors.black87,
+              letterSpacing: -0.5,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -174,6 +199,101 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildKijelentkezesGomb() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      child: Column(
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                )
+              ],
+            ),
+            child: ListTile(
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 18, vertical: 2),
+              leading: Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(Icons.logout_rounded,
+                    color: Colors.red.shade600, size: 18),
+              ),
+              title: Text(
+                'Kijelentkezés',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.red.shade600,
+                ),
+              ),
+              subtitle: Text(
+                'Visszatérés a bejelentkezési képernyőre',
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+              ),
+              trailing:
+                  Icon(Icons.chevron_right, color: Colors.red.shade300, size: 20),
+              onTap: _kijelentkezes,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _kijelentkezes() async {
+    final megerosit = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: const Text(
+          'Kijelentkezés',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
+        content: const Text(
+          'Biztosan ki szeretnél jelentkezni? A beállításaid és edzéseid megmaradnak.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Mégse'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.red.shade600,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Kijelentkezés'),
+          ),
+        ],
+      ),
+    );
+
+    if (megerosit != true || !mounted) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('onboarding_complete', false);
+    await prefs.remove('current_user_name');
+
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const OnboardingScreen()),
+      (_) => false,
     );
   }
 

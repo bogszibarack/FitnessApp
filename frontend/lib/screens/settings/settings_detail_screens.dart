@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../models/beallitas_models.dart';
 import '../../services/apple_health_service.dart';
 import '../../services/beallitasok_service.dart';
+import '../../services/sound_service.dart';
 import '../../widgets/settings_widgets.dart';
 
 // ─── Alap detail scaffold ───────────────────────────────────────────────────
@@ -518,8 +519,14 @@ class _EdzesBeallitasokScreenState extends State<EdzesBeallitasokScreen> {
               children: [
                 SettingsSectionHeader(title: 'Hangok és visszajelzés'),
                 BeallitasSzekcio(children: [
-                  KapcsoloTile(icon: Icons.volume_up_rounded, ikonSzin: const Color(0xFF00ACC1), title: 'Hangok', ertek: _hangok, onChange: (v) => setState(() => _hangok = v)),
-                  KapcsoloTile(icon: Icons.emoji_events_rounded, ikonSzin: const Color(0xFFFFB300), title: 'PR hang (bang!)', ertek: _prHang, onChange: (v) => setState(() => _prHang = v)),
+                  KapcsoloTile(icon: Icons.volume_up_rounded, ikonSzin: const Color(0xFF00ACC1), title: 'Hangok', ertek: _hangok, onChange: (v) {
+                    setState(() => _hangok = v);
+                    SoundService.instance.beallitasMentes(hangok: v);
+                  }),
+                  KapcsoloTile(icon: Icons.emoji_events_rounded, ikonSzin: const Color(0xFFFFB300), title: 'PR hang (bang!)', ertek: _prHang, onChange: (v) {
+                    setState(() => _prHang = v);
+                    SoundService.instance.beallitasMentes(prHang: v);
+                  }),
                 ]),
                 SettingsSectionHeader(title: 'Funkciók'),
                 BeallitasSzekcio(children: [

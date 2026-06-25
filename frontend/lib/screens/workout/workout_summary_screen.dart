@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/workout_models.dart';
+import '../../services/sound_service.dart';
 
 /// Edzés befejezése után megjelenő összefoglaló + progresszió-tervező.
 class WorkoutSummaryScreen extends StatefulWidget {
@@ -38,6 +39,8 @@ class _WorkoutSummaryScreenState extends State<WorkoutSummaryScreen> with Single
     super.initState();
     _cimCtrl = TextEditingController(text: widget.edzes.title);
     _animCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 600));
+    // Edzés befejezés hang
+    SoundService.instance.edzesBefejezesHang();
     _fadeAnim = CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut);
     _animCtrl.forward();
     _loadPreferences();

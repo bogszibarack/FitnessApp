@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import '../models/exercise_model.dart';
 import '../models/workout_models.dart';
 import '../services/exercise_service.dart';
+import '../services/sound_service.dart';
 import '../services/workout_service.dart';
 
 /// Kép / animáció a gyakorlatról (GitHub képkockák).
@@ -214,11 +215,14 @@ class SorozatSor extends StatefulWidget {
   State<SorozatSor> createState() => _SorozatSorState();
 }
 
-class _SorozatSorState extends State<SorozatSor> {
+class _SorozatSorState extends State<SorozatSor>
+    with SingleTickerProviderStateMixin {
   late final TextEditingController _sulyController;
   late final TextEditingController _ismController;
   bool _mentes = false;
   Timer? _debounce;
+  late final AnimationController _prAnim;
+  late final Animation<Color?> _prSzin;
 
   @override
   void initState() {
@@ -227,6 +231,15 @@ class _SorozatSorState extends State<SorozatSor> {
     _ismController = TextEditingController(text: widget.sorozat.reps > 0 ? '${widget.sorozat.reps}' : '');
     _sulyController.addListener(_autoMentes);
     _ismController.addListener(_autoMentes);
+    _prAnim = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+    _prSzin = ColorTween(
+      begin: const Color(0xFFFFD700),
+      end: Colors.transparent,
+    ).animate(CurvedAnimation(parent: _prAnim, curve: Curves.easeOut));
+    SoundService.instance.inicializalas();
   }
 
   @override
@@ -274,7 +287,18 @@ class _SorozatSorState extends State<SorozatSor> {
     _debounce?.cancel();
     _sulyController.dispose();
     _ismController.dispose();
+    _prAnim.dispose();
     super.dispose();
+  }
+
+  bool _prErzekeles(double suly) {
+    final elozo = widget.sorozat.elozoSulyKg;
+    return !widget.sorozat.elvegezve && suly > 0 && elozo > 0 && suly > elozo;
+  }
+
+  Future<void> _prCelebracio() async {
+    _prAnim.forward(from: 0);
+    await SoundService.instance.prHangJatszas();
   }
 
   @override
@@ -346,8 +370,11 @@ class _SorozatSorState extends State<SorozatSor> {
               child: IconButton(
                 padding: EdgeInsets.zero,
                 onPressed: () async {
+                  final suly = _sulyErtek();
+                  final prDetek = _prErzekeles(suly);
                   await _mentesHaKell();
-                  await widget.onPipa(_sulyErtek(), _ismErtek());
+                  await widget.onPipa(suly, _ismErtek());
+                  if (prDetek) await _prCelebracio();
                 },
                 icon: Icon(
                   kesz ? Icons.check_circle : Icons.check_circle_outline,
@@ -361,7 +388,47 @@ class _SorozatSorState extends State<SorozatSor> {
       ),
     );
 
-    if (widget.onTorles == null) return sor;
+    // PR arany villanás overlay
+    final sorPrrel = AnimatedBuilder(
+      animation: _prAnim,
+      builder: (ctx, child) {
+        final szin = _prSzin.value;
+        if (szin == null || szin.a == 0) return child!;
+        return Stack(
+          children: [
+            child!,
+            Positioned.fill(
+              child: IgnorePointer(
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: szin.withValues(alpha: szin.a * 0.35),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFFFD700), width: 1.5),
+                  ),
+                  child: szin.a > 0.5
+                      ? Center(
+                          child: Text(
+                            '🏆 ÚJ REKORD!',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w900,
+                              fontSize: 13,
+                              color: const Color(0xFFB8860B).withValues(alpha: szin.a),
+                              letterSpacing: 1,
+                            ),
+                          ),
+                        )
+                      : null,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+      child: sor,
+    );
+
+    if (widget.onTorles == null) return sorPrrel;
 
     return Dismissible(
       key: ValueKey('dismiss-${s.setNumber}-${s.bemelegites}'),
@@ -377,7 +444,7 @@ class _SorozatSorState extends State<SorozatSor> {
         widget.onTorles!();
         return false;
       },
-      child: sor,
+      child: sorPrrel,
     );
   }
 }

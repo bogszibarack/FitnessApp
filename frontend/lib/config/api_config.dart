@@ -3,10 +3,14 @@ import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show kIsWeb;
 
 class ApiConfig {
-  static const defaultUserName = 'Koko';
+  // Runtime-ban módosítható felhasználónév (onboarding után frissül)
+  static String _defaultUserName = 'Koko';
+  static String get defaultUserName => _defaultUserName;
+  static set defaultUserName(String value) {
+    if (value.isNotEmpty) _defaultUserName = value;
+  }
 
   // A Windows gép helyi IP-je (ahol a .NET backend fut).
-  // Ha megváltozik a hálózat, itt kell módosítani.
   static const _backendIp = '192.168.1.141';
   static const _backendPort = '5150';
   static const _backendUrl = 'http://$_backendIp:$_backendPort';
@@ -14,7 +18,6 @@ class ApiConfig {
   static String get baseUrl {
     if (kIsWeb) return _backendUrl;
     if (Platform.isAndroid) return 'http://10.0.2.2:$_backendPort';
-    // iOS, macOS, Windows natív — a backend WiFi-n érhető el
     return _backendUrl;
   }
 
