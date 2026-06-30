@@ -1,3 +1,5 @@
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../models/daily_health_data.dart';
 import '../models/nutrition_models.dart';
 import 'apple_health_service.dart';
@@ -74,8 +76,19 @@ class HomeService {
     var source = 'backend';
 
     if (_health.isSupported) {
+      // iOS-on a hasPermissions() megbízhatatlan (privacy korlát miatt mindig
+      // false-t adhat vissza még engedélyezés után is). Ehelyett:
+      // 1. Ha az onboardingban az user engedélyezte (SharedPrefs health_enabled),
+      //    egyből próbálunk adatot kérni.
+      // 2. Ha a fetch sikertelen vagy üres, megpróbáljuk a hasPermissions()-t is.
+      // 3. Ha sem SharedPrefs flag, sem hasPermissions() nem OK → banner megjelenítése.
       try {
-        final hasPermission = await _health.hasPermissions();
+        final prefs = await SharedPreferences.getInstance();
+        final healthEnabled = prefs.getBool('health_enabled') ?? false;
+
+        // Ha az onboarding során engedélyezte VAGY a hasPermissions() pozitív
+        final hasPermission = healthEnabled || (await _health.hasPermissions());
+
         if (hasPermission) {
           final health = await _health.fetchToday();
           burned = health.caloriesBurned;
@@ -85,11 +98,19 @@ class HomeService {
           exerciseMin = health.exerciseMinutes;
           standHours = health.standHours;
           source = 'merged';
+          // Ha tényleg volt adat, mentjük el a flag-et (hasPermissions bypass)
+          if (steps > 0 || moveKcal > 0 || distanceKm > 0) {
+            await prefs.setBool('health_enabled', true);
+          }
         } else {
           permissionNeeded = true;
           source = 'apple_health';
         }
-      } catch (_) {}
+      } catch (_) {
+        // Fetch hiba: valószínűleg nem lett engedélyezve, vagy nem iOS eszköz
+        permissionNeeded = !(_health.isSupported);
+        source = 'apple_health';
+      }
     }
 
     final data = DailyHealthData(

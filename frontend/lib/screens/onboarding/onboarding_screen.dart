@@ -806,161 +806,176 @@ class _AppleHealthPageState extends State<_AppleHealthPage>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 28),
+    return GestureDetector(
+      // Billentyűzet elrejtése ha az előző oldalról maradt fókusz
+      onTap: () => FocusScope.of(context).unfocus(),
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        // Billentyűzet megjelenésekor a tartalom scrollolható legyen
+        resizeToAvoidBottomInset: true,
+        body: SafeArea(
           child: Column(
             children: [
-              // Kihagyás gomb
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: widget.onKihagyas,
-                  child: const Text(
-                    'Kihagyás',
-                    style: TextStyle(
-                      color: _kTextLight,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ),
-              const Spacer(flex: 2),
-              // Szív ikon
-              ScaleTransition(
-                scale: _pulseAnim,
-                child: Container(
-                  width: 100,
-                  height: 100,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFF0F0),
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFFFF3B30).withOpacity(0.18),
-                        blurRadius: 24,
-                        offset: const Offset(0, 8),
+              // Kihagyás gomb — fix a tetején
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: widget.onKihagyas,
+                    child: const Text(
+                      'Kihagyás',
+                      style: TextStyle(
+                        color: _kTextLight,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
                       ),
-                    ],
-                  ),
-                  child: const Center(
-                    child: _HeartIcon(),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 28),
-              const Text(
-                'Apple Health',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF111111),
-                ),
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'Engedélyezd az Apple Health hozzáférést, hogy a Flexio leolvassa és naplózza az edzéseidet, lépésszámodat és égetett kalóriáidat.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: _kTextLight,
-                  height: 1.6,
-                ),
-              ),
-              const SizedBox(height: 32),
-              // Funkciók listája
-              _HealthFeatureRow(
-                icon: Icons.directions_walk_rounded,
-                color: const Color(0xFF34C759),
-                text: 'Lépésszám és megtett távolság',
-              ),
-              const SizedBox(height: 10),
-              _HealthFeatureRow(
-                icon: Icons.local_fire_department_rounded,
-                color: const Color(0xFFFF6D00),
-                text: 'Aktív kalória és mozgásidő',
-              ),
-              const SizedBox(height: 10),
-              _HealthFeatureRow(
-                icon: Icons.monitor_heart_outlined,
-                color: const Color(0xFFFF3B30),
-                text: 'Edzés- és testmérési adatok',
-              ),
-              const SizedBox(height: 10),
-              _HealthFeatureRow(
-                icon: Icons.restaurant_menu_rounded,
-                color: const Color(0xFF5AC8FA),
-                text: 'Elfogyasztott tápanyagok',
-              ),
-              const Spacer(flex: 2),
-              // Engedélyezés gomb
-              SizedBox(
-                width: double.infinity,
-                height: 54,
-                child: ElevatedButton(
-                  onPressed: _betoltes
-                      ? null
-                      : () async {
-                          setState(() => _betoltes = true);
-                          try {
-                            await widget.onEngedelyez();
-                          } finally {
-                            if (mounted) setState(() => _betoltes = false);
-                          }
-                        },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _kBlue,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
                     ),
                   ),
-                  child: _betoltes
-                      ? const SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.5,
-                            color: Colors.white,
+                ),
+              ),
+              // Scrollolható tartalom
+              Expanded(
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(horizontal: 28),
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 16),
+                      // Szív ikon
+                      ScaleTransition(
+                        scale: _pulseAnim,
+                        child: Container(
+                          width: 100,
+                          height: 100,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFF0F0),
+                            borderRadius: BorderRadius.circular(24),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFFFF3B30).withOpacity(0.18),
+                                blurRadius: 24,
+                                offset: const Offset(0, 8),
+                              ),
+                            ],
                           ),
-                        )
-                      : const Text(
-                          'Apple Health engedélyezése',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
+                          child: const Center(child: _HeartIcon()),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      const Text(
+                        'Apple Health',
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF111111),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      const Text(
+                        'Engedélyezd az Apple Health hozzáférést, hogy a Flexio leolvassa és naplózza az edzéseidet, lépésszámodat és égetett kalóriáidat.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: _kTextLight,
+                          height: 1.6,
+                        ),
+                      ),
+                      const SizedBox(height: 28),
+                      _HealthFeatureRow(
+                        icon: Icons.directions_walk_rounded,
+                        color: const Color(0xFF34C759),
+                        text: 'Lépésszám és megtett távolság',
+                      ),
+                      const SizedBox(height: 10),
+                      _HealthFeatureRow(
+                        icon: Icons.local_fire_department_rounded,
+                        color: const Color(0xFFFF6D00),
+                        text: 'Aktív kalória és mozgásidő',
+                      ),
+                      const SizedBox(height: 10),
+                      _HealthFeatureRow(
+                        icon: Icons.monitor_heart_outlined,
+                        color: const Color(0xFFFF3B30),
+                        text: 'Edzés- és testmérési adatok',
+                      ),
+                      const SizedBox(height: 10),
+                      _HealthFeatureRow(
+                        icon: Icons.restaurant_menu_rounded,
+                        color: const Color(0xFF5AC8FA),
+                        text: 'Elfogyasztott tápanyagok',
+                      ),
+                      const SizedBox(height: 32),
+                      // Engedélyezés gomb
+                      SizedBox(
+                        width: double.infinity,
+                        height: 54,
+                        child: ElevatedButton(
+                          onPressed: _betoltes
+                              ? null
+                              : () async {
+                                  FocusScope.of(context).unfocus();
+                                  setState(() => _betoltes = true);
+                                  try {
+                                    await widget.onEngedelyez();
+                                  } finally {
+                                    if (mounted) setState(() => _betoltes = false);
+                                  }
+                                },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _kBlue,
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                          child: _betoltes
+                              ? const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.5,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Text(
+                                  'Apple Health engedélyezése',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      // Most nem gomb
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: TextButton(
+                          onPressed: widget.onKihagyas,
+                          style: TextButton.styleFrom(
+                            backgroundColor: const Color(0xFFF2F2F2),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                          child: const Text(
+                            'Most nem',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF555555),
+                            ),
                           ),
                         ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              // Most nem gomb
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: TextButton(
-                  onPressed: widget.onKihagyas,
-                  style: TextButton.styleFrom(
-                    backgroundColor: const Color(0xFFF2F2F2),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                  child: const Text(
-                    'Most nem',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF555555),
-                    ),
+                      ),
+                      const SizedBox(height: 28),
+                    ],
                   ),
                 ),
               ),
-              const SizedBox(height: 28),
             ],
           ),
         ),
