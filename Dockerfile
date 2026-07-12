@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /src
 
 # Másoljuk a csproj-t és visszaállítjuk a csomagokat
@@ -13,7 +13,7 @@ FROM build AS publish
 RUN dotnet publish "FitnessBackend.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
 # Végső futtató környezet kialakítása
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
+FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
 ENTRYPOINT ["dotnet", "FitnessBackend.dll"]
