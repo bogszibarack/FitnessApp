@@ -13,6 +13,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
+app.UseCors();
 
 // Spoonacular API kulcs (receptekhez)
 FitnessBackend.Models.SpoonacularConfig.ApiKey =
@@ -26,9 +27,10 @@ FitnessBackend.Models.UsdaConfig.ApiKey =
     ?? Environment.GetEnvironmentVariable("USDA_API_KEY")
     ?? "";
 
-var szelfi_mappa = Path.Combine(app.Environment.WebRootPath, "uploads", "selfies");
+string baseRoot = app.Environment.WebRootPath ?? AppContext.BaseDirectory;
+var szelfi_mappa = Path.Combine(baseRoot, "uploads", "selfies");
 Directory.CreateDirectory(szelfi_mappa);
-Directory.CreateDirectory(Path.Combine(app.Environment.WebRootPath, "uploads", "profiles"));
+Directory.CreateDirectory(Path.Combine(baseRoot, "uploads", "profiles"));
 
 if (app.Environment.IsDevelopment())
 {

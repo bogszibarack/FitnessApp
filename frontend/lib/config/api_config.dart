@@ -11,13 +11,8 @@ class ApiConfig {
   }
 
   // A Windows gép helyi IP-je (ahol a .NET backend fut).
-  static const _backendIp = '192.168.1.141';
-  static const _backendPort = '5150';
-  static const _backendUrl = 'http://$_backendIp:$_backendPort';
-
+static const _backendUrl = 'https://flexio.runasp.net';
   static String get baseUrl {
-    if (kIsWeb) return _backendUrl;
-    if (Platform.isAndroid) return 'http://10.0.2.2:$_backendPort';
     return _backendUrl;
   }
 
