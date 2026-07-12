@@ -1,4 +1,4 @@
-# 🏋️‍♂️ FitnessApp - Hevy & Yazio Kombinálása
+# 🏋️‍♂️ FitnessApp - Hevy & Yazio Kombinálása (Folyamatos fejlesztés alatt)
 
 Egy könnyen indítható, modern és intelligens webalkalmazás/API háttér, ami egyetlen közös rendszerbe fésüli össze az edzésnaplózást (Hevy logika) és a kalóriaszámlálást (Yazio logika). 
 
@@ -8,28 +8,31 @@ A fejlesztés során a legnagyobb kihívást az interneten található, sokszor 
 
 ## 🛠 Tech Stack
 
-* **Backend:** .NET 8 Web API (Kontroller-alapú architektúra)
-* **Frontend:** Cross-platform mobilalkalmazás (Flutter / Dart architektúra)
-* **Adatbázis:** In-Memory / Centralized State tárolás a maximális sebességért és az azonnali, konfigurációmentes indításért (később szerver)
-* **API Dokumentáció:** Swagger / OpenAPI UI
-* **Külső Integrációk:** Open Food Facts API (3M+ élelmiszer), TheMealDB API, GitHub Free Exercise DB, AlexCumplido Yoga API
+| Réteg | Technológia / Keretrendszer | Leírás |
+| :--- | :--- | :--- |
+| **Backend** | ⚡ .NET 9 Web API | Kontroller-alapú, nagyteljesítményű architektúra |
+| **Frontend** | 💙 Flutter / Dart | Cross-platform mobilalkalmazás (iOS & Android) |
+| **Adatbázis** | 🧠 In-Memory / State tárolás | Centralizált tárolás a maximális sebességért és az azonnali, konfigurációmentes indításért |
+| **Környezet** | 🐳 Docker | Konténerizált produkciós futtatás |
+| **Hosting** | ☁️ Render.com | Automatikus felhő alapú hosting |
+
+### 🌐 Külső Integrációk
+* **Open Food Facts API:** 3M+ élelmiszer és tápanyagadat lekezelése.
+* **TheMealDB API & AlexCumplido Yoga API:** Receptek és jóga források integrációja.
+* **GitHub Free Exercise DB:** Központi edzésadatbázis alapok.
 
 ---
 
-## 🚀 Telepítési és Indítási Útmutató
+## 📁 Projekt Struktúra
 
-### Előfeltételek
-* [.NET 8 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/8.0)
-* [Flutter SDK](https://docs.flutter.dev/get-started/install) (a mobilalkalmazás futtatásához)
-
-### 1. A Backend futtatása (.NET API)
-Nyiss egy terminált a projekt gyökérmappájában, majd indítsd el a szervert:
-```bash , dotnet run
-
-### 2. A Frontend futtatása (Flutter)
-
-Nyiss egy **második terminál fület** (vagy ablakot) és lépj be a frontend könyvtárba:
-```bash
-cd frontend
-flutter pub get
-flutter run
+```text
+FitnessApp/
+├── frontend/               # A Flutter mobilalkalmazás forráskódja
+│   ├── lib/
+│   │   └── config/         # api_config.dart (API végpontok)
+│   └── pubspec.yaml        # Flutter csomagkezelő
+├── Controllers/            # .NET API Kontrollerek (Menu, Edzés, Beállítások)
+├── Data/                   # Adatbázis statikus állományok & Centralized State
+├── Program.cs              # .NET Alkalmazás belépési pont és inicializáció
+├── FitnessBackend.csproj   # .NET Projektfájl
+└── Dockerfile              # Produkciós Docker konfiguráció Render-hez
