@@ -210,7 +210,7 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
                                   ],
                                 ),
                               ),
-                              Text('${kcal} kcal', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                              Text('$kcal kcal', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
                             ],
                           ),
                           const SizedBox(height: 10),

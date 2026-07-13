@@ -387,17 +387,6 @@ class _RecipesScreenState extends State<RecipesScreen> {
     [Color(0xFF2C3E50), Color(0xFF34495E)],
   ];
 
-  static const _ikonok = [
-    Icons.restaurant_menu,
-    Icons.local_dining,
-    Icons.set_meal,
-    Icons.rice_bowl,
-    Icons.outdoor_grill,
-    Icons.emoji_food_beverage,
-    Icons.soup_kitchen,
-    Icons.bakery_dining,
-  ];
-
   Widget _receptKartya(ReceptListaElemModel r) {
     final idx = r.nev.hashCode.abs() % _szinek.length;
     final szinpair = _szinek[idx];
@@ -429,7 +418,7 @@ class _RecipesScreenState extends State<RecipesScreen> {
                         fit: BoxFit.cover,
                         loadingBuilder: (_, child, progress) =>
                             progress == null ? child : _gradiensHatter(szinpair, kcal),
-                        errorBuilder: (_, __, ___) => _gradiensHatter(szinpair, kcal),
+                        errorBuilder: (_, _, _) => _gradiensHatter(szinpair, kcal),
                       )
                     : _gradiensHatter(szinpair, kcal),
               ),

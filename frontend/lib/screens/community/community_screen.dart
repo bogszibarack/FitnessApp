@@ -25,6 +25,7 @@ class _CommunityScreenState extends State<CommunityScreen>
   List<CommunityFelhasznaloModel> _felhasznalok = [];
   bool _betolt = true;
   String? _hiba;
+  final Set<String> _mentettPosztIds = {};
 
   final _keresCtrl = TextEditingController();
   Timer? _keresDebounce;
@@ -247,6 +248,7 @@ class _CommunityScreenState extends State<CommunityScreen>
           onFelhasznaloTap: (nev) => _profilMegnyitas(nev),
           onMentesRutinkent: (id) => _mentesRutinkent(id),
           onKomment: (id) => _kommentSheet(id),
+          mentett: _mentettPosztIds.contains(szurt[i].id),
         ),
       ),
     );
@@ -297,6 +299,7 @@ class _CommunityScreenState extends State<CommunityScreen>
     try {
       await _service.mentesRutinkent(posztId);
       if (!mounted) return;
+      setState(() => _mentettPosztIds.add(posztId));
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Rutin elmentve a saját rutinjaid közé!')),
       );
@@ -331,6 +334,7 @@ class PosztKartya extends StatelessWidget {
     required this.onFelhasznaloTap,
     required this.onMentesRutinkent,
     required this.onKomment,
+    this.mentett = false,
   });
 
   final CommunityPosztModel poszt;
@@ -339,6 +343,7 @@ class PosztKartya extends StatelessWidget {
   final ValueChanged<String> onFelhasznaloTap;
   final ValueChanged<String> onMentesRutinkent;
   final ValueChanged<String> onKomment;
+  final bool mentett;
 
   @override
   Widget build(BuildContext context) {
@@ -508,9 +513,9 @@ class PosztKartya extends StatelessWidget {
                 ),
                 const Spacer(),
                 AkcioGomb(
-                  ikon: Icons.bookmark_border,
-                  cimke: 'Mentés',
-                  szin: Colors.grey.shade600,
+                  ikon: mentett ? Icons.bookmark : Icons.bookmark_border,
+                  cimke: mentett ? 'Mentve' : 'Mentés',
+                  szin: mentett ? Colors.amber.shade700 : Colors.grey.shade600,
                   onTap: () => onMentesRutinkent(poszt.id),
                 ),
               ],

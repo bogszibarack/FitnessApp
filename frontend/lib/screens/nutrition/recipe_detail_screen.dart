@@ -55,10 +55,16 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   Future<void> _naplohozAdas() async {
     setState(() => _mentes = true);
     try {
+      final r = _recept;
       await _nutritionService.receptHozzaadasa(
         receptId: widget.receptId,
         etkezesTipus: widget.etkezesTipus,
         adagSzam: _adag,
+        receptNev: r?.nev,
+        kaloriaAdagonkent: r?.becsultKaloria.toDouble(),
+        feherjeAdagonkent: r?.becsultFeherje,
+        szenhidratAdagonkent: r?.becsultSzenhidrat,
+        zsirAdagonkent: r?.becsultZsir,
       );
       if (!mounted) return;
       Navigator.of(context).pop(true);
@@ -235,7 +241,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       fit: StackFit.expand,
       children: [
         Image.network(r.kepUrl, fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => gradiensHatter),
+            errorBuilder: (_, _, _) => gradiensHatter),
         // Sötét átmenet alul az olvashatóságért
         Positioned.fill(
           child: Container(

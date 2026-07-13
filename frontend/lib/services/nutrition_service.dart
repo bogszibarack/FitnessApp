@@ -51,15 +51,27 @@ class NutritionService {
     required String receptId,
     required String etkezesTipus,
     double adagSzam = 1,
+    String? receptNev,
+    double? kaloriaAdagonkent,
+    double? feherjeAdagonkent,
+    double? szenhidratAdagonkent,
+    double? zsirAdagonkent,
   }) async {
+    final body = <String, dynamic>{
+      'receptId': receptId,
+      'adagSzam': adagSzam,
+      'etkezesTipus': etkezesTipus,
+    };
+    if (receptNev != null) body['receptNev'] = receptNev;
+    if (kaloriaAdagonkent != null) body['kaloriaAdagonkent'] = kaloriaAdagonkent;
+    if (feherjeAdagonkent != null) body['feherjeAdagonkent'] = feherjeAdagonkent;
+    if (szenhidratAdagonkent != null) body['szenhidratAdagonkent'] = szenhidratAdagonkent;
+    if (zsirAdagonkent != null) body['zsirAdagonkent'] = zsirAdagonkent;
+
     final response = await http.post(
       Uri.parse('$_base/api/nutrition/recept-hozzaadas'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'receptId': receptId,
-        'adagSzam': adagSzam,
-        'etkezesTipus': etkezesTipus,
-      }),
+      body: jsonEncode(body),
     );
     _ellenorzes(response);
     return DailyNutritionModel.fromJson(jsonDecode(response.body) as Map<String, dynamic>);

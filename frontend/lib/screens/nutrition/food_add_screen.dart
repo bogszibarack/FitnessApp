@@ -165,7 +165,7 @@ class _FoodAddScreenState extends State<FoodAddScreen> {
 
     return ListView.separated(
       itemCount: _talalatok.length,
-      separatorBuilder: (_, __) => Divider(height: 1, color: Colors.grey.shade200),
+      separatorBuilder: (_, _) => Divider(height: 1, color: Colors.grey.shade200),
       itemBuilder: (context, index) {
         final etel = _talalatok[index];
         final kinyitott = _kivalasztottId == etel.id;

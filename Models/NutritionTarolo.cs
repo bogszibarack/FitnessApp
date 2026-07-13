@@ -28,17 +28,38 @@ namespace FitnessBackend.Models
                 return (null, null, "AdagSzam kotelezo es nagyobb mint 0.");
             }
 
-            var recept = await ReceptApiSeged.ReceptLekerdezese(keres.ReceptId);
-            if (recept == null)
-            {
-                return (null, null, "Nincs ilyen recept.");
-            }
+            LoggedFood bejegyzes;
 
-            var bejegyzes = ReceptApiSeged.ReceptbolNaploBejegyzes(
-                recept, keres.AdagSzam, keres.EtkezesTipus);
+            // Ha a frontend elküldte a tápértékeket, nem kell külső API-hívás
+            if (keres.KaloriaAdagonkent.HasValue && keres.KaloriaAdagonkent.Value > 0)
+            {
+                bejegyzes = new LoggedFood
+                {
+                    FoodId = keres.ReceptId,
+                    FoodName = keres.ReceptNev ?? keres.ReceptId,
+                    MealType = keres.EtkezesTipus,
+                    Receptbol = true,
+                    ReceptId = keres.ReceptId,
+                    AdagSzam = keres.AdagSzam,
+                    CaloriesPer100g = keres.KaloriaAdagonkent.Value,
+                    ProteinPer100g = keres.FeherjeAdagonkent ?? 0,
+                    CarbsPer100g = keres.SzenhidratAdagonkent ?? 0,
+                    FatPer100g = keres.ZsirAdagonkent ?? 0,
+                };
+            }
+            else
+            {
+                var recept = await ReceptApiSeged.ReceptLekerdezese(keres.ReceptId);
+                if (recept == null)
+                {
+                    return (null, null, "Nincs ilyen recept.");
+                }
+                bejegyzes = ReceptApiSeged.ReceptbolNaploBejegyzes(recept, keres.AdagSzam, keres.EtkezesTipus);
+            }
 
             var naplo = NaploLekerdezeseVagyLetrehozasa(DateTime.Today);
             naplo.EatenFoods.Add(bejegyzes);
+            DataPersistence.NutritionMentese();
 
             return (naplo, bejegyzes, null);
         }

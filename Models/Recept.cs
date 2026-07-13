@@ -61,5 +61,12 @@ namespace FitnessBackend.Models
         public string ReceptId { get; set; } = "";
         public double AdagSzam { get; set; } = 1;
         public string EtkezesTipus { get; set; } = "reggeli";
+
+        // Opcionális: ha a frontend elküldi, nincs szükség külső API-hívásra
+        public string? ReceptNev { get; set; }
+        public double? KaloriaAdagonkent { get; set; }
+        public double? FeherjeAdagonkent { get; set; }
+        public double? SzenhidratAdagonkent { get; set; }
+        public double? ZsirAdagonkent { get; set; }
     }
 }

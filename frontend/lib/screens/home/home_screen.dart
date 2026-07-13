@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/community_models.dart';
 import '../../models/daily_health_data.dart';
@@ -79,15 +80,14 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _connectAppleHealth() async {
-    final granted = await _healthService.requestPermissions();
+    // iOS-on requestPermissions() mindig true-t ad vissza (dialog megjelent),
+    // függetlenül attól, hogy a user engedélyezte-e.
+    // Ezért mindig mentjük a health_enabled flagot és próbálunk adatot tölteni.
+    await _healthService.requestPermissions();
     if (!mounted) return;
-    if (granted) {
-      await _loadData();
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Apple Health hozzáférés megtagadva.')),
-      );
-    }
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('health_enabled', true);
+    await _loadData();
   }
 
   String _formatNumber(int value) => NumberFormat('#,###', 'hu').format(value).replaceAll(',', ' ');

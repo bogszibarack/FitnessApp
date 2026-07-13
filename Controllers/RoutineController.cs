@@ -91,6 +91,7 @@ namespace FitnessBackend.Controllers
             }
 
             EdzesTervTarolo.MentettRutinok.Add(uj_rutin);
+            DataPersistence.RutinokMentese();
             return Ok(uj_rutin);
         }
 
@@ -129,6 +130,7 @@ namespace FitnessBackend.Controllers
             }
 
             EdzesTervTarolo.MentettRutinok.Remove(torlendo);
+            DataPersistence.RutinokMentese();
             return Ok($"Rutin torolve: {torlendo.Title}");
         }
 

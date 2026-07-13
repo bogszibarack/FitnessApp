@@ -187,16 +187,24 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
             .toList()
             .asMap()
             .entries
-            .map((e) => e.value.copyWith(
-                  setNumber: e.key + 1,
-                  weight: double.parse(
-                      (e.value.weight * szorzo).toStringAsFixed(1)),
-                  reps: e.value.reps,
-                  elvegezve: false,
-                  celIsmetles: '${e.value.reps}',
-                  elozoSulyKg: e.value.weight,
-                  elozoIsmetles: e.value.reps,
-                ))
+            .map((e) {
+              // Ha az elvégzett sorozat súlya 0, az előző súlyt használjuk alapnak
+              final alapSuly = e.value.weight > 0
+                  ? e.value.weight
+                  : (e.value.elozoSulyKg > 0 ? e.value.elozoSulyKg : 0.0);
+              final ujSuly = alapSuly > 0
+                  ? double.parse((alapSuly * szorzo).toStringAsFixed(1))
+                  : 0.0;
+              return e.value.copyWith(
+                setNumber: e.key + 1,
+                weight: ujSuly,
+                reps: e.value.reps,
+                elvegezve: false,
+                celIsmetles: e.value.reps > 0 ? '${e.value.reps}' : e.value.celIsmetles,
+                elozoSulyKg: alapSuly,
+                elozoIsmetles: e.value.reps,
+              );
+            })
             .toList();
         if (modositottSorozatok.isEmpty) return null;
         return LoggedExerciseModel(

@@ -484,7 +484,7 @@ class _WelcomePageState extends State<_WelcomePage>
                   'Üdvözöl a Flexio!',
                   style: TextStyle(
                     fontSize: 16,
-                    color: Colors.white.withOpacity(0.55),
+                    color: Colors.white.withValues(alpha: 0.55),
                     letterSpacing: 0.2,
                   ),
                 ),
@@ -537,13 +537,13 @@ class _WelcomeBtn extends StatelessWidget {
       child: TextButton(
         onPressed: onTap,
         style: TextButton.styleFrom(
-          backgroundColor: primary ? _kBlue : Colors.white.withOpacity(0.1),
+          backgroundColor: primary ? _kBlue : Colors.white.withValues(alpha: 0.1),
           foregroundColor: Colors.white,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
             side: primary
                 ? BorderSide.none
-                : BorderSide(color: Colors.white.withOpacity(0.2)),
+                : BorderSide(color: Colors.white.withValues(alpha: 0.2)),
           ),
         ),
         child: Text(
@@ -840,7 +840,7 @@ class _AppleHealthPageState extends State<_AppleHealthPage>
                     borderRadius: BorderRadius.circular(24),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFFFF3B30).withOpacity(0.18),
+                        color: const Color(0xFFFF3B30).withValues(alpha: 0.18),
                         blurRadius: 24,
                         offset: const Offset(0, 8),
                       ),
@@ -1048,7 +1048,7 @@ class _HealthFeatureRow extends StatelessWidget {
           width: 36,
           height: 36,
           decoration: BoxDecoration(
-            color: color.withOpacity(0.12),
+            color: color.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(icon, color: color, size: 18),
@@ -1181,7 +1181,7 @@ class _UnitToggle extends StatelessWidget {
                       boxShadow: isSelected
                           ? [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.08),
+                                color: Colors.black.withValues(alpha: 0.08),
                                 blurRadius: 6,
                                 offset: const Offset(0, 2),
                               )
@@ -1382,7 +1382,7 @@ class _SurveyPage extends StatelessWidget {
             Expanded(
               child: ListView.separated(
                 itemCount: _kForrasok.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                separatorBuilder: (_, _) => const SizedBox(height: 8),
                 itemBuilder: (ctx, i) {
                   final (nev, ikon) = _kForrasok[i];
                   final selected = valasztott == nev;
@@ -1401,7 +1401,7 @@ class _SurveyPage extends StatelessWidget {
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.04),
+                            color: Colors.black.withValues(alpha: 0.04),
                             blurRadius: 4,
                             offset: const Offset(0, 2),
                           )
@@ -1633,7 +1633,7 @@ class _ExRow extends StatelessWidget {
         color: done ? const Color(0xFFEDF7ED) : Colors.white,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color: done ? _kGreen.withOpacity(0.3) : const Color(0xFFEEEEEE),
+          color: done ? _kGreen.withValues(alpha: 0.3) : const Color(0xFFEEEEEE),
         ),
       ),
       child: Row(
@@ -1764,8 +1764,8 @@ class _ChartPainter extends CustomPainter {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            _kBlue.withOpacity(0.25),
-            _kBlue.withOpacity(0.0),
+            _kBlue.withValues(alpha: 0.25),
+            _kBlue.withValues(alpha: 0.0),
           ],
         ).createShader(Rect.fromLTWH(0, 0, size.width, size.height)),
     );
@@ -1870,7 +1870,7 @@ class _SuccessPageState extends State<_SuccessPage>
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: _kGreen.withOpacity(0.35),
+                          color: _kGreen.withValues(alpha: 0.35),
                           blurRadius: 28,
                           offset: const Offset(0, 8),
                         )

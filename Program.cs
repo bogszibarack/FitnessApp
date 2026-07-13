@@ -27,6 +27,9 @@ FitnessBackend.Models.UsdaConfig.ApiKey =
     ?? Environment.GetEnvironmentVariable("USDA_API_KEY")
     ?? "";
 
+// Perzisztált adatok betöltése induláskor
+FitnessBackend.Controllers.WorkoutController.BetoltesIndulaskor();
+
 string baseRoot = app.Environment.WebRootPath ?? AppContext.BaseDirectory;
 var szelfi_mappa = Path.Combine(baseRoot, "uploads", "selfies");
 Directory.CreateDirectory(szelfi_mappa);

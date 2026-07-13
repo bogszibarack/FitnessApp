@@ -227,7 +227,11 @@ class _SorozatSorState extends State<SorozatSor>
   @override
   void initState() {
     super.initState();
-    _sulyController = TextEditingController(text: _sulySzoveg(widget.sorozat.weight));
+    // Ha a jelenlegi súly 0, de van előző adat, azt mutatjuk előre kitöltve
+    final megjelenitesSuly = widget.sorozat.weight > 0
+        ? widget.sorozat.weight
+        : widget.sorozat.elozoSulyKg;
+    _sulyController = TextEditingController(text: _sulySzoveg(megjelenitesSuly));
     _ismController = TextEditingController(text: widget.sorozat.reps > 0 ? '${widget.sorozat.reps}' : '');
     _sulyController.addListener(_autoMentes);
     _ismController.addListener(_autoMentes);
@@ -388,7 +392,7 @@ class _SorozatSorState extends State<SorozatSor>
       ),
     );
 
-    // PR arany villanás overlay
+    // PR arany villanás overlay – a szöveg az ELŐZŐ oszlopban van, nem takarja a KG/ISM mezőket
     final sorPrrel = AnimatedBuilder(
       animation: _prAnim,
       builder: (ctx, child) {
@@ -407,16 +411,28 @@ class _SorozatSorState extends State<SorozatSor>
                     border: Border.all(color: const Color(0xFFFFD700), width: 1.5),
                   ),
                   child: szin.a > 0.5
-                      ? Center(
-                          child: Text(
-                            '🏆 ÚJ REKORD!',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w900,
-                              fontSize: 13,
-                              color: const Color(0xFFB8860B).withValues(alpha: szin.a),
-                              letterSpacing: 1,
+                      ? Row(
+                          children: [
+                            const SizedBox(width: 36 + 4), // SET oszlop + padding
+                            Expanded(
+                              flex: 2,
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.center,
+                                child: Text(
+                                  '🏆 ÚJ REKORD!',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 12,
+                                    color: const Color(0xFFB8860B).withValues(alpha: szin.a),
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ),
                             ),
-                          ),
+                            const Spacer(flex: 2), // KG + ISM területek szabadon maradnak
+                            const SizedBox(width: 44 + 4), // pipa + padding
+                          ],
                         )
                       : null,
                 ),

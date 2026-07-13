@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/beallitas_models.dart';
+import '../../services/apple_health_service.dart';
 import '../../services/beallitasok_service.dart';
 import '../../services/streak_service.dart';
+import '../../utils/platform_utils.dart';
 import '../../widgets/settings_widgets.dart';
 import '../onboarding/onboarding_screen.dart';
 import 'settings_detail_screens.dart';
@@ -22,6 +24,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String? _hiba;
   int _streak = 0;
   String _nev = '';
+  bool _healthEnabled = false;
+  bool _healthBetolt = false;
 
   @override
   void initState() {
@@ -40,12 +44,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
         final profil = await _service.getSzekcio('/api/beallitasok/${_service.userName}/profil');
         nev = profil['nev'] as String? ?? '';
       } catch (_) {}
+      final prefs = await SharedPreferences.getInstance();
+      final healthEnabled = prefs.getBool('health_enabled') ?? false;
       if (!mounted) return;
       setState(() {
         _szekciok = szekciok;
         _streak = streak;
         _nev = nev.isNotEmpty ? nev : _service.userName;
         _betolt = false;
+        _healthEnabled = healthEnabled;
       });
     } catch (e) {
       if (!mounted) return;
@@ -100,6 +107,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         SliverToBoxAdapter(child: _buildBrandHeader()),
                         SliverToBoxAdapter(child: _buildProfilFejlec()),
                         SliverToBoxAdapter(child: _buildSzekciok()),
+                        if (isAppleHealthPlatform)
+                          SliverToBoxAdapter(child: _buildAppleHealthKartya()),
                         SliverToBoxAdapter(child: _buildKijelentkezesGomb()),
                         const SliverToBoxAdapter(child: SizedBox(height: 40)),
                       ],
@@ -200,6 +209,197 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildAppleHealthKartya() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF0F0),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.favorite_rounded,
+                      color: Color(0xFFFF3B30),
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Apple Health',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          _healthEnabled
+                              ? 'Csatlakoztatva – adatok szinkronizálva'
+                              : 'Nincs csatlakoztatva',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: _healthEnabled
+                                ? const Color(0xFF34C759)
+                                : Colors.grey.shade500,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: _healthEnabled
+                          ? const Color(0xFFE8F5E9)
+                          : const Color(0xFFF2F2F7),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _healthEnabled
+                              ? Icons.check_circle_rounded
+                              : Icons.radio_button_unchecked,
+                          size: 14,
+                          color: _healthEnabled
+                              ? const Color(0xFF34C759)
+                              : Colors.grey.shade400,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          _healthEnabled ? 'Aktív' : 'Inaktív',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: _healthEnabled
+                                ? const Color(0xFF2E7D32)
+                                : Colors.grey.shade500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              const Divider(height: 1),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Lépésszám, kalória, edzés és egyéb mozgásadatok szinkronizálása a Home képernyőre.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                        height: 1.45,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              SizedBox(
+                width: double.infinity,
+                height: 46,
+                child: ElevatedButton.icon(
+                  onPressed: _healthBetolt ? null : _csatlakozAppleHealth,
+                  icon: _healthBetolt
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white),
+                        )
+                      : Icon(
+                          _healthEnabled
+                              ? Icons.refresh_rounded
+                              : Icons.link_rounded,
+                          size: 18,
+                        ),
+                  label: Text(
+                    _healthEnabled
+                        ? 'Újracsatlakoztatás'
+                        : 'Apple Health csatlakoztatása',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFFF3B30),
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _csatlakozAppleHealth() async {
+    setState(() => _healthBetolt = true);
+    try {
+      await AppleHealthService.instance.requestPermissions();
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('health_enabled', true);
+      if (!mounted) return;
+      setState(() {
+        _healthEnabled = true;
+        _healthBetolt = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Apple Health csatlakoztatva! Adatok a Home képernyőn jelennek meg.'),
+          backgroundColor: Color(0xFF34C759),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _healthBetolt = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Hiba: $e'),
+          backgroundColor: Colors.red.shade600,
+        ),
+      );
+    }
   }
 
   Widget _buildKijelentkezesGomb() {

@@ -13,6 +13,12 @@ namespace FitnessBackend.Controllers
         // Befejezett edzések (Hevy: profil / előzmények)
         private static List<WorkoutSession> edzes_tortenet = new List<WorkoutSession>();
 
+        // Betöltés induláskor (Program.cs hívja)
+        public static void BetoltesIndulaskor()
+        {
+            DataPersistence.Betoltes(edzes_tortenet, ref aktiv_edzes);
+        }
+
         // 1/b. START ROUTINE — rutinból induló edzés (Hevy: "Start Routine" gomb)
         [HttpPost("inditas-rutinbol")]
         public ActionResult<WorkoutSession> RutinInditasa([FromBody] Routine rutin)
@@ -43,6 +49,8 @@ namespace FitnessBackend.Controllers
                     return gyakorlat;
                 }).ToList()
             };
+
+            DataPersistence.AktivEdzesMentese(aktiv_edzes);
 
             return Ok(aktiv_edzes);
         }
@@ -475,6 +483,9 @@ namespace FitnessBackend.Controllers
             var mentett_edzes = aktiv_edzes;
             aktiv_edzes = null;
 
+            DataPersistence.EdzesTortenetMentese(edzes_tortenet);
+            DataPersistence.AktivEdzesTorlese();
+
             return Ok(mentett_edzes);
         }
 
@@ -494,6 +505,9 @@ namespace FitnessBackend.Controllers
 
             megosztas.Edzes = aktiv_edzes;
             aktiv_edzes = null;
+
+            DataPersistence.EdzesTortenetMentese(edzes_tortenet);
+            DataPersistence.AktivEdzesTorlese();
 
             var (poszt, hiba) = CommunityTarolo.UjPosztLetrehozasa(megosztas);
 
@@ -546,6 +560,7 @@ namespace FitnessBackend.Controllers
             }
 
             aktiv_edzes = null;
+            DataPersistence.AktivEdzesTorlese();
             return "Az edzés elvetve.";
         }
 

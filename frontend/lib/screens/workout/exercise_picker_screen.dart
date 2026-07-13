@@ -143,7 +143,7 @@ class _ExercisePickerScreenState extends State<ExercisePickerScreen> {
 
     return ListView.separated(
       itemCount: _talalatok.length,
-      separatorBuilder: (_, __) => Divider(height: 1, indent: 16, color: Colors.grey.shade200),
+      separatorBuilder: (_, _) => Divider(height: 1, indent: 16, color: Colors.grey.shade200),
       itemBuilder: (context, index) {
         final g = _talalatok[index];
         final kivalasztott = _kivalasztottId == g.id;

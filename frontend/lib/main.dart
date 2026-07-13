@@ -94,7 +94,7 @@ class _SplashRouterState extends State<_SplashRouter>
       body: Center(
         child: AnimatedBuilder(
           animation: _ctrl,
-          builder: (_, __) => FadeTransition(
+          builder: (_, _) => FadeTransition(
             opacity: _fadeAnim,
             child: ScaleTransition(
               scale: _scaleAnim,

@@ -93,7 +93,7 @@ namespace FitnessBackend.Controllers
                 // Helyi fallback ha semmi sem jött
                 return Ok(HelyiKereses(keresoszo: keresoszo));
             }
-            catch (Exception e)
+            catch (Exception)
             {
                 return Ok(HelyiKereses(keresoszo: keresoszo));
             }

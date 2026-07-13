@@ -1,3 +1,5 @@
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../models/daily_health_data.dart';
 import '../models/nutrition_models.dart';
 import 'apple_health_service.dart';
@@ -74,9 +76,13 @@ class HomeService {
     var source = 'backend';
 
     if (_health.isSupported) {
-      try {
-        final hasPermission = await _health.hasPermissions();
-        if (hasPermission) {
+      // iOS-on a hasPermissions() megbízhatatlan (mindig false-t ad vissza).
+      // Ehelyett a SharedPreferences-ben tárolt health_enabled flagot nézzük.
+      final prefs = await SharedPreferences.getInstance();
+      final healthEnabled = prefs.getBool('health_enabled') ?? false;
+
+      if (healthEnabled) {
+        try {
           final health = await _health.fetchToday();
           burned = health.caloriesBurned;
           steps = health.steps;
@@ -85,11 +91,16 @@ class HomeService {
           exerciseMin = health.exerciseMinutes;
           standHours = health.standHours;
           source = 'merged';
-        } else {
+          // Sikeres adat -> biztosítjuk, hogy a flag be legyen állítva
+          await prefs.setBool('health_enabled', true);
+        } catch (_) {
           permissionNeeded = true;
           source = 'apple_health';
         }
-      } catch (_) {}
+      } else {
+        permissionNeeded = true;
+        source = 'apple_health';
+      }
     }
 
     final data = DailyHealthData(

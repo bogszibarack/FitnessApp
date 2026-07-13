@@ -21,6 +21,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   bool _betolt = true;
   bool _kovet = false;
   int _kovetoSzam = 0;
+  final Set<String> _mentettPosztIds = {};
 
   @override
   void initState() {
@@ -103,7 +104,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           // App bar
           SliverAppBar(
             backgroundColor: Colors.white,
-            expandedHeight: 220,
+            expandedHeight: 250,
             pinned: true,
             flexibleSpace: FlexibleSpaceBar(
               background: _buildProfilFejlec(sajatProfil, osszLike),
@@ -142,6 +143,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                       sajtNev: _sajtNev,
                       onLike: () => _toggleLike(poszt),
                       onMentes: () => _mentesRutinkent(poszt.id),
+                      mentett: _mentettPosztIds.contains(poszt.id),
                     );
                   },
                   childCount: _posztok.length,
@@ -156,7 +158,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   Widget _buildProfilFejlec(bool sajatProfil, int osszLike) {
     return Container(
       color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(20, 80, 20, 20),
+      padding: const EdgeInsets.fromLTRB(20, 72, 20, 16),
       child: Column(
         children: [
           Row(
@@ -213,8 +215,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     try {
       await _service.mentesRutinkent(posztId);
       if (!mounted) return;
+      setState(() => _mentettPosztIds.add(posztId));
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Rutin elmentve!')),
+        const SnackBar(content: Text('Rutin elmentve a saját rutinjaid közé!')),
       );
     } catch (e) {
       if (!mounted) return;
@@ -247,12 +250,14 @@ class _ProfilPosztKartya extends StatelessWidget {
     required this.sajtNev,
     required this.onLike,
     required this.onMentes,
+    this.mentett = false,
   });
 
   final CommunityPosztModel poszt;
   final String sajtNev;
   final VoidCallback onLike;
   final VoidCallback onMentes;
+  final bool mentett;
 
   @override
   Widget build(BuildContext context) {
@@ -332,9 +337,9 @@ class _ProfilPosztKartya extends StatelessWidget {
                   onTap: onLike,
                 ),
                 AkcioGomb(
-                  ikon: Icons.bookmark_border,
-                  cimke: 'Mentés',
-                  szin: Colors.grey.shade600,
+                  ikon: mentett ? Icons.bookmark : Icons.bookmark_border,
+                  cimke: mentett ? 'Mentve' : 'Mentés',
+                  szin: mentett ? Colors.amber.shade700 : Colors.grey.shade600,
                   onTap: onMentes,
                 ),
                 const Spacer(),

@@ -15,17 +15,15 @@ class AppleHealthService {
 
   bool get isSupported => isAppleHealthPlatform;
 
+  // Csak a megbízható, automatikusan gyűjtött adattípusok.
+  // Az étkezési adatokat (DIETARY_*) kihagyjuk – azokat a saját napló kezeli.
+  // Az APPLE_STAND_HOUR-t kihagyjuk – category típus, csak activity summary-ból jön.
   static const _readTypes = [
     HealthDataType.ACTIVE_ENERGY_BURNED,
     HealthDataType.BASAL_ENERGY_BURNED,
     HealthDataType.EXERCISE_TIME,
-    HealthDataType.APPLE_STAND_HOUR,
     HealthDataType.STEPS,
     HealthDataType.DISTANCE_WALKING_RUNNING,
-    HealthDataType.DIETARY_ENERGY_CONSUMED,
-    HealthDataType.DIETARY_CARBS_CONSUMED,
-    HealthDataType.DIETARY_PROTEIN_CONSUMED,
-    HealthDataType.DIETARY_FATS_CONSUMED,
   ];
 
   Future<void> _ensureConfigured() async {
@@ -39,16 +37,24 @@ class AppleHealthService {
 
     await _ensureConfigured();
 
-    final permissions = _readTypes.map((_) => HealthDataAccess.READ).toList();
-    final granted = await _health.requestAuthorization(_readTypes, permissions: permissions);
+    try {
+      final permissions = _readTypes.map((_) => HealthDataAccess.READ).toList();
+      await _health.requestAuthorization(_readTypes, permissions: permissions);
+    } catch (_) {}
 
+    // Natív activity summary engedély
     try {
       await _summaryChannel.invokeMethod<bool>('requestAuthorization');
     } catch (_) {}
 
-    return granted;
+    // iOS-on nem lehet megbízhatóan ellenőrizni, hogy az engedélyt megadták-e.
+    // Az engedélyezési dialógus megjelent – true visszatérési érték.
+    return true;
   }
 
+  // iOS privacy miatt ez mindig false-t adna vissza – ne használjuk.
+  // Helyette a SharedPreferences 'health_enabled' flagot kell olvasni.
+  @Deprecated('Use SharedPreferences health_enabled flag instead')
   Future<bool> hasPermissions() async {
     if (!isSupported) return false;
     await _ensureConfigured();
@@ -67,23 +73,34 @@ class AppleHealthService {
     final start = DateTime(now.year, now.month, now.day);
     final end = now;
 
+    // Natív activity summary (Move/Exercise/Stand gyűrűk)
     final summary = await _fetchActivitySummary();
-    final steps = await _health.getTotalStepsInInterval(start, end) ?? 0;
-    final distanceM = await _sumQuantity(HealthDataType.DISTANCE_WALKING_RUNNING, start, end);
-    final consumed = await _sumQuantity(HealthDataType.DIETARY_ENERGY_CONSUMED, start, end);
-    final basal = await _sumQuantity(HealthDataType.BASAL_ENERGY_BURNED, start, end);
-    final carbs = await _sumQuantity(HealthDataType.DIETARY_CARBS_CONSUMED, start, end);
-    final protein = await _sumQuantity(HealthDataType.DIETARY_PROTEIN_CONSUMED, start, end);
-    final fat = await _sumQuantity(HealthDataType.DIETARY_FATS_CONSUMED, start, end);
 
-    final moveKcal = summary?['moveKcal'] ?? (await _sumQuantity(HealthDataType.ACTIVE_ENERGY_BURNED, start, end)).round();
+    // Lépések – legmegbízhatóbb adat iPhone-on
+    int steps = 0;
+    try {
+      steps = await _health.getTotalStepsInInterval(start, end) ?? 0;
+    } catch (_) {}
+
+    final distanceM = await _sumQuantity(HealthDataType.DISTANCE_WALKING_RUNNING, start, end);
+    final basal = await _sumQuantity(HealthDataType.BASAL_ENERGY_BURNED, start, end);
+
+    int moveKcal;
+    int exerciseMin;
+    if (summary != null) {
+      moveKcal = summary['moveKcal'] ?? 0;
+      exerciseMin = summary['exerciseMinutes'] ?? 0;
+    } else {
+      moveKcal = (await _sumQuantity(HealthDataType.ACTIVE_ENERGY_BURNED, start, end)).round();
+      exerciseMin = (await _sumQuantity(HealthDataType.EXERCISE_TIME, start, end)).round();
+    }
+
     final moveGoal = summary?['moveGoalKcal'] ?? 500;
-    final exerciseMin = summary?['exerciseMinutes'] ?? (await _sumQuantity(HealthDataType.EXERCISE_TIME, start, end)).round();
     final exerciseGoal = summary?['exerciseGoalMinutes'] ?? 30;
     final standHours = summary?['standHours'] ?? 0;
     final standGoal = summary?['standGoalHours'] ?? 12;
 
-    final calorieGoal = (basal + moveGoal).round().clamp(1500, 6000);
+    final calorieGoal = (basal.round() + moveGoal).clamp(1500, 6000);
     final carbsGoal = (calorieGoal * 0.5 / 4).round();
     final proteinGoal = (calorieGoal * 0.25 / 4).round();
     final fatGoal = (calorieGoal * 0.25 / 9).round();
@@ -97,12 +114,12 @@ class AppleHealthService {
       standGoalHours: standGoal,
       steps: steps,
       distanceKm: distanceM / 1000,
-      caloriesConsumed: consumed.round(),
+      caloriesConsumed: 0,
       caloriesBurned: moveKcal,
       calorieGoal: calorieGoal,
-      carbsGrams: carbs.round(),
-      proteinGrams: protein.round(),
-      fatGrams: fat.round(),
+      carbsGrams: 0,
+      proteinGrams: 0,
+      fatGrams: 0,
       carbsGoalGrams: carbsGoal,
       proteinGoalGrams: proteinGoal,
       fatGoalGrams: fatGoal,

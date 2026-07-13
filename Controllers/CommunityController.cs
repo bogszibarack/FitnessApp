@@ -231,6 +231,7 @@ namespace FitnessBackend.Controllers
 
             var uj_rutin = Routine.LetrehozasKozossegPosztbol(poszt, userName);
             EdzesTervTarolo.MentettRutinok.Add(uj_rutin);
+            DataPersistence.RutinokMentese();
             return Ok(uj_rutin);
         }
 
