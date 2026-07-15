@@ -3,7 +3,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../services/nutrition_service.dart';
 
-/// Kamerás vonalkód-olvasó — Open Food Facts terméket ad vissza (FoodItemModel).
+/// Kamerás vonalkód-olvasó — FatSecret / Open Food Facts terméket ad vissza (FoodItemModel).
 class BarcodeScanScreen extends StatefulWidget {
   const BarcodeScanScreen({super.key});
 
@@ -27,6 +27,7 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
 
   bool _feldolgoz = false;
   String? _hiba;
+  String? _kameraHiba;
 
   @override
   void dispose() {
@@ -56,13 +57,35 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
   }
 
   void _onDetect(BarcodeCapture capture) {
-    if (_feldolgoz) return;
+    if (_feldolgoz || !mounted) return;
     for (final b in capture.barcodes) {
       final kod = b.rawValue;
       if (kod != null && kod.isNotEmpty) {
         _kodFeldolgozas(kod);
         break;
       }
+    }
+  }
+
+  Future<void> _vaku() async {
+    try {
+      await _controller.toggleTorch();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('A vaku még nem elérhető')),
+      );
+    }
+  }
+
+  Future<void> _kameraValtas() async {
+    try {
+      await _controller.switchCamera();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('A kamera még nem elérhető')),
+      );
     }
   }
 
@@ -77,11 +100,11 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.flash_on),
-            onPressed: () => _controller.toggleTorch(),
+            onPressed: _vaku,
           ),
           IconButton(
             icon: const Icon(Icons.cameraswitch),
-            onPressed: () => _controller.switchCamera(),
+            onPressed: _kameraValtas,
           ),
         ],
       ),
@@ -91,16 +114,39 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
             child: Stack(
               alignment: Alignment.center,
               children: [
-                MobileScanner(controller: _controller, onDetect: _onDetect),
-                _kereses(),
-                Container(
-                  width: 250,
-                  height: 160,
-                  decoration: BoxDecoration(
-                    border: Border.all(color: const Color(0xFF34C759), width: 3),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
+                MobileScanner(
+                  controller: _controller,
+                  onDetect: _onDetect,
+                  errorBuilder: (context, error) {
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (!mounted) return;
+                      setState(() {
+                        _kameraHiba = error.errorDetails?.message ?? 'A kamera nem elérhető';
+                      });
+                    });
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Text(
+                          error.errorDetails?.message ?? 'A kamera nem elérhető',
+                          style: const TextStyle(color: Colors.white70),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    );
+                  },
                 ),
+                if (_kameraHiba == null) ...[
+                  _kereses(),
+                  Container(
+                    width: 250,
+                    height: 160,
+                    decoration: BoxDecoration(
+                      border: Border.all(color: const Color(0xFF34C759), width: 3),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                ],
                 if (_hiba != null)
                   Positioned(
                     bottom: 20,

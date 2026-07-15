@@ -15,11 +15,11 @@ namespace FitnessBackend.Controllers
         private static readonly ConcurrentDictionary<string, (DateTime ido, List<FoodItem> lista)> kereses_cache = new();
         private static readonly TimeSpan cache_elettartam = TimeSpan.FromMinutes(30);
 
-        // Open Food Facts — csak vonalkódhoz
+        // Open Food Facts — vonalkód fallback (FatSecret után)
         private const string off_api_alap = "https://world.openfoodfacts.org";
         private const string off_user_agent = "FitnessBackend/1.0 (fitness@local.dev)";
 
-        // 1. ÉTELKERESŐ — USDA FoodData Central (ingyenes, korlátlan) + offline adatbázis
+        // 1. ÉTELKERESŐ — offline adatbázis + FatSecret Platform API
         // Példa: GET /api/nutrition/kereso?keresoszo=alma
         [HttpGet("kereso")]
         public async Task<ActionResult<List<FoodItem>>> EtelKereso([FromQuery] string keresoszo)
@@ -40,12 +40,18 @@ namespace FitnessBackend.Controllers
             return Ok(await EtelKeresesFo(etel_neve));
         }
 
-        // 2. VONALKÓD — Open Food Facts (globális termékadat-bázis, kód alapján pontos találat)
+        // 2. VONALKÓD — FatSecret (elsődleges), Open Food Facts fallback
         [HttpGet("vonalkod/{vonalkod}")]
         public async Task<ActionResult<FoodItem>> EtelVonalkodbol(string vonalkod)
         {
             try
             {
+                if (FatSecretConfig.VanKulcs)
+                {
+                    var fs = await FatSecretApiSeged.VonalkodKereses(vonalkod);
+                    if (fs != null) return Ok(fs);
+                }
+
                 using var off_kliens = new HttpClient();
                 off_kliens.DefaultRequestHeaders.Add("User-Agent", off_user_agent);
 
@@ -280,19 +286,11 @@ namespace FitnessBackend.Controllers
             // 1. Offline adatbázis — azonnali, API nélkül
             var eredmenyek = OfflineKereses(keresoszó);
 
-            // 2. USDA FoodData Central — ingyenes, korlátlan, pontos tápérték
-            if (UsdaConfig.VanKulcs)
+            // 2. FatSecret Platform API — étel keresés
+            if (FatSecretConfig.VanKulcs)
             {
-                var usda = await UsdaApiSeged.Kereses(keresoszó, 12);
-                foreach (var t in usda)
-                    if (!eredmenyek.Any(e => e.Id == t.Id)) eredmenyek.Add(t);
-            }
-
-            // 3. Ha az USDA nem adott semmit, Spoonacular fallback (ha van napi keret)
-            if (eredmenyek.Count < 3 && SpoonacularConfig.VanKulcs)
-            {
-                var spoon = await SpoonKereses(keresoszó);
-                foreach (var t in spoon)
+                var fs = await FatSecretApiSeged.Kereses(keresoszó, 15);
+                foreach (var t in fs)
                     if (!eredmenyek.Any(e => e.Id == t.Id)) eredmenyek.Add(t);
             }
 

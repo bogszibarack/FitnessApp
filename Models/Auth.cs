@@ -35,7 +35,7 @@ namespace FitnessBackend.Models
         }
     }
 
-    // Egyszerű in-memory felhasználó tároló a regisztrált accountokhoz
+    // Regisztrált fiókok — fájlba mentve, backend újraindítás után is megmaradnak.
     public static class FelhasznaloFiok
     {
         public static List<RegisteredUser> Felhasznalok { get; } = new();
@@ -45,6 +45,24 @@ namespace FitnessBackend.Models
 
         public static bool LetezikeUsername(string username) =>
             Felhasznalok.Any(f => f.Username.Equals(username, StringComparison.OrdinalIgnoreCase));
+
+        public static RegisteredUser? KeresesEmailVagyNevvel(string input)
+        {
+            if (string.IsNullOrWhiteSpace(input)) return null;
+            return Felhasznalok.FirstOrDefault(f =>
+                       f.Email.Equals(input, StringComparison.OrdinalIgnoreCase))
+                   ?? Felhasznalok.FirstOrDefault(f =>
+                       f.Username.Equals(input, StringComparison.OrdinalIgnoreCase));
+        }
+
+        public static void Hozzaadas(RegisteredUser user)
+        {
+            Felhasznalok.RemoveAll(f =>
+                f.Email.Equals(user.Email, StringComparison.OrdinalIgnoreCase) ||
+                f.Username.Equals(user.Username, StringComparison.OrdinalIgnoreCase));
+            Felhasznalok.Add(user);
+            DataPersistence.FelhasznalokMentese();
+        }
     }
 
     public class RegisteredUser
@@ -52,6 +70,7 @@ namespace FitnessBackend.Models
         public string Id { get; set; } = Guid.NewGuid().ToString("N")[..8];
         public string Email { get; set; } = "";
         public string Username { get; set; } = "";
+        public string JelszoHash { get; set; } = "";
         public string WeightUnit { get; set; } = "kg";
         public string DistanceUnit { get; set; } = "km";
         public string MeasurementUnit { get; set; } = "cm";
@@ -59,5 +78,10 @@ namespace FitnessBackend.Models
         public string County { get; set; } = "";
         public string Source { get; set; } = "";
         public DateTime RegisztraltAt { get; set; } = DateTime.Now;
+    }
+
+    public class FelhasznaloFiokExport
+    {
+        public List<RegisteredUser> Felhasznalok { get; set; } = new();
     }
 }

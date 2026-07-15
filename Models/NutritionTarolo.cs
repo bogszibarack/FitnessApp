@@ -49,12 +49,11 @@ namespace FitnessBackend.Models
             }
             else
             {
-                var recept = await ReceptApiSeged.ReceptLekerdezese(keres.ReceptId);
+                var recept = await NosaltyApiSeged.ReceptLekerdezese(keres.ReceptId);
                 if (recept == null)
-                {
                     return (null, null, "Nincs ilyen recept.");
-                }
-                bejegyzes = ReceptApiSeged.ReceptbolNaploBejegyzes(recept, keres.AdagSzam, keres.EtkezesTipus);
+
+                bejegyzes = NosaltyApiSeged.ReceptbolNaploBejegyzes(recept, keres.AdagSzam, keres.EtkezesTipus);
             }
 
             var naplo = NaploLekerdezeseVagyLetrehozasa(DateTime.Today);

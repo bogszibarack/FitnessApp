@@ -35,7 +35,10 @@ class ReceptService {
   }
 
   Future<List<ReceptListaElemModel>> kategoriaSzerint(String kategoriaId) async {
-    final response = await http.get(Uri.parse('$_base/api/recept/kategoria/$kategoriaId')).timeout(const Duration(seconds: 30));
+    final uri = Uri.parse(_base).replace(
+      pathSegments: ['api', 'recept', 'kategoria', ...kategoriaId.split('/')],
+    );
+    final response = await http.get(uri).timeout(const Duration(seconds: 30));
     _ellenorzes(response);
     final lista = jsonDecode(response.body) as List<dynamic>;
     return lista.map((e) => ReceptListaElemModel.fromJson(e as Map<String, dynamic>)).toList();
@@ -58,7 +61,8 @@ class ReceptService {
   }
 
   Future<ReceptReszletesModel> reszletek(String receptId) async {
-    final response = await http.get(Uri.parse('$_base/api/recept/$receptId')).timeout(const Duration(seconds: 15));
+    final uri = Uri.parse('$_base/api/recept/${Uri.encodeComponent(receptId)}');
+    final response = await http.get(uri).timeout(const Duration(seconds: 20));
     _ellenorzes(response);
     return ReceptReszletesModel.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
   }
@@ -67,6 +71,9 @@ class ReceptService {
     if (response.statusCode < 200 || response.statusCode >= 300) {
       if (response.statusCode == 429) {
         throw Exception('429: Túl sok kérés');
+      }
+      if (response.statusCode == 503) {
+        throw Exception('503: A recept szolgáltatás nem elérhető');
       }
       throw Exception('Recept API hiba (${response.statusCode})');
     }

@@ -9,6 +9,7 @@ namespace FitnessBackend.Models
         private static readonly string AktivEdzesFile = Path.Combine(AppContext.BaseDirectory, "data", "aktiv_edzes.json");
         private static readonly string RutinokFile = Path.Combine(AppContext.BaseDirectory, "data", "rutinok.json");
         private static readonly string NutritionFile = Path.Combine(AppContext.BaseDirectory, "data", "nutrition_naplok.json");
+        private static readonly string FelhasznalokFile = Path.Combine(AppContext.BaseDirectory, "data", "felhasznalok.json");
 
         private static readonly JsonSerializerOptions Opts = new JsonSerializerOptions
         {
@@ -67,6 +68,8 @@ namespace FitnessBackend.Models
                         }
                     }
                 }
+
+                FelhasznalokBetoltese();
             }
             catch (Exception ex)
             {
@@ -141,6 +144,43 @@ namespace FitnessBackend.Models
             catch (Exception ex)
             {
                 Console.WriteLine($"[DataPersistence] Nutrition mentési hiba: {ex.Message}");
+            }
+        }
+
+        public static void FelhasznalokBetoltese()
+        {
+            try
+            {
+                if (!File.Exists(FelhasznalokFile)) return;
+
+                var json = File.ReadAllText(FelhasznalokFile);
+                var csomag = JsonSerializer.Deserialize<FelhasznaloFiokExport>(json, Opts);
+                if (csomag?.Felhasznalok == null) return;
+
+                FelhasznaloFiok.Felhasznalok.Clear();
+                FelhasznaloFiok.Felhasznalok.AddRange(csomag.Felhasznalok);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[DataPersistence] Felhasználók betöltési hiba: {ex.Message}");
+            }
+        }
+
+        public static void FelhasznalokMentese()
+        {
+            try
+            {
+                Directory.CreateDirectory(DataDir);
+                var csomag = new FelhasznaloFiokExport
+                {
+                    Felhasznalok = FelhasznaloFiok.Felhasznalok.ToList()
+                };
+                var json = JsonSerializer.Serialize(csomag, Opts);
+                File.WriteAllText(FelhasznalokFile, json);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[DataPersistence] Felhasználók mentési hiba: {ex.Message}");
             }
         }
     }

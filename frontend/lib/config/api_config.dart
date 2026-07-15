@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 class ApiConfig {
   // Runtime-ban módosítható felhasználónév (onboarding után frissül)
   static String _defaultUserName = 'Koko';
@@ -6,10 +8,10 @@ class ApiConfig {
     if (value.isNotEmpty) _defaultUserName = value;
   }
 
-  // A Windows gép helyi IP-je (ahol a .NET backend fut).
-static const _backendUrl = 'https://flexio.runasp.net';
+  /// Debug módban a lokális backend (dotnet run), release-ben a production.
   static String get baseUrl {
-    return _backendUrl;
+    if (kDebugMode) return 'http://localhost:5150';
+    return 'https://flexio.runasp.net';
   }
 
   /// Külső képeket a saját szerverünkön át töltjük (CORS fix Flutter weben).

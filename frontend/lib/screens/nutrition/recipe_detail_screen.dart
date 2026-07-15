@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../config/api_config.dart';
 import '../../models/nutrition_models.dart';
 import '../../services/nutrition_service.dart';
 import '../../services/recept_service.dart';
@@ -240,7 +241,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     return Stack(
       fit: StackFit.expand,
       children: [
-        Image.network(r.kepUrl, fit: BoxFit.cover,
+        Image.network(ApiConfig.kep(r.kepUrl), fit: BoxFit.cover,
             errorBuilder: (_, _, _) => gradiensHatter),
         // Sötét átmenet alul az olvashatóságért
         Positioned.fill(

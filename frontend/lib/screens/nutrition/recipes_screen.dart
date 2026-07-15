@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../config/api_config.dart';
 import '../../models/nutrition_models.dart';
 import '../../services/recept_service.dart';
 import '../../widgets/recipe_filter_widgets.dart';
@@ -60,13 +61,12 @@ class _RecipesScreenState extends State<RecipesScreen> {
       final eredmeny = await Future.wait([
         _service.kategoriak(),
         _service.kaloriaTartomanyok(),
-        _service.felfedezes(darab: 12),
       ]);
       if (!mounted) return;
       setState(() {
         _kategoriak = eredmeny[0] as List<ReceptKategoriaModel>;
         _tartomanyok = eredmeny[1] as List<KaloriaTartomanyModel>;
-        _receptek = eredmeny[2] as List<ReceptListaElemModel>;
+        _receptek = [];
         _betolt = false;
         _hiba = null;
       });
@@ -90,8 +90,8 @@ class _RecipesScreenState extends State<RecipesScreen> {
         _keresesMod = false;
         _aktivKategoria = null;
         _aktivTartomany = null;
+        _receptek = [];
       });
-      await _felfedezes();
       return;
     }
     setState(() {
@@ -103,27 +103,6 @@ class _RecipesScreenState extends State<RecipesScreen> {
     });
     try {
       final lista = await _service.kereses(szoveg);
-      if (!mounted) return;
-      setState(() {
-        _receptek = lista;
-        _betolt = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _hiba = _hibaUzenet(e);
-        _betolt = false;
-      });
-    }
-  }
-
-  Future<void> _felfedezes() async {
-    setState(() {
-      _betolt = true;
-      _hiba = null;
-    });
-    try {
-      final lista = await _service.felfedezes(darab: 12);
       if (!mounted) return;
       setState(() {
         _receptek = lista;
@@ -194,8 +173,8 @@ class _RecipesScreenState extends State<RecipesScreen> {
       _aktivKategoria = null;
       _aktivTartomany = null;
       _keresesMod = false;
+      _receptek = [];
     });
-    _felfedezes();
   }
 
   Future<void> _receptMegnyitas(ReceptListaElemModel recept) async {
@@ -213,7 +192,7 @@ class _RecipesScreenState extends State<RecipesScreen> {
       return _kategoriak.firstWhere((k) => k.id == _aktivKategoria, orElse: () => ReceptKategoriaModel(id: '', nev: 'Szűrt')).nev;
     }
     if (_aktivTartomany != null) return _aktivTartomany!.nev;
-    return 'Ajánlott receptek';
+    return 'Keresés a Nosalty receptjei között';
   }
 
   @override
@@ -235,12 +214,13 @@ class _RecipesScreenState extends State<RecipesScreen> {
             const SliverToBoxAdapter(child: ReceptSzekcioCim(cim: 'Receptek kalória szerint')),
             SliverToBoxAdapter(child: _kaloriaRacs()),
           ],
-          SliverToBoxAdapter(
-            child: ReceptSzekcioCim(
-              cim: _eredmenyCim,
-              ujraGomb: (_aktivKategoria != null || _aktivTartomany != null) ? _szuroTorlese : null,
+          if (_keresesMod || _aktivKategoria != null || _aktivTartomany != null)
+            SliverToBoxAdapter(
+              child: ReceptSzekcioCim(
+                cim: _eredmenyCim,
+                ujraGomb: (_aktivKategoria != null || _aktivTartomany != null) ? _szuroTorlese : null,
+              ),
             ),
-          ),
           _listaSliver(),
         ],
       ),
@@ -253,7 +233,7 @@ class _RecipesScreenState extends State<RecipesScreen> {
       child: TextField(
         controller: _keresoController,
         decoration: InputDecoration(
-          hintText: 'Recept keresése...',
+          hintText: 'Keresés: leves, palacsinta, csirke...',
           prefixIcon: const Icon(Icons.search, color: Color(0xFF34C759)),
           filled: true,
           fillColor: Colors.white,
@@ -346,9 +326,20 @@ class _RecipesScreenState extends State<RecipesScreen> {
       );
     }
     if (_receptek.isEmpty) {
-      return const SliverFillRemaining(
+      return SliverFillRemaining(
         hasScrollBody: false,
-        child: Center(child: Text('Nincs recept ebben a szűrőben')),
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Text(
+              _keresesMod || _aktivKategoria != null || _aktivTartomany != null
+                  ? 'Nincs találat.'
+                  : 'Írj be egy ételt, vagy válassz kategóriát / kalória tartományt.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey.shade600, height: 1.4),
+            ),
+          ),
+        ),
       );
     }
 
@@ -361,7 +352,7 @@ class _RecipesScreenState extends State<RecipesScreen> {
           return SliverGrid(
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: oszlop,
-              childAspectRatio: oszlop == 1 ? 0.92 : 0.78,
+              childAspectRatio: oszlop == 1 ? 0.82 : 0.62,
               crossAxisSpacing: 10,
               mainAxisSpacing: 10,
             ),
@@ -407,24 +398,15 @@ class _RecipesScreenState extends State<RecipesScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Kép vagy gradiens fejléc
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-              child: SizedBox(
-                height: 90,
-                child: vanKep
-                    ? Image.network(
-                        r.kepUrl,
-                        fit: BoxFit.cover,
-                        loadingBuilder: (_, child, progress) =>
-                            progress == null ? child : _gradiensHatter(szinpair, kcal),
-                        errorBuilder: (_, _, _) => _gradiensHatter(szinpair, kcal),
-                      )
-                    : _gradiensHatter(szinpair, kcal),
+            Expanded(
+              flex: 3,
+              child: ClipRRect(
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                child: _kepResz(r, szinpair, kcal, vanKep),
               ),
             ),
-            // Recept neve + makrók
             Expanded(
+              flex: 2,
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
                 child: Column(
@@ -455,6 +437,46 @@ class _RecipesScreenState extends State<RecipesScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _kepResz(ReceptListaElemModel r, List<Color> szinpair, int kcal, bool vanKep) {
+    final hatter = _gradiensHatter(szinpair, kcal);
+
+    if (!vanKep) return hatter;
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.network(
+          ApiConfig.kep(r.kepUrl),
+          fit: BoxFit.cover,
+          loadingBuilder: (_, child, progress) => progress == null ? child : hatter,
+          errorBuilder: (_, _, _) => hatter,
+        ),
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Colors.transparent, Colors.black.withValues(alpha: 0.55)],
+              ),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.local_fire_department, size: 13, color: Colors.white70),
+                const SizedBox(width: 2),
+                Text('$kcal kcal', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 

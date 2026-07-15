@@ -251,8 +251,22 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         'username': username,
         'password': password,
       });
-      await prefs.setString('local_accounts', jsonEncode(fiokList));
+    } else {
+      // Frissítés, ha ugyanaz az email/felhasználónév — pl. újra regisztrál
+      for (var i = 0; i < fiokList.length; i++) {
+        final m = fiokList[i] as Map<String, dynamic>;
+        if ((m['email'] as String).toLowerCase() == email ||
+            (m['username'] as String).toLowerCase() == username.toLowerCase()) {
+          fiokList[i] = {
+            'email': email,
+            'username': username,
+            'password': password,
+          };
+          break;
+        }
+      }
     }
+    await prefs.setString('local_accounts', jsonEncode(fiokList));
   }
 
   Future<void> _onboardingBefejezese(String userName) async {

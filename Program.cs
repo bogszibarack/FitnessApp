@@ -15,6 +15,17 @@ builder.Services.AddSwaggerGen();
 var app = builder.Build();
 app.UseCors();
 
+// FatSecret Platform API kulcs (étel keresés + vonalkód)
+FitnessBackend.Models.FatSecretConfig.ClientId =
+    builder.Configuration["FatSecret:ClientId"]
+    ?? Environment.GetEnvironmentVariable("FATSECRET_CLIENT_ID")
+    ?? "";
+
+FitnessBackend.Models.FatSecretConfig.ClientSecret =
+    builder.Configuration["FatSecret:ClientSecret"]
+    ?? Environment.GetEnvironmentVariable("FATSECRET_CLIENT_SECRET")
+    ?? "";
+
 // Spoonacular API kulcs (receptekhez)
 FitnessBackend.Models.SpoonacularConfig.ApiKey =
     builder.Configuration["Spoonacular:ApiKey"]

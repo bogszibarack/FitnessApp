@@ -8,7 +8,7 @@ namespace FitnessBackend.Controllers
     public class AuthController : ControllerBase
     {
         /// <summary>
-        /// Onboarding regisztráció — validálás + in-memory mentés.
+        /// Onboarding regisztráció — validálás + fájlba mentés.
         /// POST /api/auth/register-onboarding
         /// </summary>
         [HttpPost("register-onboarding")]
@@ -24,10 +24,12 @@ namespace FitnessBackend.Controllers
             if (FelhasznaloFiok.LetezikeUsername(dto.Username))
                 return Conflict(new { error = "Ez a felhasználónév már foglalt." });
 
+            var jelszoHash = FelhasznaloTarolo.JelszoHash(dto.Password);
             var ujFelhasznalo = new RegisteredUser
             {
                 Email = dto.Email.ToLowerInvariant().Trim(),
                 Username = dto.Username.Trim(),
+                JelszoHash = jelszoHash,
                 WeightUnit = dto.WeightUnit,
                 DistanceUnit = dto.DistanceUnit,
                 MeasurementUnit = dto.MeasurementUnit,
@@ -36,16 +38,13 @@ namespace FitnessBackend.Controllers
                 Source = dto.Source,
             };
 
-            FelhasznaloFiok.Felhasznalok.Add(ujFelhasznalo);
+            FelhasznaloFiok.Hozzaadas(ujFelhasznalo);
 
-            // Alap beállítások létrehozása az újonnan regisztrált felhasználóhoz
-            // Alap felhasználói profil létrehozása (ha még nem létezik)
-            if (!FelhasznaloTarolo.FelhasznaloLetezik(ujFelhasznalo.Username))
-            {
-                var ujProfil = FelhasznaloTarolo.FelhasznaloLekerdezeseVagyLetrehozasa(ujFelhasznalo.Username);
-                ujProfil.Profil.Nev = ujFelhasznalo.Username;
-                FelhasznaloTarolo.FelhasznaloMentese(ujProfil);
-            }
+            var ujProfil = FelhasznaloTarolo.FelhasznaloLekerdezeseVagyLetrehozasa(ujFelhasznalo.Username);
+            ujProfil.Profil.Nev = ujFelhasznalo.Username;
+            ujProfil.Fiok.Email = ujFelhasznalo.Email;
+            ujProfil.Fiok.JelszoHash = jelszoHash;
+            FelhasznaloTarolo.FelhasznaloMentese(ujProfil);
 
             return Ok(new
             {
@@ -59,7 +58,7 @@ namespace FitnessBackend.Controllers
         }
 
         /// <summary>
-        /// Bejelentkezés e-mail cím vagy felhasználónév alapján.
+        /// Bejelentkezés e-mail cím vagy felhasználónév + jelszó alapján.
         /// POST /api/auth/login
         /// </summary>
         [HttpPost("login")]
@@ -68,43 +67,24 @@ namespace FitnessBackend.Controllers
             if (string.IsNullOrWhiteSpace(dto.Username))
                 return BadRequest(new { error = "E-mail vagy felhasználónév megadása kötelező." });
 
+            if (string.IsNullOrWhiteSpace(dto.Password) || dto.Password.Length < 6)
+                return BadRequest(new { error = "A jelszó legalább 6 karakter legyen." });
+
             var input = dto.Username.Trim();
+            var fiok = FelhasznaloFiok.KeresesEmailVagyNevvel(input);
 
-            // Keresés email alapján
-            var emailEgyezes = FelhasznaloFiok.Felhasznalok
-                .FirstOrDefault(f => f.Email.Equals(input, StringComparison.OrdinalIgnoreCase));
-
-            if (emailEgyezes != null)
+            if (fiok != null)
             {
+                if (!string.IsNullOrEmpty(fiok.JelszoHash) &&
+                    fiok.JelszoHash != FelhasznaloTarolo.JelszoHash(dto.Password))
+                {
+                    return Unauthorized(new { error = "Hibás jelszó." });
+                }
+
                 return Ok(new
                 {
                     success = true,
-                    userName = emailEgyezes.Username,
-                    message = "Sikeres bejelentkezés.",
-                });
-            }
-
-            // Keresés felhasználónév alapján
-            var nevEgyezes = FelhasznaloFiok.Felhasznalok
-                .FirstOrDefault(f => f.Username.Equals(input, StringComparison.OrdinalIgnoreCase));
-
-            if (nevEgyezes != null)
-            {
-                return Ok(new
-                {
-                    success = true,
-                    userName = nevEgyezes.Username,
-                    message = "Sikeres bejelentkezés.",
-                });
-            }
-
-            // Meglévő demo felhasználó ellenőrzése (ha volt korábban regisztrálva)
-            if (FelhasznaloTarolo.FelhasznaloLetezik(input))
-            {
-                return Ok(new
-                {
-                    success = true,
-                    userName = input,
+                    userName = fiok.Username,
                     message = "Sikeres bejelentkezés.",
                 });
             }
@@ -139,8 +119,7 @@ namespace FitnessBackend.Controllers
             if (string.IsNullOrWhiteSpace(username))
                 return BadRequest(new { error = "Felhasználónév megadása kötelező." });
 
-            var foglalt = FelhasznaloFiok.LetezikeUsername(username.Trim())
-                       || FelhasznaloTarolo.FelhasznaloLetezik(username.Trim());
+            var foglalt = FelhasznaloFiok.LetezikeUsername(username.Trim());
             return Ok(new { occupied = foglalt });
         }
     }

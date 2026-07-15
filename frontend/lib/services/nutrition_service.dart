@@ -22,7 +22,7 @@ class NutritionService {
     return lista.map((e) => FoodItemModel.fromJson(e as Map<String, dynamic>)).toList();
   }
 
-  /// Termék lekérése vonalkód alapján (Open Food Facts a backenden át).
+  /// Termék lekérése vonalkód alapján (FatSecret + OFF fallback a backenden).
   Future<FoodItemModel> vonalkodKereses(String vonalkod) async {
     final response = await http
         .get(Uri.parse('$_base/api/nutrition/vonalkod/$vonalkod'))

@@ -8,7 +8,7 @@ import '../../widgets/nutrition_diary_widgets.dart';
 import 'barcode_scan_screen.dart';
 import 'recipes_screen.dart';
 
-/// Étel keresés és hozzáadás étkezéshez (Open Food Facts API).
+/// Étel keresés és hozzáadás étkezéshez (FatSecret API).
 class FoodAddScreen extends StatefulWidget {
   const FoodAddScreen({super.key, required this.etkezesTipus});
 

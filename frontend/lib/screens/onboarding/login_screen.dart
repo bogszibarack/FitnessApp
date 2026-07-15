@@ -96,16 +96,7 @@ class _LoginScreenState extends State<LoginScreen>
     final jelszo = _passCtrl.text;
 
     try {
-      // 1. Helyi ellenőrzés — backend-független, újraindítás után is működik
-      final helybentiNev = await _helybentiBejelentkezes(bemeneti, jelszo);
-
-      if (helybentiNev != null) {
-        if (!mounted) return;
-        await _sessionMentes(helybentiNev);
-        return;
-      }
-
-      // 2. Backend hívás — ha a helyi nem találta meg
+      // 1. Backend — perzisztens fiókok (Flutter web más portján is működik)
       final url = Uri.parse('${ApiConfig.baseUrl}/api/auth/login');
       final valasz = await http
           .post(
@@ -124,21 +115,35 @@ class _LoginScreenState extends State<LoginScreen>
         final json = jsonDecode(valasz.body) as Map<String, dynamic>;
         final userName = json['userName'] as String? ?? bemeneti;
         await _sessionMentes(userName);
-      } else if (valasz.statusCode == 404) {
-        _hibaUzenet(
-            'Nem találtunk fiókot ezzel az adatokkal. Ellenőrizd az e-mail/jelszó párost, vagy regisztrálj!');
-      } else {
+        return;
+      }
+
+      if (valasz.statusCode == 401) {
+        _hibaUzenet('Hibás jelszó.');
+        return;
+      }
+
+      if (valasz.statusCode != 404) {
         final json = jsonDecode(valasz.body) as Map<String, dynamic>;
         _hibaUzenet(json['error'] as String? ?? 'Sikertelen bejelentkezés.');
+        return;
       }
+
+      // 2. Helyi fallback — ha a backend nem ismeri (offline / régi fiók)
+      final helybentiNev = await _helybentiBejelentkezes(bemeneti, jelszo);
+      if (helybentiNev != null) {
+        await _sessionMentes(helybentiNev);
+        return;
+      }
+
+      _hibaUzenet(
+          'Nem találtunk fiókot ezzel az adatokkal. Ellenőrizd az e-mail/jelszó párost, vagy regisztrálj!');
     } catch (_) {
-      // Backend nem elérhető — ha helyi sem volt találat, jelezzük
+      // Backend nem elérhető — helyi próba
       if (!mounted) return;
-      // Egy utolsó próba: helyi (jelszó nélkül)
-      final helybentiNevFallback =
-          await _helybentiBejelentkezes(bemeneti, '');
-      if (helybentiNevFallback != null && mounted) {
-        await _sessionMentes(helybentiNevFallback);
+      final helybentiNev = await _helybentiBejelentkezes(bemeneti, jelszo);
+      if (helybentiNev != null && mounted) {
+        await _sessionMentes(helybentiNev);
       } else if (mounted) {
         _hibaUzenet(
             'A szerver nem elérhető. Győződj meg róla, hogy a backend fut!');

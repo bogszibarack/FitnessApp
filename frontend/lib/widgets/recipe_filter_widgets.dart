@@ -16,7 +16,18 @@ class ReceptKategoriaKartya extends StatelessWidget {
   final VoidCallback onTap;
 
   static const _stilusok = <String, _KategoriaStilus>{
-    // TheMealDB kategóriák
+    // Helyi / TheMealDB kategóriák
+    'levesek/husleves': _KategoriaStilus(Color(0xFF4A90D9), Color(0xFFA8D4FF), Icons.soup_kitchen),
+    'fozelekek':        _KategoriaStilus(Color(0xFF7ED957), Color(0xFFC8F5A8), Icons.ramen_dining),
+    'porkolt':          _KategoriaStilus(Color(0xFFE85D75), Color(0xFFFFB3C1), Icons.lunch_dining),
+    'egytaletelek':     _KategoriaStilus(Color(0xFFFF9F43), Color(0xFFFFD59A), Icons.set_meal),
+    'edes-suti':        _KategoriaStilus(Color(0xFF1ABC9C), Color(0xFFA3E4D7), Icons.cake),
+    'salata':           _KategoriaStilus(Color(0xFF2D6A4F), Color(0xFF95D5B2), Icons.spa),
+    'palacsinta/palacsinta-alapteszta': _KategoriaStilus(Color(0xFFF4D03F), Color(0xFFFFF3A3), Icons.breakfast_dining),
+    'mentes-receptek/vegan-receptek':   _KategoriaStilus(Color(0xFF2D6A4F), Color(0xFF95D5B2), Icons.eco),
+    'koretek':          _KategoriaStilus(Color(0xFF9B59B6), Color(0xFFD7BDE2), Icons.rice_bowl),
+    'pite':             _KategoriaStilus(Color(0xFFFF6B6B), Color(0xFFFFB8B8), Icons.pie_chart),
+    // TheMealDB (visszafelé kompatibilitás)
     'Chicken':    _KategoriaStilus(Color(0xFFFF9F43), Color(0xFFFFD59A), Icons.set_meal),
     'Beef':       _KategoriaStilus(Color(0xFFE85D75), Color(0xFFFFB3C1), Icons.lunch_dining),
     'Seafood':    _KategoriaStilus(Color(0xFF4A90D9), Color(0xFFA8D4FF), Icons.water),
