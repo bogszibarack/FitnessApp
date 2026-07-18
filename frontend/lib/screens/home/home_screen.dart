@@ -8,6 +8,7 @@ import '../../services/apple_health_service.dart';
 import '../../services/community_service.dart';
 import '../../services/home_service.dart';
 import '../../services/streak_service.dart';
+import '../../theme/app_tema.dart';
 import '../../widgets/health_data_panel.dart';
 import '../../widgets/nutrition_summary_card.dart';
 import '../community/community_screen.dart';
@@ -108,7 +109,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final weekNumber = _weekOfYear(now);
 
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: AppSzinek.hatter,
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _loadData,
@@ -127,7 +128,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         'Ma',
                         style: Theme.of(context).textTheme.headlineLarge?.copyWith(
                               fontWeight: FontWeight.w800,
-                              color: Colors.black87,
+                              color: AppSzinek.szoveg,
                               fontSize: 34,
                             ),
                       ),
@@ -195,10 +196,10 @@ class _HomeScreenState extends State<HomeScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppSzinek.kartya,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade100),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2))],
+        border: Border.all(color: AppSzinek.szegely),
+        boxShadow: [BoxShadow(color: AppSzinek.arnyek, blurRadius: 8, offset: const Offset(0, 2))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -331,7 +332,7 @@ class _HomeScreenState extends State<HomeScreen> {
         IconButton(
           onPressed: _loadData,
           icon: const Icon(Icons.refresh),
-          color: Colors.black87,
+          color: AppSzinek.szoveg,
         ),
       ],
     );
@@ -346,7 +347,7 @@ class _HomeScreenState extends State<HomeScreen> {
         gradient: aktiv
             ? const LinearGradient(colors: [Color(0xFFFF6D00), Color(0xFFFFB300)])
             : null,
-        color: aktiv ? null : Colors.grey.shade100,
+        color: aktiv ? null : AppSzinek.halvanyKitoltes,
         borderRadius: BorderRadius.circular(20),
         boxShadow: aktiv
             ? [BoxShadow(color: const Color(0xFFFF6D00).withValues(alpha: 0.35), blurRadius: 8, offset: const Offset(0, 2))]
@@ -378,7 +379,7 @@ class _HomeScreenState extends State<HomeScreen> {
       children: [
         Text(
           title,
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Colors.black87),
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppSzinek.szoveg),
         ),
         const Spacer(),
         if (action.isNotEmpty)
@@ -400,9 +401,9 @@ class _HomeScreenState extends State<HomeScreen> {
           Container(
             padding: const EdgeInsets.symmetric(vertical: 28),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: AppSzinek.kartya,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.grey.shade200),
+              border: Border.all(color: AppSzinek.szegely),
             ),
             child: Center(
               child: Column(
@@ -455,9 +456,9 @@ class _HomeFeedKartya extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppSzinek.kartya,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: AppSzinek.szegely),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

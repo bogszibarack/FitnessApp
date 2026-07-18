@@ -2,6 +2,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../theme/app_tema.dart';
+
 class CalorieRing extends StatelessWidget {
   const CalorieRing({
     super.key,
@@ -39,10 +41,10 @@ class CalorieRing extends StatelessWidget {
             children: [
               Text(
                 '$remaining',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.w700,
-                  color: Colors.black87,
+                  color: AppSzinek.szoveg,
                   height: 1.1,
                 ),
               ),
@@ -144,10 +146,10 @@ class MacroBar extends StatelessWidget {
           children: [
             Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
-                color: Colors.black87,
+                color: AppSzinek.szoveg,
               ),
             ),
             Text(

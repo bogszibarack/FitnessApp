@@ -5,6 +5,8 @@ import '../../models/beallitas_models.dart';
 import '../../services/apple_health_service.dart';
 import '../../services/beallitasok_service.dart';
 import '../../services/sound_service.dart';
+import '../../theme/app_tema.dart';
+import '../../widgets/modern_gomb.dart';
 import '../../widgets/settings_widgets.dart';
 
 // ─── Alap detail scaffold ───────────────────────────────────────────────────
@@ -25,12 +27,12 @@ class _DetailScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F2F7),
+      backgroundColor: AppSzinek.hatter,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
+        backgroundColor: AppSzinek.felulet,
+        foregroundColor: AppSzinek.szoveg,
         elevation: 0,
-        surfaceTintColor: Colors.white,
+        surfaceTintColor: AppSzinek.felulet,
         title: Text(cim, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 17)),
         actions: [
           if (mentes != null)
@@ -786,7 +788,7 @@ class _NyelvScreenState extends State<NyelvScreen> {
                 SettingsSectionHeader(title: 'Felület nyelve'),
                 BeallitasSzekcio(
                   children: _opcio.map((o) => Material(
-                    color: Colors.white,
+                    color: AppSzinek.kartya,
                     child: RadioListTile<String>(
                       title: Text(o.cimke, style: const TextStyle(fontSize: 15)),
                       value: o.id,
@@ -825,13 +827,35 @@ class _TemaScreenState extends State<TemaScreen> {
   }
 
   Future<void> _init() async {
-    final data = await widget.service.getSzekcio('/api/beallitasok/${widget.service.userName}/tema');
-    final opcio = await widget.service.temak();
-    setState(() { _mod = data['mod'] as String? ?? 'rendszer'; _opcio = opcio; _betolt = false; });
+    var opcio = <ValasztasiOpcio>[
+      ValasztasiOpcio(id: 'rendszer', cimke: 'Rendszer alapértelmezés'),
+      ValasztasiOpcio(id: 'vilagos', cimke: 'Világos'),
+      ValasztasiOpcio(id: 'sotet', cimke: 'Sötét'),
+    ];
+    try {
+      final backendOpcio = await widget.service.temak();
+      if (backendOpcio.isNotEmpty) opcio = backendOpcio;
+    } catch (_) {}
+    if (!mounted) return;
+    setState(() {
+      _mod = TemaVezerlo.aktualisId;
+      _opcio = opcio;
+      _betolt = false;
+    });
+  }
+
+  Future<void> _valasztas(String id) async {
+    Haptika.valasztas();
+    setState(() => _mod = id);
+    // Azonnal alkalmazzuk és helyben mentjük — nem kell a Mentés gombra várni.
+    await TemaVezerlo.allitasIdbol(id);
   }
 
   Future<void> _mentes() async {
-    await widget.service.putSzekcio('/api/beallitasok/${widget.service.userName}/tema', {'mod': _mod});
+    await TemaVezerlo.allitasIdbol(_mod);
+    try {
+      await widget.service.putSzekcio('/api/beallitasok/${widget.service.userName}/tema', {'mod': _mod});
+    } catch (_) {}
     if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Téma elmentve!')));
   }
 
@@ -855,18 +879,18 @@ class _TemaScreenState extends State<TemaScreen> {
                   children: _opcio.map((o) {
                     final ikon = _temaIkon[o.id] ?? Icons.settings_rounded;
                     return Material(
-                      color: Colors.white,
+                      color: AppSzinek.kartya,
                       child: ListTile(
                         leading: Container(
                           width: 34, height: 34,
                           decoration: BoxDecoration(color: const Color(0xFF5C6BC0).withValues(alpha: 0.13), borderRadius: BorderRadius.circular(9)),
                           child: Icon(ikon, color: const Color(0xFF5C6BC0), size: 19),
                         ),
-                        title: Text(o.cimke, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+                        title: Text(o.cimke, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: AppSzinek.szoveg)),
                         trailing: _mod == o.id
                             ? const Icon(Icons.check_circle_rounded, color: Color(0xFF1E88E5))
                             : null,
-                        onTap: () => setState(() => _mod = o.id),
+                        onTap: () => _valasztas(o.id),
                       ),
                     );
                   }).toList(),
@@ -992,7 +1016,7 @@ class _ExportScreenState extends State<ExportScreen> {
         children: [
           Container(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)),
+            decoration: BoxDecoration(color: AppSzinek.kartya, borderRadius: BorderRadius.circular(14)),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1058,7 +1082,7 @@ class _StatikusTartalomScreenState extends State<StatikusTartalomScreen> {
                   ...((_data as Map)['lepesek'] as List).asMap().entries.map((e) => Container(
                     margin: const EdgeInsets.only(bottom: 12),
                     padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+                    decoration: BoxDecoration(color: AppSzinek.kartya, borderRadius: BorderRadius.circular(12)),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -1236,7 +1260,7 @@ class _RolunkScreenState extends State<RolunkScreen> {
                 const SizedBox(height: 16),
                 Container(
                   padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)),
+                  decoration: BoxDecoration(color: AppSzinek.kartya, borderRadius: BorderRadius.circular(14)),
                   child: Text(_data!['leiras']?.toString() ?? '', style: const TextStyle(fontSize: 15, height: 1.6)),
                 ),
                 const SizedBox(height: 32),
@@ -1316,7 +1340,7 @@ class _AdatTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white,
+      color: AppSzinek.kartya,
       child: InkWell(
         onTap: onTap,
         child: Padding(

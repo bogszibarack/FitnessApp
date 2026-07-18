@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../models/exercise_model.dart';
 import '../../services/exercise_service.dart';
+import '../../theme/app_tema.dart';
 import '../../widgets/exercise_workout_widgets.dart';
 
 /// Gyakorlat kiválasztása rutin összeállításhoz.
@@ -102,11 +103,11 @@ class _ExercisePickerScreenState extends State<ExercisePickerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppSzinek.felulet,
       appBar: AppBar(
         title: const Text('Gyakorlat hozzáadása', style: TextStyle(fontWeight: FontWeight.w700)),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
+        backgroundColor: AppSzinek.felulet,
+        foregroundColor: AppSzinek.szoveg,
         elevation: 0.5,
       ),
       body: Column(

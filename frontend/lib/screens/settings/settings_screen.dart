@@ -5,6 +5,7 @@ import '../../models/beallitas_models.dart';
 import '../../services/apple_health_service.dart';
 import '../../services/beallitasok_service.dart';
 import '../../services/streak_service.dart';
+import '../../theme/app_tema.dart';
 import '../../utils/platform_utils.dart';
 import '../../widgets/settings_widgets.dart';
 import '../onboarding/onboarding_screen.dart';
@@ -94,7 +95,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F2F7),
+      backgroundColor: AppSzinek.hatter,
       body: SafeArea(
         child: _betolt
             ? const Center(child: CircularProgressIndicator())
@@ -125,12 +126,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
         children: [
           Image.asset('assets/logo.png', height: 26),
           const SizedBox(width: 10),
-          const Text(
+          Text(
             'Flexio',
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w900,
-              color: Colors.black87,
+              color: AppSzinek.szoveg,
               letterSpacing: -0.5,
             ),
           ),
@@ -149,9 +150,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
         margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppSzinek.kartya,
           borderRadius: BorderRadius.circular(18),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 3))],
+          boxShadow: [BoxShadow(color: AppSzinek.arnyek, blurRadius: 10, offset: const Offset(0, 3))],
         ),
         child: Row(
           children: [
@@ -183,9 +184,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(_nev, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.black87)),
+                  Text(_nev, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppSzinek.szoveg)),
                   const SizedBox(height: 4),
-                  Text('Profil szerkesztése', style: TextStyle(fontSize: 13, color: Colors.grey.shade500)),
+                  Text('Profil szerkesztése', style: TextStyle(fontSize: 13, color: AppSzinek.halvanySzoveg)),
                 ],
               ),
             ),
@@ -213,14 +214,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Widget _buildAppleHealthKartya() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppSzinek.kartya,
           borderRadius: BorderRadius.circular(18),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
+              color: AppSzinek.arnyek,
               blurRadius: 10,
               offset: const Offset(0, 3),
             ),
@@ -251,12 +252,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'Apple Health',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
-                            color: Colors.black87,
+                            color: AppSzinek.szoveg,
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -321,7 +322,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       'Lépésszám, kalória, edzés és egyéb mozgásadatok szinkronizálása a Home képernyőre.',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.grey.shade600,
+                        color: AppSzinek.mellekSzoveg,
                         height: 1.45,
                       ),
                     ),
@@ -409,11 +410,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
         children: [
           Container(
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: AppSzinek.kartya,
               borderRadius: BorderRadius.circular(14),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.04),
+                  color: AppSzinek.arnyek,
                   blurRadius: 6,
                   offset: const Offset(0, 2),
                 )

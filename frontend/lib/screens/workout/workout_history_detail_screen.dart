@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../models/workout_models.dart';
 import '../../services/workout_service.dart';
+import '../../theme/app_tema.dart';
 import '../../widgets/exercise_workout_widgets.dart';
 
 /// Befejezett edzés megtekintése és szerkesztése.
@@ -91,10 +92,10 @@ class _WorkoutHistoryDetailScreenState extends State<WorkoutHistoryDetailScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: AppSzinek.hatter,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
+        backgroundColor: AppSzinek.felulet,
+        foregroundColor: AppSzinek.szoveg,
         elevation: 0.5,
         title: const Text('Edzés szerkesztése', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
         actions: [

@@ -5,6 +5,8 @@ import '../../config/api_config.dart';
 import '../../models/routine_model.dart';
 import '../../models/workout_models.dart';
 import '../../services/workout_service.dart';
+import '../../theme/app_tema.dart';
+import '../../widgets/modern_gomb.dart';
 import 'ai_explore_screen.dart';
 import 'active_workout_screen.dart';
 import 'routine_edit_screen.dart';
@@ -264,7 +266,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppSzinek.felulet,
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _betoltes,
@@ -303,11 +305,11 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
       child: Row(
         children: [
-          const Text(
+          Text(
             'Edzés',
-            style: TextStyle(fontSize: 34, fontWeight: FontWeight.w800, color: Colors.black87),
+            style: TextStyle(fontSize: 34, fontWeight: FontWeight.w800, color: AppSzinek.szoveg),
           ),
-          const Icon(Icons.keyboard_arrow_down, size: 28, color: Colors.black87),
+          Icon(Icons.keyboard_arrow_down, size: 28, color: AppSzinek.szoveg),
           const Spacer(),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -329,22 +331,25 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
       child: Material(
-        color: Colors.grey.shade100,
+        color: AppSzinek.halvanyKitoltes,
         borderRadius: BorderRadius.circular(14),
         child: InkWell(
-          onTap: _uresEdzesInditasa,
+          onTap: () {
+            Haptika.kozepes();
+            _uresEdzesInditasa();
+          },
           borderRadius: BorderRadius.circular(14),
           child: Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 18),
-            child: const Row(
+            child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.add, size: 22, color: Colors.black87),
-                SizedBox(width: 8),
+                Icon(Icons.add, size: 22, color: AppSzinek.szoveg),
+                const SizedBox(width: 8),
                 Text(
                   'Üres edzés indítása',
-                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: Colors.black87),
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: AppSzinek.szoveg),
                 ),
               ],
             ),
@@ -355,13 +360,13 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   }
 
   Widget _buildRutinFejlec() {
-    return const Padding(
-      padding: EdgeInsets.symmetric(horizontal: 20),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
         children: [
           Text(
             'Rutinok',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Colors.black87),
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppSzinek.szoveg),
           ),
         ],
       ),
@@ -383,19 +388,22 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
 
   Widget _szurkGomb(IconData ikon, String cimke, VoidCallback onTap) {
     return Material(
-      color: Colors.grey.shade100,
+      color: AppSzinek.halvanyKitoltes,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
-        onTap: onTap,
+        onTap: () {
+          Haptika.konnyu();
+          onTap();
+        },
         borderRadius: BorderRadius.circular(14),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 14),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(ikon, size: 20, color: Colors.black87),
+              Icon(ikon, size: 20, color: AppSzinek.szoveg),
               const SizedBox(width: 8),
-              Text(cimke, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+              Text(cimke, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: AppSzinek.szoveg)),
             ],
           ),
         ),
@@ -435,9 +443,9 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
               children: [
                 const Text('🚀', style: TextStyle(fontSize: 18)),
                 const SizedBox(width: 8),
-                const Text(
+                Text(
                   'Következő edzés',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Colors.black87),
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppSzinek.szoveg),
                 ),
                 const SizedBox(width: 10),
                 if (_progresszio > 0)
@@ -488,9 +496,9 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
         children: [
           const Icon(Icons.bookmark_outline, size: 22),
           const SizedBox(width: 8),
-          const Text(
+          Text(
             'Mentéseim',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Colors.black87),
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppSzinek.szoveg),
           ),
         ],
       ),
@@ -673,12 +681,12 @@ class _RutinKartya extends StatelessWidget {
       key: key,
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppSzinek.kartya,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: AppSzinek.szegely),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
+            color: AppSzinek.arnyek,
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
@@ -747,21 +755,12 @@ class _RutinKartya extends StatelessWidget {
           ],
           if (onInditas != null) ...[
             const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: onInditas,
-                style: FilledButton.styleFrom(
-                  backgroundColor: _primaryBlue,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                ),
-                child: const Text(
-                  'Rutin indítása',
-                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
-                ),
-              ),
+            ModernGomb(
+              cimke: 'Rutin indítása',
+              ikon: Icons.play_arrow_rounded,
+              szin: _primaryBlue,
+              teljesSzelesseg: true,
+              onTap: onInditas!,
             ),
           ],
         ],
@@ -968,30 +967,14 @@ class _KovetkezoEdzesKartya extends StatelessWidget {
             ],
 
             // Indítás gomb
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: onInditas,
-                style: FilledButton.styleFrom(
-                  backgroundColor: _teal,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.play_arrow_rounded, size: 20),
-                    const SizedBox(width: 8),
-                    Text(
-                      progresszio > 0
-                          ? 'Indítás +${progresszio.toStringAsFixed(1)}% súllyal'
-                          : 'Indítás (változatlan súlyok)',
-                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-                    ),
-                  ],
-                ),
-              ),
+            ModernGomb(
+              cimke: progresszio > 0
+                  ? 'Indítás +${progresszio.toStringAsFixed(1)}% súllyal'
+                  : 'Indítás (változatlan súlyok)',
+              ikon: Icons.play_arrow_rounded,
+              szin: _teal,
+              teljesSzelesseg: true,
+              onTap: onInditas,
             ),
           ],
         ),
@@ -1011,9 +994,9 @@ class _BefejezettEdzesKartya extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppSzinek.kartya,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: AppSzinek.szegely),
       ),
       child: InkWell(
         onTap: onTap,

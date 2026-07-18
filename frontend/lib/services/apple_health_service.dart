@@ -28,8 +28,10 @@ class AppleHealthService {
 
   Future<void> _ensureConfigured() async {
     if (_configured) return;
-    await _health.configure();
-    _configured = true;
+    try {
+      await _health.configure().timeout(const Duration(seconds: 10));
+      _configured = true;
+    } catch (_) {}
   }
 
   Future<bool> requestPermissions() async {
@@ -37,14 +39,20 @@ class AppleHealthService {
 
     await _ensureConfigured();
 
+    // Timeout mindenhol: ha a HealthKit hívás beragad, az onboarding
+    // ne pörögjön örökké — a felhasználó továbbléphet.
     try {
       final permissions = _readTypes.map((_) => HealthDataAccess.READ).toList();
-      await _health.requestAuthorization(_readTypes, permissions: permissions);
+      await _health
+          .requestAuthorization(_readTypes, permissions: permissions)
+          .timeout(const Duration(seconds: 45));
     } catch (_) {}
 
     // Natív activity summary engedély
     try {
-      await _summaryChannel.invokeMethod<bool>('requestAuthorization');
+      await _summaryChannel
+          .invokeMethod<bool>('requestAuthorization')
+          .timeout(const Duration(seconds: 20));
     } catch (_) {}
 
     // iOS-on nem lehet megbízhatóan ellenőrizni, hogy az engedélyt megadták-e.
@@ -129,7 +137,9 @@ class AppleHealthService {
 
   Future<Map<String, int>?> _fetchActivitySummary() async {
     try {
-      final result = await _summaryChannel.invokeMethod<Map<dynamic, dynamic>>('fetchTodaySummary');
+      final result = await _summaryChannel
+          .invokeMethod<Map<dynamic, dynamic>>('fetchTodaySummary')
+          .timeout(const Duration(seconds: 10));
       if (result == null) return null;
 
       return {

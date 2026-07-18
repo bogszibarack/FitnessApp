@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../config/api_config.dart';
 import '../../models/community_models.dart';
 import '../../services/community_service.dart';
+import '../../theme/app_tema.dart';
 import 'community_widgets.dart';
 
 class UserProfileScreen extends StatefulWidget {
@@ -98,12 +99,12 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     final osszLike = _posztok.fold(0, (sum, p) => sum + p.likeSzam);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F7),
+      backgroundColor: AppSzinek.hatter,
       body: CustomScrollView(
         slivers: [
           // App bar
           SliverAppBar(
-            backgroundColor: Colors.white,
+            backgroundColor: AppSzinek.felulet,
             expandedHeight: 250,
             pinned: true,
             flexibleSpace: FlexibleSpaceBar(

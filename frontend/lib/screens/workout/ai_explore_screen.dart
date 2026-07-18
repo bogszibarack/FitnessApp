@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../models/routine_model.dart';
 import '../../services/workout_service.dart';
+import '../../theme/app_tema.dart';
 
 class _EdzestervOpcio {
   const _EdzestervOpcio({
@@ -186,11 +187,11 @@ class _AiExploreScreenState extends State<AiExploreScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppSzinek.felulet,
       appBar: AppBar(
         title: const Text('AI edzésterv', style: TextStyle(fontWeight: FontWeight.w700)),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
+        backgroundColor: AppSzinek.felulet,
+        foregroundColor: AppSzinek.szoveg,
         elevation: 0.5,
       ),
       body: ListView(

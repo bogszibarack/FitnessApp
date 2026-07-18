@@ -5,6 +5,7 @@ import '../../models/routine_model.dart';
 import '../../models/workout_models.dart';
 import '../../services/exercise_service.dart';
 import '../../services/workout_service.dart';
+import '../../theme/app_tema.dart';
 import '../../widgets/exercise_workout_widgets.dart';
 
 /// AI (vagy egyéb) rutin előnézete — gyakorlat részletek, mint hozzáadásnál.
@@ -128,14 +129,14 @@ class _RoutinePreviewScreenState extends State<RoutinePreviewScreen> {
     final rutin = widget.rutin;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppSzinek.felulet,
       appBar: AppBar(
         title: Text(
           rutin.title,
           style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 17),
         ),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
+        backgroundColor: AppSzinek.felulet,
+        foregroundColor: AppSzinek.szoveg,
         elevation: 0.5,
       ),
       body: Column(

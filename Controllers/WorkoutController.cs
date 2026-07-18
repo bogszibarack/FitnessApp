@@ -88,6 +88,8 @@ namespace FitnessBackend.Controllers
                 Exercises = new List<LoggedExercise>()
             };
 
+            DataPersistence.AktivEdzesMentese(aktiv_edzes);
+
             return Ok(aktiv_edzes);
         }
 
@@ -116,6 +118,8 @@ namespace FitnessBackend.Controllers
             {
                 aktiv_edzes.Title = modositas.Title;
             }
+
+            DataPersistence.AktivEdzesMentese(aktiv_edzes);
 
             return Ok(aktiv_edzes);
         }
@@ -171,6 +175,7 @@ namespace FitnessBackend.Controllers
             };
 
             aktiv_edzes.Exercises.Add(hozzaadott_gyakorlat);
+            DataPersistence.AktivEdzesMentese(aktiv_edzes);
             return Ok(hozzaadott_gyakorlat);
         }
 
@@ -192,6 +197,7 @@ namespace FitnessBackend.Controllers
             }
 
             aktiv_edzes.Exercises.Remove(torlendo_gyakorlat);
+            DataPersistence.AktivEdzesMentese(aktiv_edzes);
             return Ok($"Gyakorlat torolve: {torlendo_gyakorlat.ExerciseName}");
         }
 
@@ -222,6 +228,8 @@ namespace FitnessBackend.Controllers
                 gyakorlat.Sets = modositott_gyakorlat.Sets;
             }
 
+            DataPersistence.AktivEdzesMentese(aktiv_edzes);
+
             return Ok(gyakorlat);
         }
 
@@ -243,6 +251,7 @@ namespace FitnessBackend.Controllers
             }
 
             gyakorlat.Sets = uj_sorozatok;
+            DataPersistence.AktivEdzesMentese(aktiv_edzes);
             return Ok(gyakorlat);
         }
 
@@ -269,6 +278,7 @@ namespace FitnessBackend.Controllers
             }
 
             gyakorlat.Sets.Add(uj_sorozat);
+            DataPersistence.AktivEdzesMentese(aktiv_edzes);
             return Ok(uj_sorozat);
         }
 
@@ -300,6 +310,8 @@ namespace FitnessBackend.Controllers
             sorozat.Reps = modositott_sorozat.Reps;
             sorozat.Rpe = modositott_sorozat.Rpe;
             sorozat.CelIsmetles = modositott_sorozat.CelIsmetles;
+
+            DataPersistence.AktivEdzesMentese(aktiv_edzes);
 
             return Ok(sorozat);
         }
@@ -339,6 +351,7 @@ namespace FitnessBackend.Controllers
             }
 
             sorozat.Elvegezve = true;
+            DataPersistence.AktivEdzesMentese(aktiv_edzes);
             return Ok(sorozat);
         }
 
@@ -367,6 +380,7 @@ namespace FitnessBackend.Controllers
             }
 
             sorozat.Elvegezve = false;
+            DataPersistence.AktivEdzesMentese(aktiv_edzes);
             return Ok(sorozat);
         }
 
@@ -463,6 +477,7 @@ namespace FitnessBackend.Controllers
             }
 
             gyakorlat.Sets.Remove(torlendo_sorozat);
+            DataPersistence.AktivEdzesMentese(aktiv_edzes);
             return Ok($"Sorozat torolve: #{sorozat_szam}");
         }
 
@@ -591,6 +606,8 @@ namespace FitnessBackend.Controllers
                 edzes.Exercises = modositott.Exercises;
             }
 
+            DataPersistence.EdzesTortenetMentese(edzes_tortenet);
+
             return Ok(edzes);
         }
 
@@ -605,6 +622,7 @@ namespace FitnessBackend.Controllers
             }
 
             edzes_tortenet.Remove(edzes);
+            DataPersistence.EdzesTortenetMentese(edzes_tortenet);
             return Ok($"Edzes torolve: {edzes.Title}");
         }
 
@@ -658,6 +676,8 @@ namespace FitnessBackend.Controllers
             aktiv_edzes = generalas.JavasoltEdzes;
             aktiv_edzes.IsActive = true;
             aktiv_edzes.StartTime = DateTime.Now;
+
+            DataPersistence.AktivEdzesMentese(aktiv_edzes);
 
             return Ok(aktiv_edzes);
         }
@@ -761,6 +781,7 @@ namespace FitnessBackend.Controllers
             }
 
             edzes_tortenet.Add(uj_edzes);
+            DataPersistence.EdzesTortenetMentese(edzes_tortenet);
             return $"Sikeres mentés! Az edzésed elmentve {uj_edzes.Id} azonosítóval. Összesen {uj_edzes.Exercises.Count} gyakorlatot végeztél.";
         }
     }

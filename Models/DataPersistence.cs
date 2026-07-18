@@ -4,12 +4,38 @@ namespace FitnessBackend.Models
 {
     public static class DataPersistence
     {
-        private static readonly string DataDir = Path.Combine(AppContext.BaseDirectory, "data");
-        private static readonly string WorkoutHistoryFile = Path.Combine(AppContext.BaseDirectory, "data", "workout_history.json");
-        private static readonly string AktivEdzesFile = Path.Combine(AppContext.BaseDirectory, "data", "aktiv_edzes.json");
-        private static readonly string RutinokFile = Path.Combine(AppContext.BaseDirectory, "data", "rutinok.json");
-        private static readonly string NutritionFile = Path.Combine(AppContext.BaseDirectory, "data", "nutrition_naplok.json");
-        private static readonly string FelhasznalokFile = Path.Combine(AppContext.BaseDirectory, "data", "felhasznalok.json");
+        // Stabil adatmappa: fejlesztésnél a projekt gyökere (dotnet run munkakönyvtára),
+        // hosztolt környezetben az app mappája. Így a bin/Debug ↔ Release ↔ publish
+        // váltás nem "veszíti el" az elmentett edzéseket.
+        private static readonly string DataDir = AdatMappaFeloldasa();
+        private static readonly string LegacyDataDir = Path.Combine(AppContext.BaseDirectory, "data");
+
+        private static readonly string WorkoutHistoryFile = Path.Combine(DataDir, "workout_history.json");
+        private static readonly string AktivEdzesFile = Path.Combine(DataDir, "aktiv_edzes.json");
+        private static readonly string RutinokFile = Path.Combine(DataDir, "rutinok.json");
+        private static readonly string NutritionFile = Path.Combine(DataDir, "nutrition_naplok.json");
+        private static readonly string FelhasznalokFile = Path.Combine(DataDir, "felhasznalok.json");
+
+        private static string AdatMappaFeloldasa()
+        {
+            try
+            {
+                var cwd = Directory.GetCurrentDirectory();
+                if (Directory.GetFiles(cwd, "*.csproj").Length > 0)
+                    return Path.Combine(cwd, "data");
+            }
+            catch { }
+            return Path.Combine(AppContext.BaseDirectory, "data");
+        }
+
+        /// <summary>Ha az új helyen nincs fájl, de a régi (bin-mappás) helyen van, azt olvassuk.</summary>
+        private static string? OlvasandoFajl(string ujUt)
+        {
+            if (File.Exists(ujUt)) return ujUt;
+            var legacy = Path.Combine(LegacyDataDir, Path.GetFileName(ujUt));
+            if (File.Exists(legacy)) return legacy;
+            return null;
+        }
 
         private static readonly JsonSerializerOptions Opts = new JsonSerializerOptions
         {
@@ -24,9 +50,10 @@ namespace FitnessBackend.Models
             {
                 Directory.CreateDirectory(DataDir);
 
-                if (File.Exists(WorkoutHistoryFile))
+                var historyUt = OlvasandoFajl(WorkoutHistoryFile);
+                if (historyUt != null)
                 {
-                    var json = File.ReadAllText(WorkoutHistoryFile);
+                    var json = File.ReadAllText(historyUt);
                     var lista = JsonSerializer.Deserialize<List<WorkoutSession>>(json, Opts);
                     if (lista != null)
                     {
@@ -34,9 +61,10 @@ namespace FitnessBackend.Models
                     }
                 }
 
-                if (File.Exists(AktivEdzesFile))
+                var aktivUt = OlvasandoFajl(AktivEdzesFile);
+                if (aktivUt != null)
                 {
-                    var json = File.ReadAllText(AktivEdzesFile);
+                    var json = File.ReadAllText(aktivUt);
                     var mentett = JsonSerializer.Deserialize<WorkoutSession>(json, Opts);
                     if (mentett != null && mentett.IsActive)
                     {
@@ -45,9 +73,10 @@ namespace FitnessBackend.Models
                     }
                 }
 
-                if (File.Exists(RutinokFile))
+                var rutinUt = OlvasandoFajl(RutinokFile);
+                if (rutinUt != null)
                 {
-                    var json = File.ReadAllText(RutinokFile);
+                    var json = File.ReadAllText(rutinUt);
                     var rutinok = JsonSerializer.Deserialize<List<Routine>>(json, Opts);
                     if (rutinok != null)
                     {
@@ -55,9 +84,10 @@ namespace FitnessBackend.Models
                     }
                 }
 
-                if (File.Exists(NutritionFile))
+                var nutritionUt = OlvasandoFajl(NutritionFile);
+                if (nutritionUt != null)
                 {
-                    var json = File.ReadAllText(NutritionFile);
+                    var json = File.ReadAllText(nutritionUt);
                     var naplok = JsonSerializer.Deserialize<List<DailyNutritionSession>>(json, Opts);
                     if (naplok != null)
                     {
@@ -151,9 +181,10 @@ namespace FitnessBackend.Models
         {
             try
             {
-                if (!File.Exists(FelhasznalokFile)) return;
+                var ut = OlvasandoFajl(FelhasznalokFile);
+                if (ut == null) return;
 
-                var json = File.ReadAllText(FelhasznalokFile);
+                var json = File.ReadAllText(ut);
                 var csomag = JsonSerializer.Deserialize<FelhasznaloFiokExport>(json, Opts);
                 if (csomag?.Felhasznalok == null) return;
 

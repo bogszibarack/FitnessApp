@@ -4,6 +4,7 @@ import '../../config/api_config.dart';
 import '../../models/nutrition_models.dart';
 import '../../services/nutrition_service.dart';
 import '../../services/recept_service.dart';
+import '../../theme/app_tema.dart';
 
 /// Recept részletei + hozzáadás a naplóhoz.
 class RecipeDetailScreen extends StatefulWidget {
@@ -94,13 +95,13 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     final kcal = (r.becsultKaloria * _adag).round();
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppSzinek.felulet,
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
             expandedHeight: 200,
             pinned: true,
-            backgroundColor: Colors.white,
+            backgroundColor: AppSzinek.felulet,
             foregroundColor: Colors.white,
             flexibleSpace: FlexibleSpaceBar(
               background: _receptFejlec(r),

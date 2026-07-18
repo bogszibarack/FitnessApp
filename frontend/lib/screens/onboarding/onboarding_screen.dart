@@ -918,9 +918,23 @@ class _AppleHealthPageState extends State<_AppleHealthPage>
                   onPressed: _betoltes
                       ? null
                       : () async {
+                          final messenger = ScaffoldMessenger.of(context);
                           setState(() => _betoltes = true);
                           try {
-                            await widget.onEngedelyez();
+                            // Végső védőháló: ha a HealthKit hívás beragadna,
+                            // 60 mp után továbbengedjük a felhasználót.
+                            await widget.onEngedelyez().timeout(
+                              const Duration(seconds: 60),
+                              onTimeout: () {},
+                            );
+                          } catch (_) {
+                            messenger.showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Az Apple Health engedélyezés nem sikerült — a Beállításokban később újra próbálhatod.',
+                                ),
+                              ),
+                            );
                           } finally {
                             if (mounted) setState(() => _betoltes = false);
                           }

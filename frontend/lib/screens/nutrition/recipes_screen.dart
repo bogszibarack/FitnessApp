@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../config/api_config.dart';
 import '../../models/nutrition_models.dart';
 import '../../services/recept_service.dart';
+import '../../theme/app_tema.dart';
 import '../../widgets/recipe_filter_widgets.dart';
 import 'recipe_detail_screen.dart';
 
@@ -198,11 +199,11 @@ class _RecipesScreenState extends State<RecipesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FB),
+      backgroundColor: AppSzinek.hatter,
       appBar: AppBar(
         title: const Text('Receptek', style: TextStyle(fontWeight: FontWeight.w800)),
-        backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF1A1A2E),
+        backgroundColor: AppSzinek.felulet,
+        foregroundColor: AppSzinek.szoveg,
         elevation: 0,
       ),
       body: CustomScrollView(
@@ -389,10 +390,10 @@ class _RecipesScreenState extends State<RecipesScreen> {
       borderRadius: BorderRadius.circular(16),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppSzinek.kartya,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
-            BoxShadow(color: Colors.black.withValues(alpha: 0.07), blurRadius: 10, offset: const Offset(0, 3)),
+            BoxShadow(color: AppSzinek.arnyek, blurRadius: 10, offset: const Offset(0, 3)),
           ],
         ),
         child: Column(

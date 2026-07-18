@@ -5,10 +5,12 @@ import 'config/api_config.dart';
 import 'screens/main_shell.dart';
 import 'screens/onboarding/onboarding_screen.dart';
 import 'services/sound_service.dart';
+import 'theme/app_tema.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await SoundService.instance.inicializalas();
+  await TemaVezerlo.betoltes();
 
   // Mentett felhasználónév betöltése (ha volt már onboarding)
   final prefs = await SharedPreferences.getInstance();
@@ -20,20 +22,47 @@ void main() async {
   runApp(const FitnessApp());
 }
 
-class FitnessApp extends StatelessWidget {
+class FitnessApp extends StatefulWidget {
   const FitnessApp({super.key});
 
   @override
+  State<FitnessApp> createState() => _FitnessAppState();
+}
+
+class _FitnessAppState extends State<FitnessApp> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangePlatformBrightness() {
+    // Rendszer módban az OS világos/sötét váltását is követjük.
+    setState(() => AppSzinek.frissites());
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flexio',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1E88E5)),
-        scaffoldBackgroundColor: Colors.grey.shade50,
-        useMaterial3: true,
-      ),
-      home: const _SplashRouter(),
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: TemaVezerlo.mod,
+      builder: (context, mod, _) {
+        AppSzinek.frissites();
+        return MaterialApp(
+          title: 'Flexio',
+          debugShowCheckedModeBanner: false,
+          theme: vilagosTema(),
+          darkTheme: sotetTema(),
+          themeMode: mod,
+          home: const _SplashRouter(),
+        );
+      },
     );
   }
 }
@@ -90,7 +119,7 @@ class _SplashRouterState extends State<_SplashRouter>
     if (_kovetkezo != null) return _kovetkezo!;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppSzinek.felulet,
       body: Center(
         child: AnimatedBuilder(
           animation: _ctrl,
@@ -107,12 +136,12 @@ class _SplashRouterState extends State<_SplashRouter>
                     height: 90,
                   ),
                   const SizedBox(height: 18),
-                  const Text(
+                  Text(
                     'Flexio',
                     style: TextStyle(
                       fontSize: 32,
                       fontWeight: FontWeight.w900,
-                      color: Colors.black87,
+                      color: AppSzinek.szoveg,
                       letterSpacing: -1,
                     ),
                   ),

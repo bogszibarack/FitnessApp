@@ -5,6 +5,7 @@ import '../../models/daily_health_data.dart';
 import '../../models/nutrition_models.dart';
 import '../../services/home_service.dart';
 import '../../services/streak_service.dart';
+import '../../theme/app_tema.dart';
 import '../../widgets/health_data_panel.dart';
 import '../../widgets/nutrition_diary_widgets.dart';
 import 'food_add_screen.dart';
@@ -111,7 +112,7 @@ class _NaploScreenState extends State<NaploScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: AppSzinek.hatter,
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _loadData,
@@ -129,7 +130,7 @@ class _NaploScreenState extends State<NaploScreen> {
                       const SizedBox(height: 16),
                       Text(
                         _napRovid(),
-                        style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w800, color: Colors.black87),
+                        style: TextStyle(fontSize: 34, fontWeight: FontWeight.w800, color: AppSzinek.szoveg),
                       ),
                       if (_error != null) ...[
                         const SizedBox(height: 12),
@@ -193,21 +194,21 @@ class _NaploScreenState extends State<NaploScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppSzinek.kartya,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: AppSzinek.szegely),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             '${_formatNumber(_data.steps)} lépés',
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppSzinek.szoveg),
           ),
           const SizedBox(height: 4),
           Text(
             '${_data.distanceKm.toStringAsFixed(1).replaceAll('.', ',')} km, ${_data.caloriesBurned} kcal',
-            style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+            style: TextStyle(fontSize: 13, color: AppSzinek.mellekSzoveg),
           ),
           const SizedBox(height: 12),
           ClipRRect(
@@ -249,7 +250,7 @@ class _NaploScreenState extends State<NaploScreen> {
       children: [
         _buildStreakChip(),
         const Spacer(),
-        IconButton(onPressed: _loadData, icon: const Icon(Icons.refresh), color: Colors.black87),
+        IconButton(onPressed: _loadData, icon: const Icon(Icons.refresh), color: AppSzinek.szoveg),
       ],
     );
   }
@@ -259,7 +260,7 @@ class _NaploScreenState extends State<NaploScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: _streak > 0 ? const Color(0xFFFFF3E0) : Colors.grey.shade100,
+        color: _streak > 0 ? const Color(0xFFFFF3E0) : AppSzinek.halvanyKitoltes,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: _streak > 0 ? const Color(0xFFFF9800) : Colors.grey.shade300),
       ),
@@ -284,7 +285,7 @@ class _NaploScreenState extends State<NaploScreen> {
   Widget _buildSectionHeader(String title, String action, {VoidCallback? onTap}) {
     return Row(
       children: [
-        Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Colors.black87)),
+        Text(title, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppSzinek.szoveg)),
         const Spacer(),
         if (action.isNotEmpty)
           GestureDetector(

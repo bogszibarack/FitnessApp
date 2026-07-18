@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../theme/app_tema.dart';
+
 import '../models/nutrition_models.dart';
 
 /// Színes kategória kártya — Yazio „Népszerű kategóriák” stílus.
@@ -224,7 +226,7 @@ class ReceptSzekcioCim extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
       child: Row(
         children: [
-          Text(cim, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: Color(0xFF1A1A2E))),
+          Text(cim, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppSzinek.szoveg)),
           const Spacer(),
           if (ujraGomb != null)
             TextButton.icon(

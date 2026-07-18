@@ -5,6 +5,7 @@ import '../../models/exercise_model.dart';
 import '../../models/routine_model.dart';
 import '../../models/workout_models.dart';
 import '../../services/workout_service.dart';
+import '../../theme/app_tema.dart';
 import '../../widgets/exercise_workout_widgets.dart';
 import 'exercise_picker_screen.dart';
 
@@ -157,14 +158,14 @@ class _RoutineEditScreenState extends State<RoutineEditScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: AppSzinek.hatter,
       appBar: AppBar(
         title: Text(
           _ujRutin ? 'Új rutin' : 'Rutin szerkesztése',
           style: const TextStyle(fontWeight: FontWeight.w700),
         ),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
+        backgroundColor: AppSzinek.felulet,
+        foregroundColor: AppSzinek.szoveg,
         elevation: 0.5,
         actions: [
           if (!_ujRutin)

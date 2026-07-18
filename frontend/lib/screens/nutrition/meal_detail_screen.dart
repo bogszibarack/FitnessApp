@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../models/nutrition_models.dart';
 import '../../services/nutrition_service.dart';
+import '../../theme/app_tema.dart';
 import '../../widgets/nutrition_diary_widgets.dart';
 import 'food_add_screen.dart';
 
@@ -105,11 +106,11 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: AppSzinek.hatter,
       appBar: AppBar(
         title: Text(EtkezesTipus.cimke(widget.etkezesTipus), style: const TextStyle(fontWeight: FontWeight.w700)),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
+        backgroundColor: AppSzinek.felulet,
+        foregroundColor: AppSzinek.szoveg,
         elevation: 0.5,
       ),
       floatingActionButton: FloatingActionButton(
@@ -123,9 +124,9 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppSzinek.kartya,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Colors.grey.shade200),
+                border: Border.all(color: AppSzinek.szegely),
               ),
               child: Row(
                 children: [
@@ -146,9 +147,9 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
               Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: AppSzinek.kartya,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: Colors.grey.shade200),
+                  border: Border.all(color: AppSzinek.szegely),
                 ),
                 child: Text(
                   'Még nincs étel. Nyomd meg a + gombot.',

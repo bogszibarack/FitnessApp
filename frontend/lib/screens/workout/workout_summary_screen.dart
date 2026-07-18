@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/workout_models.dart';
 import '../../services/sound_service.dart';
+import '../../widgets/modern_gomb.dart';
 
 /// Edzés befejezése után megjelenő összefoglaló + progresszió-tervező.
 class WorkoutSummaryScreen extends StatefulWidget {
@@ -425,6 +426,7 @@ class _WorkoutSummaryScreenState extends State<WorkoutSummaryScreen> with Single
   }
 
   Future<void> _onMentes() async {
+    Haptika.kozepes();
     setState(() => _mentes = true);
     await _savePreferences();
     try {

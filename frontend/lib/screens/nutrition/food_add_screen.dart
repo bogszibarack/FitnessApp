@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../models/nutrition_models.dart';
 import '../../services/nutrition_service.dart';
+import '../../theme/app_tema.dart';
 import '../../widgets/nutrition_diary_widgets.dart';
 import 'barcode_scan_screen.dart';
 import 'recipes_screen.dart';
@@ -115,11 +116,11 @@ class _FoodAddScreenState extends State<FoodAddScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppSzinek.felulet,
       appBar: AppBar(
         title: Text('${EtkezesTipus.cimke(widget.etkezesTipus)} — étel', style: const TextStyle(fontWeight: FontWeight.w700)),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
+        backgroundColor: AppSzinek.felulet,
+        foregroundColor: AppSzinek.szoveg,
         elevation: 0.5,
         actions: [
           IconButton(

@@ -8,6 +8,9 @@ import '../models/workout_models.dart';
 import '../services/exercise_service.dart';
 import '../services/sound_service.dart';
 import '../services/workout_service.dart';
+import '../theme/app_tema.dart';
+import 'modern_gomb.dart';
+import 'pr_popup.dart';
 
 /// Kép / animáció a gyakorlatról (GitHub képkockák).
 class ExerciseMediaPreview extends StatefulWidget {
@@ -63,7 +66,7 @@ class _ExerciseMediaPreviewState extends State<ExerciseMediaPreview> {
       return AspectRatio(
         aspectRatio: widget.compact ? 2.2 : 16 / 10,
         child: ColoredBox(
-          color: Colors.grey.shade100,
+          color: AppSzinek.halvanyKitoltes,
           child: Icon(Icons.fitness_center, size: widget.compact ? 40 : 64, color: Colors.grey.shade400),
         ),
       );
@@ -215,14 +218,11 @@ class SorozatSor extends StatefulWidget {
   State<SorozatSor> createState() => _SorozatSorState();
 }
 
-class _SorozatSorState extends State<SorozatSor>
-    with SingleTickerProviderStateMixin {
+class _SorozatSorState extends State<SorozatSor> {
   late final TextEditingController _sulyController;
   late final TextEditingController _ismController;
   bool _mentes = false;
   Timer? _debounce;
-  late final AnimationController _prAnim;
-  late final Animation<Color?> _prSzin;
 
   @override
   void initState() {
@@ -235,14 +235,6 @@ class _SorozatSorState extends State<SorozatSor>
     _ismController = TextEditingController(text: widget.sorozat.reps > 0 ? '${widget.sorozat.reps}' : '');
     _sulyController.addListener(_autoMentes);
     _ismController.addListener(_autoMentes);
-    _prAnim = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 800),
-    );
-    _prSzin = ColorTween(
-      begin: const Color(0xFFFFD700),
-      end: Colors.transparent,
-    ).animate(CurvedAnimation(parent: _prAnim, curve: Curves.easeOut));
     SoundService.instance.inicializalas();
   }
 
@@ -291,7 +283,6 @@ class _SorozatSorState extends State<SorozatSor>
     _debounce?.cancel();
     _sulyController.dispose();
     _ismController.dispose();
-    _prAnim.dispose();
     super.dispose();
   }
 
@@ -300,8 +291,9 @@ class _SorozatSorState extends State<SorozatSor>
     return !widget.sorozat.elvegezve && suly > 0 && elozo > 0 && suly > elozo;
   }
 
-  Future<void> _prCelebracio() async {
-    _prAnim.forward(from: 0);
+  Future<void> _prCelebracio(double suly) async {
+    Haptika.eros();
+    if (mounted) PrPopup.mutat(context, suly: suly);
     await SoundService.instance.prHangJatszas();
   }
 
@@ -309,14 +301,19 @@ class _SorozatSorState extends State<SorozatSor>
   Widget build(BuildContext context) {
     final s = widget.sorozat;
     final kesz = s.elvegezve;
-    final hatter = kesz ? Colors.green.shade50 : Colors.white;
+    final hatter = kesz
+        ? (AppSzinek.sotet ? const Color(0xFF15351F) : Colors.green.shade50)
+        : AppSzinek.kartya;
 
     Widget sor = Container(
       margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
       decoration: BoxDecoration(
         color: hatter,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: kesz ? Colors.green.shade200 : Colors.grey.shade200),
+        border: Border.all(
+            color: kesz
+                ? (AppSzinek.sotet ? const Color(0xFF2E6B3F) : Colors.green.shade200)
+                : AppSzinek.szegely),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
@@ -329,7 +326,7 @@ class _SorozatSorState extends State<SorozatSor>
                 style: TextStyle(
                   fontWeight: FontWeight.w700,
                   fontSize: 13,
-                  color: s.bemelegites ? Colors.orange.shade700 : Colors.black87,
+                  color: s.bemelegites ? Colors.orange.shade700 : AppSzinek.szoveg,
                 ),
               ),
             ),
@@ -376,9 +373,10 @@ class _SorozatSorState extends State<SorozatSor>
                 onPressed: () async {
                   final suly = _sulyErtek();
                   final prDetek = _prErzekeles(suly);
+                  Haptika.konnyu();
                   await _mentesHaKell();
                   await widget.onPipa(suly, _ismErtek());
-                  if (prDetek) await _prCelebracio();
+                  if (prDetek) await _prCelebracio(suly);
                 },
                 icon: Icon(
                   kesz ? Icons.check_circle : Icons.check_circle_outline,
@@ -392,59 +390,7 @@ class _SorozatSorState extends State<SorozatSor>
       ),
     );
 
-    // PR arany villanás overlay – a szöveg az ELŐZŐ oszlopban van, nem takarja a KG/ISM mezőket
-    final sorPrrel = AnimatedBuilder(
-      animation: _prAnim,
-      builder: (ctx, child) {
-        final szin = _prSzin.value;
-        if (szin == null || szin.a == 0) return child!;
-        return Stack(
-          children: [
-            child!,
-            Positioned.fill(
-              child: IgnorePointer(
-                child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: szin.withValues(alpha: szin.a * 0.35),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0xFFFFD700), width: 1.5),
-                  ),
-                  child: szin.a > 0.5
-                      ? Row(
-                          children: [
-                            const SizedBox(width: 36 + 4), // SET oszlop + padding
-                            Expanded(
-                              flex: 2,
-                              child: FittedBox(
-                                fit: BoxFit.scaleDown,
-                                alignment: Alignment.center,
-                                child: Text(
-                                  '🏆 ÚJ REKORD!',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w900,
-                                    fontSize: 12,
-                                    color: const Color(0xFFB8860B).withValues(alpha: szin.a),
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const Spacer(flex: 2), // KG + ISM területek szabadon maradnak
-                            const SizedBox(width: 44 + 4), // pipa + padding
-                          ],
-                        )
-                      : null,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-      child: sor,
-    );
-
-    if (widget.onTorles == null) return sorPrrel;
+    if (widget.onTorles == null) return sor;
 
     return Dismissible(
       key: ValueKey('dismiss-${s.setNumber}-${s.bemelegites}'),
@@ -460,7 +406,7 @@ class _SorozatSorState extends State<SorozatSor>
         widget.onTorles!();
         return false;
       },
-      child: sorPrrel,
+      child: sor,
     );
   }
 }
@@ -517,10 +463,13 @@ class HelyiSorozatSzerkeszto extends StatelessWidget {
             )),
         Padding(
           padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
-          child: OutlinedButton.icon(
-            onPressed: _ujSorozat,
-            icon: const Icon(Icons.add, size: 18),
-            label: const Text('Sorozat hozzáadása', style: TextStyle(fontSize: 13)),
+          child: ModernGomb(
+            cimke: 'Sorozat hozzáadása',
+            ikon: Icons.add,
+            kicsi: true,
+            kitoltott: false,
+            teljesSzelesseg: true,
+            onTap: _ujSorozat,
           ),
         ),
       ],
@@ -585,9 +534,9 @@ class _HelyiSorozatSorState extends State<_HelyiSorozatSor> {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppSzinek.kartya,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: AppSzinek.szegely),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
@@ -600,7 +549,7 @@ class _HelyiSorozatSorState extends State<_HelyiSorozatSor> {
                 style: TextStyle(
                   fontWeight: FontWeight.w700,
                   fontSize: 13,
-                  color: s.bemelegites ? Colors.orange.shade700 : Colors.black87,
+                  color: s.bemelegites ? Colors.orange.shade700 : AppSzinek.szoveg,
                 ),
               ),
             ),
@@ -770,13 +719,16 @@ class _InlineGyakorlatPanelState extends State<InlineGyakorlatPanel> {
             )),
         Padding(
           padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
-          child: OutlinedButton.icon(
-            onPressed: () async {
+          child: ModernGomb(
+            cimke: 'Sorozat hozzáadása',
+            ikon: Icons.add,
+            kicsi: true,
+            kitoltott: false,
+            teljesSzelesseg: true,
+            onTap: () async {
               await _workoutService.sorozatHozzaadasa(widget.exerciseId);
               await _frissit();
             },
-            icon: const Icon(Icons.add, size: 18),
-            label: const Text('Sorozat hozzáadása', style: TextStyle(fontSize: 13)),
           ),
         ),
       ],

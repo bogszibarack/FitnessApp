@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../config/api_config.dart';
 import '../../models/community_models.dart';
 import '../../services/community_service.dart';
+import '../../theme/app_tema.dart';
 import 'community_widgets.dart';
 import 'user_profile_screen.dart';
 
@@ -124,15 +125,15 @@ class _CommunityScreenState extends State<CommunityScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F7),
+      backgroundColor: AppSzinek.hatter,
       body: NestedScrollView(
         headerSliverBuilder: (ctx, inner) => [
           SliverAppBar(
-            backgroundColor: Colors.white,
+            backgroundColor: AppSzinek.felulet,
             pinned: true,
-            title: const Text(
+            title: Text(
               'Közösség',
-              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 22, color: Colors.black87),
+              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 22, color: AppSzinek.szoveg),
             ),
             bottom: PreferredSize(
               preferredSize: const Size.fromHeight(96),
@@ -149,7 +150,7 @@ class _CommunityScreenState extends State<CommunityScreen>
                             : 'Keresés a feedben…',
                         prefixIcon: const Icon(Icons.search, size: 20),
                         filled: true,
-                        fillColor: const Color(0xFFF0F0F5),
+                        fillColor: AppSzinek.halvanyKitoltes,
                         contentPadding: EdgeInsets.zero,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -352,11 +353,11 @@ class PosztKartya extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.fromLTRB(12, 0, 12, 14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppSzinek.kartya,
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: AppSzinek.arnyek,
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -533,7 +534,7 @@ class PosztKartya extends StatelessWidget {
                     padding: const EdgeInsets.only(bottom: 4),
                     child: RichText(
                       text: TextSpan(
-                        style: const TextStyle(color: Colors.black87, fontSize: 13),
+                        style: TextStyle(color: AppSzinek.szoveg, fontSize: 13),
                         children: [
                           TextSpan(
                             text: '${k.userName}  ',
@@ -610,9 +611,9 @@ class _KommentSheetState extends State<KommentSheet> {
       maxChildSize: 0.92,
       minChildSize: 0.3,
       builder: (_, ctrl) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        decoration: BoxDecoration(
+          color: AppSzinek.kartya,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: Column(
           children: [
@@ -685,7 +686,7 @@ class _KommentSheetState extends State<KommentSheet> {
                       decoration: InputDecoration(
                         hintText: 'Írj hozzászólást…',
                         filled: true,
-                        fillColor: const Color(0xFFF0F0F5),
+                        fillColor: AppSzinek.halvanyKitoltes,
                         contentPadding:
                             const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                         border: OutlineInputBorder(

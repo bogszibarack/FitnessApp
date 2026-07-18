@@ -6,6 +6,7 @@ import '../../models/exercise_model.dart';
 import '../../models/workout_models.dart';
 import '../../services/exercise_service.dart';
 import '../../services/workout_service.dart';
+import '../../theme/app_tema.dart';
 import '../../widgets/exercise_workout_widgets.dart';
 
 /// Hevy: Add Exercise — előnézet + hozzáadás ugyanazon a képernyőn.
@@ -189,10 +190,10 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
     final hozzaadottSzam = _hozzaadottNevek.length;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppSzinek.felulet,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
+        backgroundColor: AppSzinek.felulet,
+        foregroundColor: AppSzinek.szoveg,
         elevation: 0.5,
         title: const Text('Gyakorlat hozzáadása', style: TextStyle(fontWeight: FontWeight.w700)),
         actions: [

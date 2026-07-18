@@ -8,9 +8,10 @@ class ApiConfig {
     if (value.isNotEmpty) _defaultUserName = value;
   }
 
-  /// Debug módban a lokális backend (dotnet run), release-ben a production.
+  /// Webes debug: lokális backend (dotnet run). Telefonon (debug is) a production
+  /// szerver — a localhost fizikai eszközről nem érhető el.
   static String get baseUrl {
-    if (kDebugMode) return 'http://localhost:5150';
+    if (kDebugMode && kIsWeb) return 'http://localhost:5150';
     return 'https://flexio.runasp.net';
   }
 

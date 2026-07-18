@@ -1,6 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
+import '../theme/app_tema.dart';
+
 // ─── Ikon segéd ────────────────────────────────────────────────────────────
 
 IconData settingsIkon(String ikon) {
@@ -68,7 +70,7 @@ class SettingsSectionHeader extends StatelessWidget {
           fontSize: 11,
           fontWeight: FontWeight.w700,
           letterSpacing: 1.1,
-          color: Colors.grey.shade500,
+          color: AppSzinek.halvanySzoveg,
         ),
       ),
     );
@@ -99,7 +101,7 @@ class SettingsListTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final szin = ikonSzin ?? const Color(0xFF9E9E9E);
     return Material(
-      color: Colors.white,
+      color: AppSzinek.kartya,
       child: InkWell(
         onTap: onTap,
         child: Padding(
@@ -125,7 +127,7 @@ class SettingsListTile extends StatelessWidget {
                         Expanded(
                           child: Text(
                             title,
-                            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: Colors.black87),
+                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: AppSzinek.szoveg),
                           ),
                         ),
                         if (proBadge)
@@ -145,12 +147,12 @@ class SettingsListTile extends StatelessWidget {
                     ),
                     if (subtitle != null) ...[
                       const SizedBox(height: 2),
-                      Text(subtitle!, style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+                      Text(subtitle!, style: TextStyle(fontSize: 12, color: AppSzinek.halvanySzoveg)),
                     ],
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right_rounded, color: Colors.grey.shade400, size: 20),
+              Icon(Icons.chevron_right_rounded, color: AppSzinek.halvanySzoveg, size: 20),
             ],
           ),
         ),
@@ -185,7 +187,7 @@ class KapcsoloTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final szin = ikonSzin ?? const Color(0xFF1E88E5);
     return Container(
-      color: Colors.white,
+      color: AppSzinek.kartya,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
         children: [
@@ -208,12 +210,12 @@ class KapcsoloTile extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w500,
-                    color: letiltva ? Colors.grey : Colors.black87,
+                    color: letiltva ? Colors.grey : AppSzinek.szoveg,
                   ),
                 ),
                 if (subtitle != null) ...[
                   const SizedBox(height: 2),
-                  Text(subtitle!, style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+                  Text(subtitle!, style: TextStyle(fontSize: 12, color: AppSzinek.halvanySzoveg)),
                 ],
               ],
             ),
@@ -238,30 +240,30 @@ class BeallitasSzekcio extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Egyetlen kártya szekciónként, a sorok simán (dekoráció nélkül) kerülnek
+    // egymás alá — így nem tudnak egymásra csúszni a lekerekített kártyák.
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppSzinek.kartya,
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
+            color: AppSzinek.arnyek,
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
         ],
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(14),
-        child: Column(
-          children: [
-            for (var i = 0; i < children.length; i++) ...[
-              children[i],
-              if (i < children.length - 1)
-                Divider(height: 1, indent: 64, color: Colors.grey.shade100),
-            ],
+      child: Column(
+        children: [
+          for (var i = 0; i < children.length; i++) ...[
+            children[i],
+            if (i < children.length - 1)
+              Divider(height: 1, indent: 64, color: AppSzinek.szegely),
           ],
-        ),
+        ],
       ),
     );
   }
