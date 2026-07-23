@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
 
 import '../config/api_config.dart';
 import '../models/beallitas_models.dart';
@@ -71,6 +72,24 @@ class BeallitasokService {
       }),
     );
     _ellenorzes(response);
+  }
+
+  /// Profilkép feltöltése multipart formban. A szerver relatív URL-t ad vissza
+  /// (pl. /uploads/profiles/xyz.jpg).
+  Future<String> profilKepFeltoltes(XFile kep) async {
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse('$_base/api/beallitasok/$userName/profil/kep-feltoltes'),
+    );
+    final bytes = await kep.readAsBytes();
+    final nev = kep.name.isNotEmpty ? kep.name : 'profil.jpg';
+    request.files.add(http.MultipartFile.fromBytes('kep', bytes, filename: nev));
+
+    final streamed = await request.send().timeout(const Duration(seconds: 30));
+    final response = await http.Response.fromStream(streamed);
+    _ellenorzes(response);
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    return data['kepUrl'] as String? ?? '';
   }
 
   Future<Map<String, dynamic>> exportAdatok() async {

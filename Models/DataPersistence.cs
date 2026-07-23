@@ -15,6 +15,11 @@ namespace FitnessBackend.Models
         private static readonly string RutinokFile = Path.Combine(DataDir, "rutinok.json");
         private static readonly string NutritionFile = Path.Combine(DataDir, "nutrition_naplok.json");
         private static readonly string FelhasznalokFile = Path.Combine(DataDir, "felhasznalok.json");
+        private static readonly string ProgresszioFile = Path.Combine(DataDir, "progresszio.json");
+
+        // Utolsó mentési hiba — a diagnosztika végponton keresztül kiolvasható,
+        // mert a hosztolt szerveren a konzol log nem elérhető.
+        public static string UtolsoHiba { get; private set; } = "";
 
         private static string AdatMappaFeloldasa()
         {
@@ -99,24 +104,46 @@ namespace FitnessBackend.Models
                     }
                 }
 
+                var progresszioUt = OlvasandoFajl(ProgresszioFile);
+                if (progresszioUt != null)
+                {
+                    var json = File.ReadAllText(progresszioUt);
+                    var beallitas = JsonSerializer.Deserialize<ProgresszioBeallitas>(json, Opts);
+                    if (beallitas != null)
+                    {
+                        EdzesTervTarolo.ProgresszioBeallitas = beallitas;
+                    }
+                }
+
                 FelhasznalokBetoltese();
             }
             catch (Exception ex)
             {
+                UtolsoHiba = $"Betöltés: {ex.Message}";
                 Console.WriteLine($"[DataPersistence] Betöltési hiba: {ex.Message}");
             }
+        }
+
+        /// <summary>Biztonságos írás: előbb temp fájlba, aztán átnevezés — így félbeszakadt
+        /// írásnál sem sérül a korábbi adat.</summary>
+        private static void BiztonsagosIras(string ut, string json)
+        {
+            Directory.CreateDirectory(DataDir);
+            var tmp = ut + ".tmp";
+            File.WriteAllText(tmp, json);
+            File.Move(tmp, ut, overwrite: true);
         }
 
         public static void EdzesTortenetMentese(List<WorkoutSession> edzesTortenet)
         {
             try
             {
-                Directory.CreateDirectory(DataDir);
                 var json = JsonSerializer.Serialize(edzesTortenet, Opts);
-                File.WriteAllText(WorkoutHistoryFile, json);
+                BiztonsagosIras(WorkoutHistoryFile, json);
             }
             catch (Exception ex)
             {
+                UtolsoHiba = $"Edzéstörténet mentés: {ex.Message}";
                 Console.WriteLine($"[DataPersistence] Edzés mentési hiba: {ex.Message}");
             }
         }
@@ -141,10 +168,11 @@ namespace FitnessBackend.Models
                     return;
                 }
                 var json = JsonSerializer.Serialize(aktiv, Opts);
-                File.WriteAllText(AktivEdzesFile, json);
+                BiztonsagosIras(AktivEdzesFile, json);
             }
             catch (Exception ex)
             {
+                UtolsoHiba = $"Aktív edzés mentés: {ex.Message}";
                 Console.WriteLine($"[DataPersistence] Aktív edzés mentési hiba: {ex.Message}");
             }
         }
@@ -153,13 +181,27 @@ namespace FitnessBackend.Models
         {
             try
             {
-                Directory.CreateDirectory(DataDir);
                 var json = JsonSerializer.Serialize(EdzesTervTarolo.MentettRutinok, Opts);
-                File.WriteAllText(RutinokFile, json);
+                BiztonsagosIras(RutinokFile, json);
             }
             catch (Exception ex)
             {
+                UtolsoHiba = $"Rutin mentés: {ex.Message}";
                 Console.WriteLine($"[DataPersistence] Rutinok mentési hiba: {ex.Message}");
+            }
+        }
+
+        public static void ProgresszioMentese()
+        {
+            try
+            {
+                var json = JsonSerializer.Serialize(EdzesTervTarolo.ProgresszioBeallitas, Opts);
+                BiztonsagosIras(ProgresszioFile, json);
+            }
+            catch (Exception ex)
+            {
+                UtolsoHiba = $"Progresszió mentés: {ex.Message}";
+                Console.WriteLine($"[DataPersistence] Progresszió mentési hiba: {ex.Message}");
             }
         }
 
@@ -167,12 +209,12 @@ namespace FitnessBackend.Models
         {
             try
             {
-                Directory.CreateDirectory(DataDir);
                 var json = JsonSerializer.Serialize(NutritionTarolo.NapiNaplok, Opts);
-                File.WriteAllText(NutritionFile, json);
+                BiztonsagosIras(NutritionFile, json);
             }
             catch (Exception ex)
             {
+                UtolsoHiba = $"Nutrition mentés: {ex.Message}";
                 Console.WriteLine($"[DataPersistence] Nutrition mentési hiba: {ex.Message}");
             }
         }
@@ -201,18 +243,69 @@ namespace FitnessBackend.Models
         {
             try
             {
-                Directory.CreateDirectory(DataDir);
                 var csomag = new FelhasznaloFiokExport
                 {
                     Felhasznalok = FelhasznaloFiok.Felhasznalok.ToList()
                 };
                 var json = JsonSerializer.Serialize(csomag, Opts);
-                File.WriteAllText(FelhasznalokFile, json);
+                BiztonsagosIras(FelhasznalokFile, json);
             }
             catch (Exception ex)
             {
+                UtolsoHiba = $"Felhasználók mentés: {ex.Message}";
                 Console.WriteLine($"[DataPersistence] Felhasználók mentési hiba: {ex.Message}");
             }
+        }
+
+        /// <summary>Diagnosztika a hosztolt szerverhez: hova ír, mi van lemezen, működik-e az írás.</summary>
+        public static object Diagnosztika(int tortenetDarab, bool vanAktivEdzes)
+        {
+            string irasTeszt;
+            try
+            {
+                Directory.CreateDirectory(DataDir);
+                var tesztUt = Path.Combine(DataDir, "iras_teszt.tmp");
+                File.WriteAllText(tesztUt, DateTime.Now.ToString("O"));
+                File.Delete(tesztUt);
+                irasTeszt = "OK";
+            }
+            catch (Exception ex)
+            {
+                irasTeszt = $"HIBA: {ex.Message}";
+            }
+
+            static object FajlInfo(string ut)
+            {
+                var f = new FileInfo(ut);
+                return f.Exists
+                    ? new { letezik = true, meretByte = f.Length, utolsoIras = f.LastWriteTime }
+                    : (object)new { letezik = false, meretByte = 0L, utolsoIras = (DateTime?)null };
+            }
+
+            return new
+            {
+                dataDir = DataDir,
+                baseDirectory = AppContext.BaseDirectory,
+                currentDirectory = Directory.GetCurrentDirectory(),
+                irasTeszt,
+                utolsoHiba = UtolsoHiba,
+                memoriaban = new
+                {
+                    edzesTortenet = tortenetDarab,
+                    vanAktivEdzes,
+                    rutinok = EdzesTervTarolo.MentettRutinok.Count,
+                    progresszio = EdzesTervTarolo.ProgresszioBeallitas
+                },
+                fajlok = new
+                {
+                    workoutHistory = FajlInfo(WorkoutHistoryFile),
+                    aktivEdzes = FajlInfo(AktivEdzesFile),
+                    rutinok = FajlInfo(RutinokFile),
+                    progresszio = FajlInfo(ProgresszioFile),
+                    nutrition = FajlInfo(NutritionFile),
+                    felhasznalok = FajlInfo(FelhasznalokFile)
+                }
+            };
         }
     }
 }

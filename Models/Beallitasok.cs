@@ -375,8 +375,7 @@ namespace FitnessBackend.Models
                         new() { Id = "edzes",           Cimke = "Edzések",               Ikon = "dumbbell", ApiUt = $"{api_alap}/edzes" },
                         new() { Id = "privat-szocial",  Cimke = "Adatvédelem & közösség", Ikon = "shield",   ApiUt = $"{api_alap}/privat-szocial" },
                         new() { Id = "egyseg",          Cimke = "Mértékegységek",         Ikon = "ruler",    ApiUt = $"{api_alap}/egyseg" },
-                        new() { Id = "nyelv",           Cimke = "Nyelv",                  Ikon = "flag",     ApiUt = $"{api_alap}/nyelv" },
-                        new() { Id = "integraciok",     Cimke = "Apple Health",           Ikon = "heart",    ApiUt = $"{api_alap}/integraciok" }
+                        new() { Id = "nyelv",           Cimke = "Nyelv",                  Ikon = "flag",     ApiUt = $"{api_alap}/nyelv" }
                     }
                 },
                 new()
@@ -385,7 +384,6 @@ namespace FitnessBackend.Models
                     Elemek = new List<BeallitasMenuElem>
                     {
                         new() { Id = "integraciok-watch", Cimke = "Apple Watch",    Ikon = "watch",  ApiUt = $"{api_alap}/integraciok" },
-                        new() { Id = "integraciok-all",   Cimke = "Integrációk",    Ikon = "link",   ApiUt = $"{api_alap}/integraciok" },
                         new() { Id = "tema",              Cimke = "Megjelenés",     Ikon = "moon",   ApiUt = $"{api_alap}/tema" },
                         new() { Id = "export-import",     Cimke = "Export és import", Ikon = "export", ApiUt = $"{api_alap}/export" }
                     }

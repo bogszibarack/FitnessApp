@@ -1,6 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
+import '../../config/api_config.dart';
 import '../../models/beallitas_models.dart';
 import '../../services/apple_health_service.dart';
 import '../../services/beallitasok_service.dart';
@@ -68,6 +70,8 @@ class _ProfilScreenState extends State<ProfilScreen> {
   final _social = TextEditingController();
   String _nem = 'Férfi';
   DateTime? _szuletesiDatum;
+  String _kepUrl = '';
+  bool _kepToltes = false;
   bool _betolt = true;
   bool _ment = false;
 
@@ -82,6 +86,7 @@ class _ProfilScreenState extends State<ProfilScreen> {
     _nev.text = data['nev'] as String? ?? '';
     _bio.text = data['bio'] as String? ?? '';
     _social.text = data['socialLink'] as String? ?? '';
+    _kepUrl = data['kepUrl'] as String? ?? '';
     setState(() => _betolt = false);
   }
 
@@ -90,7 +95,14 @@ class _ProfilScreenState extends State<ProfilScreen> {
     try {
       await widget.service.putSzekcio(
         '/api/beallitasok/${widget.service.userName}/profil',
-        {'nev': _nev.text, 'bio': _bio.text, 'socialLink': _social.text},
+        {
+          'nev': _nev.text,
+          'bio': _bio.text,
+          'socialLink': _social.text,
+          // A szerver a teljes profilt cseréli, ezért a kepUrl-t is küldjük,
+          // különben mentéskor elveszne a feltöltött kép.
+          'kepUrl': _kepUrl,
+        },
       );
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profil elmentve!')));
     } catch (e) {
@@ -99,6 +111,67 @@ class _ProfilScreenState extends State<ProfilScreen> {
       if (mounted) setState(() => _ment = false);
     }
   }
+
+  Future<void> _kepModositas() async {
+    Haptika.konnyu();
+    final forras = await showCupertinoModalPopup<ImageSource>(
+      context: context,
+      builder: (ctx) => CupertinoActionSheet(
+        title: const Text('Profilkép'),
+        actions: [
+          CupertinoActionSheetAction(
+            onPressed: () => Navigator.pop(ctx, ImageSource.gallery),
+            child: const Text('Választás a galériából'),
+          ),
+          CupertinoActionSheetAction(
+            onPressed: () => Navigator.pop(ctx, ImageSource.camera),
+            child: const Text('Fotó készítése'),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          isDestructiveAction: true,
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('Mégse'),
+        ),
+      ),
+    );
+    if (forras == null) return;
+
+    final XFile? kep;
+    try {
+      kep = await ImagePicker().pickImage(
+        source: forras,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 85,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Nem sikerült megnyitni a képválasztót. Ellenőrizd az engedélyeket a Beállításokban.')),
+        );
+      }
+      return;
+    }
+    if (kep == null || !mounted) return;
+
+    setState(() => _kepToltes = true);
+    try {
+      final url = await widget.service.profilKepFeltoltes(kep);
+      if (!mounted) return;
+      setState(() => _kepUrl = url);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profilkép frissítve!')));
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Feltöltési hiba: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _kepToltes = false);
+    }
+  }
+
+  String get _teljesKepUrl =>
+      _kepUrl.startsWith('http') ? _kepUrl : '${ApiConfig.baseUrl}$_kepUrl';
 
   @override
   void dispose() {
@@ -127,17 +200,23 @@ class _ProfilScreenState extends State<ProfilScreen> {
                 const SizedBox(height: 24),
                 // Avatar
                 Center(
-                  child: Stack(
-                    children: [
-                      CircleAvatar(
-                        radius: 48,
-                        backgroundColor: const Color(0xFF1E88E5),
-                        child: Text(initials, style: const TextStyle(color: Colors.white, fontSize: 38, fontWeight: FontWeight.w700)),
-                      ),
-                      Positioned(
-                        bottom: 4,
-                        right: 4,
-                        child: GestureDetector(
+                  child: GestureDetector(
+                    onTap: _kepToltes ? null : _kepModositas,
+                    child: Stack(
+                      children: [
+                        CircleAvatar(
+                          radius: 48,
+                          backgroundColor: const Color(0xFF1E88E5),
+                          backgroundImage: _kepUrl.isNotEmpty ? NetworkImage(_teljesKepUrl) : null,
+                          child: _kepToltes
+                              ? const CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5)
+                              : _kepUrl.isEmpty
+                                  ? Text(initials, style: const TextStyle(color: Colors.white, fontSize: 38, fontWeight: FontWeight.w700))
+                                  : null,
+                        ),
+                        Positioned(
+                          bottom: 4,
+                          right: 4,
                           child: Container(
                             width: 30,
                             height: 30,
@@ -149,15 +228,18 @@ class _ProfilScreenState extends State<ProfilScreen> {
                             child: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 16),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
                 const SizedBox(height: 8),
                 Center(
                   child: TextButton(
-                    onPressed: () {},
-                    child: const Text('Kép módosítása', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF1E88E5))),
+                    onPressed: _kepToltes ? null : _kepModositas,
+                    child: Text(
+                      _kepToltes ? 'Feltöltés…' : 'Kép módosítása',
+                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF1E88E5)),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 8),

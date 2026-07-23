@@ -27,7 +27,9 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>Az alkalmazas a kamerat vonalkod beolvasasahoz hasznalja.</string>
+	<string>Az alkalmazas a kamerat vonalkod beolvasasahoz es profilkep keszitesehez hasznalja.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Az alkalmazas a fotokonyvtarat a profilkep kivalasztasahoz hasznalja.</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>Az alkalmazas az Apple Health adatait hasznalja a napi aktivitas es kaloria osszefoglalo megjelenitesehez.</string>
 	<key>NSHealthUpdateUsageDescription</key>

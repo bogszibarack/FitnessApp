@@ -77,6 +77,7 @@ namespace FitnessBackend.Controllers
                 rutin.TargetMuscle = modositott.TargetMuscle;
             }
 
+            DataPersistence.RutinokMentese();
             return Ok(rutin);
         }
 

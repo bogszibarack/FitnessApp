@@ -19,6 +19,12 @@ namespace FitnessBackend.Controllers
             DataPersistence.Betoltes(edzes_tortenet, ref aktiv_edzes);
         }
 
+        // Egyedi ID: törlés után se ütközzön korábbi edzésekkel
+        private static int KovetkezoTortenetId()
+        {
+            return edzes_tortenet.Count == 0 ? 1 : edzes_tortenet.Max(e => e.Id) + 1;
+        }
+
         // 1/b. START ROUTINE — rutinból induló edzés (Hevy: "Start Routine" gomb)
         [HttpPost("inditas-rutinbol")]
         public ActionResult<WorkoutSession> RutinInditasa([FromBody] Routine rutin)
@@ -492,7 +498,7 @@ namespace FitnessBackend.Controllers
 
             aktiv_edzes.DurationSeconds = aktiv_edzes.ElteltMasodperc;
             aktiv_edzes.IsActive = false;
-            aktiv_edzes.Id = edzes_tortenet.Count + 1;
+            aktiv_edzes.Id = KovetkezoTortenetId();
 
             edzes_tortenet.Add(aktiv_edzes);
             var mentett_edzes = aktiv_edzes;
@@ -515,7 +521,7 @@ namespace FitnessBackend.Controllers
 
             aktiv_edzes.DurationSeconds = aktiv_edzes.ElteltMasodperc;
             aktiv_edzes.IsActive = false;
-            aktiv_edzes.Id = edzes_tortenet.Count + 1;
+            aktiv_edzes.Id = KovetkezoTortenetId();
             edzes_tortenet.Add(aktiv_edzes);
 
             megosztas.Edzes = aktiv_edzes;
@@ -637,7 +643,15 @@ namespace FitnessBackend.Controllers
         public ProgresszioBeallitas ProgresszioBeallitasMentese([FromBody] ProgresszioBeallitas uj_beallitas)
         {
             EdzesTervTarolo.ProgresszioBeallitas = uj_beallitas;
+            DataPersistence.ProgresszioMentese();
             return EdzesTervTarolo.ProgresszioBeallitas;
+        }
+
+        // DIAGNOSZTIKA — hosztolt szerveren ellenőrizhető, hogy működik-e a lemezre mentés
+        [HttpGet("diagnosztika")]
+        public ActionResult<object> Diagnosztika()
+        {
+            return Ok(DataPersistence.Diagnosztika(edzes_tortenet.Count, aktiv_edzes != null));
         }
 
         // 9. KÖVETKEZŐ HÉT ELŐNÉZET — csúszka mozgatásakor élőben frissül (még NEM indul edzés)
