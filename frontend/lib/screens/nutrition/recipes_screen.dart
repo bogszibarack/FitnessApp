@@ -190,7 +190,7 @@ class _RecipesScreenState extends State<RecipesScreen> {
   String get _eredmenyCim {
     if (_keresesMod) return 'Keresési eredmények';
     if (_aktivKategoria != null) {
-      return _kategoriak.firstWhere((k) => k.id == _aktivKategoria, orElse: () => ReceptKategoriaModel(id: '', nev: 'Szűrt')).nev;
+      return _kategoriak.firstWhere((k) => k.id == _aktivKategoria, orElse: () => RecipeCategoryModel(id: '', name: 'Szűrt')).name;
     }
     if (_aktivTartomany != null) return _aktivTartomany!.nev;
     return 'Keresés a Nosalty receptjei között';
