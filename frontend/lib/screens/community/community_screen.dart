@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import '../../config/api_config.dart';
 import '../../models/community_models.dart';
 import '../../services/community_service.dart';
-import '../../theme/app_tema.dart';
+import '../../theme/app_theme.dart';
 import 'community_widgets.dart';
 import 'user_profile_screen.dart';
 
@@ -22,8 +22,8 @@ class _CommunityScreenState extends State<CommunityScreen>
   final _sajtNev = ApiConfig.defaultUserName;
 
   late TabController _tabCtrl;
-  List<CommunityPosztModel> _feed = [];
-  List<CommunityFelhasznaloModel> _felhasznalok = [];
+  List<CommunityPostModel> _feed = [];
+  List<CommunityUserModel> _felhasznalok = [];
   bool _betolt = true;
   String? _hiba;
   final Set<String> _mentettPosztIds = {};
@@ -78,7 +78,7 @@ class _CommunityScreenState extends State<CommunityScreen>
 
   Future<void> _felhasznalokBetoltes([String? kereses]) async {
     try {
-      final lista = await _service.felhasznalokKeresese(kereses);
+      final lista = await _service.searchUsers(kereses);
       if (!mounted) return;
       setState(() => _felhasznalok = lista);
     } catch (_) {}
@@ -94,20 +94,20 @@ class _CommunityScreenState extends State<CommunityScreen>
     });
   }
 
-  Future<void> _toggleLike(CommunityPosztModel poszt) async {
+  Future<void> _toggleLike(CommunityPostModel poszt) async {
     final likeolt = poszt.likeolt(_sajtNev);
     setState(() {
       final idx = _feed.indexWhere((p) => p.id == poszt.id);
       if (idx == -1) return;
-      final ujLikeolok = List<String>.from(poszt.likeolok);
+      final ujLikedBy = List<String>.from(poszt.likedBy);
       if (likeolt) {
-        ujLikeolok.remove(_sajtNev);
+        ujLikedBy.remove(_sajtNev);
       } else {
-        ujLikeolok.add(_sajtNev);
+        ujLikedBy.add(_sajtNev);
       }
       _feed[idx] = poszt.copyWith(
-        likeSzam: ujLikeolok.length,
-        likeolok: ujLikeolok,
+        likeCount: ujLikedBy.length,
+        likedBy: ujLikedBy,
       );
     });
     try {
@@ -125,15 +125,15 @@ class _CommunityScreenState extends State<CommunityScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppSzinek.hatter,
+      backgroundColor: AppColors.hatter,
       body: NestedScrollView(
         headerSliverBuilder: (ctx, inner) => [
           SliverAppBar(
-            backgroundColor: AppSzinek.felulet,
+            backgroundColor: AppColors.felulet,
             pinned: true,
             title: Text(
               'Közösség',
-              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 22, color: AppSzinek.szoveg),
+              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 22, color: AppColors.szoveg),
             ),
             bottom: PreferredSize(
               preferredSize: const Size.fromHeight(96),
@@ -150,7 +150,7 @@ class _CommunityScreenState extends State<CommunityScreen>
                             : 'Keresés a feedben…',
                         prefixIcon: const Icon(Icons.search, size: 20),
                         filled: true,
-                        fillColor: AppSzinek.halvanyKitoltes,
+                        fillColor: AppColors.halvanyKitoltes,
                         contentPadding: EdgeInsets.zero,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -214,8 +214,8 @@ class _CommunityScreenState extends State<CommunityScreen>
         : _feed
             .where((p) =>
                 p.userName.contains(_keresKifejezes.toLowerCase()) ||
-                p.edzes.title.toLowerCase().contains(_keresKifejezes.toLowerCase()) ||
-                p.megye.toLowerCase().contains(_keresKifejezes.toLowerCase()))
+                p.workout.title.toLowerCase().contains(_keresKifejezes.toLowerCase()) ||
+                p.county.toLowerCase().contains(_keresKifejezes.toLowerCase()))
             .toList();
 
     if (szurt.isEmpty) {
@@ -279,7 +279,7 @@ class _CommunityScreenState extends State<CommunityScreen>
             style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
           ),
           subtitle: Text(
-            '${f.posztSzam} edzés · ${f.osszLike} like · ${f.legutobbiEdzesCim}',
+            '${f.postCount} edzés · ${f.totalLikes} like · ${f.lastWorkoutTitle}',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
@@ -298,7 +298,7 @@ class _CommunityScreenState extends State<CommunityScreen>
 
   Future<void> _mentesRutinkent(String posztId) async {
     try {
-      await _service.mentesRutinkent(posztId);
+      await _service.saveAsPlan(posztId);
       if (!mounted) return;
       setState(() => _mentettPosztIds.add(posztId));
       ScaffoldMessenger.of(context).showSnackBar(
@@ -338,7 +338,7 @@ class PosztKartya extends StatelessWidget {
     this.mentett = false,
   });
 
-  final CommunityPosztModel poszt;
+  final CommunityPostModel poszt;
   final String sajtNev;
   final VoidCallback onLike;
   final ValueChanged<String> onFelhasznaloTap;
@@ -353,11 +353,11 @@ class PosztKartya extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.fromLTRB(12, 0, 12, 14),
       decoration: BoxDecoration(
-        color: AppSzinek.kartya,
+        color: AppColors.kartya,
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: AppSzinek.arnyek,
+            color: AppColors.arnyek,
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -389,7 +389,7 @@ class PosztKartya extends StatelessWidget {
                           children: [
                             Icon(Icons.location_on, size: 12, color: Colors.grey.shade500),
                             const SizedBox(width: 2),
-                            Text(poszt.megye,
+                            Text(poszt.county,
                                 style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
                             const SizedBox(width: 8),
                             Text(poszt.idoSzoveg,
@@ -427,33 +427,33 @@ class PosztKartya extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(poszt.edzes.title,
+                Text(poszt.workout.title,
                     style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 6),
                 Row(
                   children: [
-                    StatBadge(ikon: Icons.timer_outlined, ertek: poszt.edzes.idoSzoveg),
+                    StatBadge(ikon: Icons.timer_outlined, ertek: poszt.workout.idoSzoveg),
                     const SizedBox(width: 8),
                     StatBadge(
                         ikon: Icons.fitness_center,
-                        ertek: '${poszt.edzes.osszSorozatSzam} sor'),
+                        ertek: '${poszt.workout.osszSorozatSzam} sor'),
                     const SizedBox(width: 8),
                     StatBadge(
                         ikon: Icons.monitor_weight_outlined,
-                        ertek: '${poszt.edzes.osszTomegKg.toStringAsFixed(0)} kg'),
+                        ertek: '${poszt.workout.osszTomegKg.toStringAsFixed(0)} kg'),
                   ],
                 ),
               ],
             ),
           ),
 
-          if (poszt.edzes.exercises.isNotEmpty) ...[
+          if (poszt.workout.exercises.isNotEmpty) ...[
             const Divider(height: 1),
             Padding(
               padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
               child: Column(
-                children: poszt.edzes.exercises.take(3).map((gy) {
-                  final elvegzett = gy.sets.where((s) => s.elvegezve).toList();
+                children: poszt.workout.exercises.take(3).map((gy) {
+                  final elvegzett = gy.sets.where((s) => s.isDone).toList();
                   final maxSuly = elvegzett.isEmpty
                       ? 0.0
                       : elvegzett.map((s) => s.weight).reduce((a, b) => a > b ? a : b);
@@ -482,11 +482,11 @@ class PosztKartya extends StatelessWidget {
                 }).toList(),
               ),
             ),
-            if (poszt.edzes.exercises.length > 3)
+            if (poszt.workout.exercises.length > 3)
               Padding(
                 padding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
                 child: Text(
-                  '+ ${poszt.edzes.exercises.length - 3} további gyakorlat',
+                  '+ ${poszt.workout.exercises.length - 3} további gyakorlat',
                   style: TextStyle(
                       fontSize: 12,
                       color: Colors.grey.shade400,
@@ -502,13 +502,13 @@ class PosztKartya extends StatelessWidget {
               children: [
                 AkcioGomb(
                   ikon: likeolt ? Icons.favorite : Icons.favorite_border,
-                  cimke: '${poszt.likeSzam}',
+                  cimke: '${poszt.likeCount}',
                   szin: likeolt ? Colors.red : Colors.grey.shade600,
                   onTap: onLike,
                 ),
                 AkcioGomb(
                   ikon: Icons.chat_bubble_outline,
-                  cimke: '${poszt.kommentek.length}',
+                  cimke: '${poszt.comments.length}',
                   szin: Colors.grey.shade600,
                   onTap: () => onKomment(poszt.id),
                 ),
@@ -523,24 +523,24 @@ class PosztKartya extends StatelessWidget {
             ),
           ),
 
-          if (poszt.kommentek.isNotEmpty) ...[
+          if (poszt.comments.isNotEmpty) ...[
             const Divider(height: 1),
             Padding(
               padding: const EdgeInsets.fromLTRB(14, 8, 14, 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: poszt.kommentek.take(2).map((k) {
+                children: poszt.comments.take(2).map((k) {
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 4),
                     child: RichText(
                       text: TextSpan(
-                        style: TextStyle(color: AppSzinek.szoveg, fontSize: 13),
+                        style: TextStyle(color: AppColors.szoveg, fontSize: 13),
                         children: [
                           TextSpan(
                             text: '${k.userName}  ',
                             style: const TextStyle(fontWeight: FontWeight.w700),
                           ),
-                          TextSpan(text: k.szoveg),
+                          TextSpan(text: k.text),
                         ],
                       ),
                     ),
@@ -569,7 +569,7 @@ class KommentSheet extends StatefulWidget {
 }
 
 class _KommentSheetState extends State<KommentSheet> {
-  List<CommunityKommentModel> _kommentek = [];
+  List<CommunityCommentModel> _kommentek = [];
   final _ctrl = TextEditingController();
   bool _kuldes = false;
 
@@ -586,7 +586,7 @@ class _KommentSheetState extends State<KommentSheet> {
   }
 
   Future<void> _betoltes() async {
-    final lista = await widget.service.kommentek(widget.posztId);
+    final lista = await widget.service.comments(widget.posztId);
     if (!mounted) return;
     setState(() => _kommentek = lista);
   }
@@ -596,7 +596,7 @@ class _KommentSheetState extends State<KommentSheet> {
     if (szoveg.isEmpty || _kuldes) return;
     setState(() => _kuldes = true);
     try {
-      await widget.service.kommentIrasa(widget.posztId, szoveg);
+      await widget.service.addComment(widget.posztId, szoveg);
       _ctrl.clear();
       await _betoltes();
     } finally {
@@ -612,7 +612,7 @@ class _KommentSheetState extends State<KommentSheet> {
       minChildSize: 0.3,
       builder: (_, ctrl) => Container(
         decoration: BoxDecoration(
-          color: AppSzinek.kartya,
+          color: AppColors.kartya,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: Column(
@@ -662,7 +662,7 @@ class _KommentSheetState extends State<KommentSheet> {
                                 ],
                               ),
                               const SizedBox(height: 2),
-                              Text(k.szoveg, style: const TextStyle(fontSize: 13)),
+                              Text(k.text, style: const TextStyle(fontSize: 13)),
                             ],
                           ),
                         ),
@@ -686,7 +686,7 @@ class _KommentSheetState extends State<KommentSheet> {
                       decoration: InputDecoration(
                         hintText: 'Írj hozzászólást…',
                         filled: true,
-                        fillColor: AppSzinek.halvanyKitoltes,
+                        fillColor: AppColors.halvanyKitoltes,
                         contentPadding:
                             const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                         border: OutlineInputBorder(

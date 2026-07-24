@@ -15,31 +15,25 @@ builder.Services.AddSwaggerGen();
 var app = builder.Build();
 app.UseCors();
 
-// FatSecret Platform API kulcs (étel keresés + vonalkód)
-FitnessBackend.Models.FatSecretConfig.ClientId =
+// FatSecret Platform API keys (food search + barcode)
+FitnessBackend.Services.FatSecretConfig.ClientId =
     builder.Configuration["FatSecret:ClientId"]
     ?? Environment.GetEnvironmentVariable("FATSECRET_CLIENT_ID")
     ?? "";
 
-FitnessBackend.Models.FatSecretConfig.ClientSecret =
+FitnessBackend.Services.FatSecretConfig.ClientSecret =
     builder.Configuration["FatSecret:ClientSecret"]
     ?? Environment.GetEnvironmentVariable("FATSECRET_CLIENT_SECRET")
     ?? "";
 
-// Spoonacular API kulcs (receptekhez)
-FitnessBackend.Models.SpoonacularConfig.ApiKey =
+// Spoonacular API key (recipes — secondary)
+FitnessBackend.Services.SpoonacularConfig.ApiKey =
     builder.Configuration["Spoonacular:ApiKey"]
     ?? Environment.GetEnvironmentVariable("SPOONACULAR_API_KEY")
     ?? "";
 
-// USDA FoodData Central API kulcs (étel kereséshez — ingyenes, korlátlan)
-FitnessBackend.Models.UsdaConfig.ApiKey =
-    builder.Configuration["Usda:ApiKey"]
-    ?? Environment.GetEnvironmentVariable("USDA_API_KEY")
-    ?? "";
-
 // Perzisztált adatok betöltése induláskor
-FitnessBackend.Controllers.WorkoutController.BetoltesIndulaskor();
+FitnessBackend.Controllers.WorkoutController.LoadOnStartup();
 
 string baseRoot = app.Environment.WebRootPath ?? AppContext.BaseDirectory;
 var szelfi_mappa = Path.Combine(baseRoot, "uploads", "selfies");

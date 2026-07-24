@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../config/api_config.dart';
 import '../../models/community_models.dart';
 import '../../services/community_service.dart';
-import '../../theme/app_tema.dart';
+import '../../theme/app_theme.dart';
 import 'community_widgets.dart';
 
 class UserProfileScreen extends StatefulWidget {
@@ -18,7 +18,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   final _service = CommunityService.instance;
   final _sajtNev = ApiConfig.defaultUserName;
 
-  List<CommunityPosztModel> _posztok = [];
+  List<CommunityPostModel> _posztok = [];
   bool _betolt = true;
   bool _kovet = false;
   int _kovetoSzam = 0;
@@ -34,17 +34,23 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     setState(() => _betolt = true);
     try {
       final eredmenyek = await Future.wait([
-        _service.felhasznaloPosztjai(widget.userName),
-        _service.kovetesek(),
+        _service.userPosts(widget.userName),
+        _service.follows(),
       ]);
-      final posztok = eredmenyek[0] as List<CommunityPosztModel>;
+      final posztok = eredmenyek[0] as List<CommunityPostModel>;
       final kovetesData = eredmenyek[1] as Map<String, dynamic>;
-      final kovetett = (kovetesData['kovetett'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
+      final kovetett = (kovetesData['following'] as List<dynamic>? ??
+              kovetesData['kovetett'] as List<dynamic>?)
+          ?.map((e) => e.toString())
+          .toList() ??
+          [];
       if (!mounted) return;
       setState(() {
         _posztok = posztok;
         _kovet = kovetett.contains(widget.userName);
-        _kovetoSzam = (kovetesData['kovetoSzam'] as int?) ?? 0;
+        _kovetoSzam = (kovetesData['followerCount'] as int?) ??
+            (kovetesData['kovetoSzam'] as int?) ??
+            0;
         _betolt = false;
       });
     } catch (_) {
@@ -58,9 +64,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     setState(() => _kovet = !volt);
     try {
       if (volt) {
-        await _service.kovetesVisszavon(widget.userName);
+        await _service.unfollow(widget.userName);
       } else {
-        await _service.kovet(widget.userName);
+        await _service.follow(widget.userName);
       }
     } catch (_) {
       if (!mounted) return;
@@ -68,18 +74,18 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     }
   }
 
-  Future<void> _toggleLike(CommunityPosztModel poszt) async {
+  Future<void> _toggleLike(CommunityPostModel poszt) async {
     final likeolt = poszt.likeolt(_sajtNev);
     setState(() {
       final idx = _posztok.indexWhere((p) => p.id == poszt.id);
       if (idx == -1) return;
-      final ujLikeolok = List<String>.from(poszt.likeolok);
+      final ujLikedBy = List<String>.from(poszt.likedBy);
       if (likeolt) {
-        ujLikeolok.remove(_sajtNev);
+        ujLikedBy.remove(_sajtNev);
       } else {
-        ujLikeolok.add(_sajtNev);
+        ujLikedBy.add(_sajtNev);
       }
-      _posztok[idx] = poszt.copyWith(likeSzam: ujLikeolok.length, likeolok: ujLikeolok);
+      _posztok[idx] = poszt.copyWith(likeCount: ujLikedBy.length, likedBy: ujLikedBy);
     });
     try {
       final friss = likeolt
@@ -96,15 +102,15 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final sajatProfil = widget.userName == _sajtNev;
-    final osszLike = _posztok.fold(0, (sum, p) => sum + p.likeSzam);
+    final osszLike = _posztok.fold(0, (sum, p) => sum + p.likeCount);
 
     return Scaffold(
-      backgroundColor: AppSzinek.hatter,
+      backgroundColor: AppColors.hatter,
       body: CustomScrollView(
         slivers: [
           // App bar
           SliverAppBar(
-            backgroundColor: AppSzinek.felulet,
+            backgroundColor: AppColors.felulet,
             expandedHeight: 250,
             pinned: true,
             flexibleSpace: FlexibleSpaceBar(
@@ -214,7 +220,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
   Future<void> _mentesRutinkent(String posztId) async {
     try {
-      await _service.mentesRutinkent(posztId);
+      await _service.saveAsPlan(posztId);
       if (!mounted) return;
       setState(() => _mentettPosztIds.add(posztId));
       ScaffoldMessenger.of(context).showSnackBar(
@@ -254,7 +260,7 @@ class _ProfilPosztKartya extends StatelessWidget {
     this.mentett = false,
   });
 
-  final CommunityPosztModel poszt;
+  final CommunityPostModel poszt;
   final String sajtNev;
   final VoidCallback onLike;
   final VoidCallback onMentes;
@@ -282,7 +288,7 @@ class _ProfilPosztKartya extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    poszt.edzes.title,
+                    poszt.workout.title,
                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
                   ),
                 ),
@@ -296,17 +302,17 @@ class _ProfilPosztKartya extends StatelessWidget {
             Wrap(
               spacing: 6,
               children: [
-                StatBadge(ikon: Icons.timer_outlined, ertek: poszt.edzes.idoSzoveg),
-                StatBadge(ikon: Icons.fitness_center, ertek: '${poszt.edzes.osszSorozatSzam} sor'),
+                StatBadge(ikon: Icons.timer_outlined, ertek: poszt.workout.idoSzoveg),
+                StatBadge(ikon: Icons.fitness_center, ertek: '${poszt.workout.osszSorozatSzam} sor'),
                 StatBadge(
                     ikon: Icons.monitor_weight_outlined,
-                    ertek: '${poszt.edzes.osszTomegKg.toStringAsFixed(0)} kg'),
+                    ertek: '${poszt.workout.osszTomegKg.toStringAsFixed(0)} kg'),
               ],
             ),
-            if (poszt.edzes.exercises.isNotEmpty) ...[
+            if (poszt.workout.exercises.isNotEmpty) ...[
               const SizedBox(height: 10),
-              ...poszt.edzes.exercises.take(3).map((gy) {
-                final elvegzett = gy.sets.where((s) => s.elvegezve).toList();
+              ...poszt.workout.exercises.take(3).map((gy) {
+                final elvegzett = gy.sets.where((s) => s.isDone).toList();
                 final maxSuly = elvegzett.isEmpty
                     ? 0.0
                     : elvegzett.map((s) => s.weight).reduce((a, b) => a > b ? a : b);
@@ -333,7 +339,7 @@ class _ProfilPosztKartya extends StatelessWidget {
               children: [
                 AkcioGomb(
                   ikon: likeolt ? Icons.favorite : Icons.favorite_border,
-                  cimke: '${poszt.likeSzam}',
+                  cimke: '${poszt.likeCount}',
                   szin: likeolt ? Colors.red : Colors.grey.shade600,
                   onTap: onLike,
                 ),
@@ -344,11 +350,11 @@ class _ProfilPosztKartya extends StatelessWidget {
                   onTap: onMentes,
                 ),
                 const Spacer(),
-                if (poszt.megye.isNotEmpty)
+                if (poszt.county.isNotEmpty)
                   Row(
                     children: [
                       Icon(Icons.location_on, size: 13, color: Colors.grey.shade400),
-                      Text(poszt.megye,
+                      Text(poszt.county,
                           style: TextStyle(fontSize: 12, color: Colors.grey.shade400)),
                     ],
                   ),

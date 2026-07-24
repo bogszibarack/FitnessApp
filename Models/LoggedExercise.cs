@@ -4,22 +4,19 @@ namespace FitnessBackend.Models
     {
         public string ExerciseId { get; set; } = "";
         public string ExerciseName { get; set; } = "";
-        public List<LoggedSet> Sets { get; set; } = new List<LoggedSet>();
+        public List<LoggedSet> Sets { get; set; } = new();
     }
 
-    // Egy széria sora (Hevy: SET | PREVIOUS | KG | REPS | pipa)
     public class LoggedSet
     {
-        public int SetNumber { get; set; }           // Munka sor: 1, 2, 3...
-        public bool Bemelegites { get; set; }        // true = "W" sor a képernyőn
-        public double Weight { get; set; }           // KG oszlop
-        public int Reps { get; set; }              // REPS oszlop (kitöltött érték)
-        public string CelIsmetles { get; set; } = ""; // Cél: pl. "10-12" (szürke, még nincs kitöltve)
+        public int SetNumber { get; set; }
+        public bool IsWarmup { get; set; }
+        public double Weight { get; set; }
+        public int Reps { get; set; }
+        public string TargetReps { get; set; } = "";
         public int Rpe { get; set; }
-        public bool Elvegezve { get; set; }          // Pipa: true = zöld pipa ✓
-
-        // PREVIOUS oszlop — előző edzésből
-        public double ElozoSulyKg { get; set; }
-        public int ElozoIsmetles { get; set; }
+        public bool IsDone { get; set; }
+        public double PrevWeightKg { get; set; }
+        public int PrevReps { get; set; }
     }
 }

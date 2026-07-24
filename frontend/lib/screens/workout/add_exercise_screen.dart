@@ -6,7 +6,7 @@ import '../../models/exercise_model.dart';
 import '../../models/workout_models.dart';
 import '../../services/exercise_service.dart';
 import '../../services/workout_service.dart';
-import '../../theme/app_tema.dart';
+import '../../theme/app_theme.dart';
 import '../../widgets/exercise_workout_widgets.dart';
 
 /// Hevy: Add Exercise — előnézet + hozzáadás ugyanazon a képernyőn.
@@ -42,7 +42,7 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
 
   Future<void> _hozzaadottakBetoltese() async {
     try {
-      final edzes = await _workoutService.aktivEdzes();
+      final edzes = await _workoutService.activeWorkout();
       if (edzes == null || !mounted) return;
       setState(() {
         for (final g in edzes.exercises) {
@@ -114,7 +114,7 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
     setState(() => _hozzaadasAlatt = gyakorlat.id);
     try {
       final sorozatok = _sorozatSablonok[gyakorlat.id] ?? WorkoutSessionModel.alapSorozatok();
-      await _workoutService.gyakorlatHozzaadasa(
+      await _workoutService.addExercise(
         exerciseId: gyakorlat.id,
         exerciseName: gyakorlat.name,
         sets: sorozatok,
@@ -158,7 +158,7 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
     if (megerosites != true) return;
 
     try {
-      await _workoutService.gyakorlatTorlese(exerciseId);
+      await _workoutService.deleteExercise(exerciseId);
       if (!mounted) return;
       setState(() {
         _hozzaadottNevek.remove(exerciseId);
@@ -190,10 +190,10 @@ class _AddExerciseScreenState extends State<AddExerciseScreen> {
     final hozzaadottSzam = _hozzaadottNevek.length;
 
     return Scaffold(
-      backgroundColor: AppSzinek.felulet,
+      backgroundColor: AppColors.felulet,
       appBar: AppBar(
-        backgroundColor: AppSzinek.felulet,
-        foregroundColor: AppSzinek.szoveg,
+        backgroundColor: AppColors.felulet,
+        foregroundColor: AppColors.szoveg,
         elevation: 0.5,
         title: const Text('Gyakorlat hozzáadása', style: TextStyle(fontWeight: FontWeight.w700)),
         actions: [

@@ -7,22 +7,18 @@ namespace FitnessBackend.Models
         public DateTime StartTime { get; set; }
         public int DurationSeconds { get; set; }
         public bool IsActive { get; set; }
+        public List<LoggedExercise> Exercises { get; set; } = new();
 
-        // Egy edzésen belül sok elvégzett gyakorlat van (Hevy: Log Workout lista)
-        public List<LoggedExercise> Exercises { get; set; } = new List<LoggedExercise>();
+        public double TotalVolumeKg => Exercises
+            .SelectMany(exercise => exercise.Sets)
+            .Where(set => set.IsDone)
+            .Sum(set => set.Weight * set.Reps);
 
-        // Hevy fejléc: csak a pipált (elvégzett) sorok számítanak
-        public double OsszTomegKg => Exercises
-            .SelectMany(gyakorlat => gyakorlat.Sets)
-            .Where(sorozat => sorozat.Elvegezve)
-            .Sum(sorozat => sorozat.Weight * sorozat.Reps);
+        public int CompletedSets => Exercises
+            .SelectMany(exercise => exercise.Sets)
+            .Count(set => set.IsDone);
 
-        public int OsszSorozatSzam => Exercises
-            .SelectMany(gyakorlat => gyakorlat.Sets)
-            .Count(sorozat => sorozat.Elvegezve);
-
-        // Futó stopper: hány másodperc telt el a kezdés óta
-        public int ElteltMasodperc => StartTime == DateTime.MinValue
+        public int ElapsedSeconds => StartTime == DateTime.MinValue
             ? 0
             : (int)(DateTime.Now - StartTime).TotalSeconds;
     }

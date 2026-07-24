@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 
 import '../../config/api_config.dart';
 import '../../models/nutrition_models.dart';
-import '../../services/recept_service.dart';
-import '../../theme/app_tema.dart';
+import '../../services/recipe_service.dart';
+import '../../theme/app_theme.dart';
 import '../../widgets/recipe_filter_widgets.dart';
 import 'recipe_detail_screen.dart';
 
@@ -20,7 +20,7 @@ class RecipesScreen extends StatefulWidget {
 }
 
 class _RecipesScreenState extends State<RecipesScreen> {
-  final _service = ReceptService.instance;
+  final _service = RecipeService.instance;
   final _keresoController = TextEditingController();
 
   List<ReceptKategoriaModel> _kategoriak = [];
@@ -199,11 +199,11 @@ class _RecipesScreenState extends State<RecipesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppSzinek.hatter,
+      backgroundColor: AppColors.hatter,
       appBar: AppBar(
         title: const Text('Receptek', style: TextStyle(fontWeight: FontWeight.w800)),
-        backgroundColor: AppSzinek.felulet,
-        foregroundColor: AppSzinek.szoveg,
+        backgroundColor: AppColors.felulet,
+        foregroundColor: AppColors.szoveg,
         elevation: 0,
       ),
       body: CustomScrollView(
@@ -390,10 +390,10 @@ class _RecipesScreenState extends State<RecipesScreen> {
       borderRadius: BorderRadius.circular(16),
       child: Container(
         decoration: BoxDecoration(
-          color: AppSzinek.kartya,
+          color: AppColors.kartya,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
-            BoxShadow(color: AppSzinek.arnyek, blurRadius: 10, offset: const Offset(0, 3)),
+            BoxShadow(color: AppColors.arnyek, blurRadius: 10, offset: const Offset(0, 3)),
           ],
         ),
         child: Column(

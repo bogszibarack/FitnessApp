@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/daily_health_data.dart';
-import '../theme/app_tema.dart';
+import '../theme/app_theme.dart';
 
 /// Sajat Fitness App UI — Apple Health adatok, NEM Apple Fitness gyűrűk.
 class HealthDataPanel extends StatelessWidget {
@@ -39,7 +39,7 @@ class HealthDataPanel extends StatelessWidget {
       children: [
         Text(
           'Mai mozgás',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppSzinek.szoveg),
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.szoveg),
         ),
         const Spacer(),
         if (isLiveAppleHealth)
@@ -116,12 +116,12 @@ class HealthDataPanel extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppSzinek.kartya,
+        color: AppColors.kartya,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppSzinek.szegely),
+        border: Border.all(color: AppColors.szegely),
         boxShadow: [
           BoxShadow(
-            color: AppSzinek.arnyek,
+            color: AppColors.arnyek,
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -132,7 +132,7 @@ class HealthDataPanel extends StatelessWidget {
         children: [
           Text(
             'Napi célok',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppSzinek.mellekSzoveg),
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.mellekSzoveg),
           ),
           const SizedBox(height: 14),
           _GoalBar(
@@ -184,9 +184,9 @@ class _MetricTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppSzinek.kartya,
+        color: AppColors.kartya,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppSzinek.szegely),
+        border: Border.all(color: AppColors.szegely),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -200,7 +200,7 @@ class _MetricTile extends StatelessWidget {
             child: Icon(icon, color: color, size: 20),
           ),
           const Spacer(),
-          Text(label, style: TextStyle(fontSize: 12, color: AppSzinek.mellekSzoveg)),
+          Text(label, style: TextStyle(fontSize: 12, color: AppColors.mellekSzoveg)),
           const SizedBox(height: 2),
           Row(
             crossAxisAlignment: CrossAxisAlignment.baseline,
@@ -214,7 +214,7 @@ class _MetricTile extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 4),
-              Text(unit, style: TextStyle(fontSize: 11, color: AppSzinek.halvanySzoveg)),
+              Text(unit, style: TextStyle(fontSize: 11, color: AppColors.halvanySzoveg)),
             ],
           ),
         ],
@@ -248,11 +248,11 @@ class _GoalBar extends StatelessWidget {
       children: [
         Row(
           children: [
-            Text(label, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: AppSzinek.szoveg)),
+            Text(label, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: AppColors.szoveg)),
             const Spacer(),
             Text(
               '$current / $goal $unit',
-              style: TextStyle(fontSize: 13, color: AppSzinek.mellekSzoveg),
+              style: TextStyle(fontSize: 13, color: AppColors.mellekSzoveg),
             ),
             const SizedBox(width: 8),
             Text('$percent%', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: color)),

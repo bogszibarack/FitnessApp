@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../models/nutrition_models.dart';
 import '../../services/nutrition_service.dart';
-import '../../theme/app_tema.dart';
+import '../../theme/app_theme.dart';
 import '../../widgets/nutrition_diary_widgets.dart';
 import 'food_add_screen.dart';
 
@@ -106,11 +106,11 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppSzinek.hatter,
+      backgroundColor: AppColors.hatter,
       appBar: AppBar(
         title: Text(EtkezesTipus.cimke(widget.etkezesTipus), style: const TextStyle(fontWeight: FontWeight.w700)),
-        backgroundColor: AppSzinek.felulet,
-        foregroundColor: AppSzinek.szoveg,
+        backgroundColor: AppColors.felulet,
+        foregroundColor: AppColors.szoveg,
         elevation: 0.5,
       ),
       floatingActionButton: FloatingActionButton(
@@ -124,9 +124,9 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppSzinek.kartya,
+                color: AppColors.kartya,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppSzinek.szegely),
+                border: Border.all(color: AppColors.szegely),
               ),
               child: Row(
                 children: [
@@ -147,9 +147,9 @@ class _MealDetailScreenState extends State<MealDetailScreen> {
               Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: AppSzinek.kartya,
+                  color: AppColors.kartya,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: AppSzinek.szegely),
+                  border: Border.all(color: AppColors.szegely),
                 ),
                 child: Text(
                   'Még nincs étel. Nyomd meg a + gombot.',

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'calorie_ring.dart';
 import '../models/nutrition_models.dart';
-import '../theme/app_tema.dart';
+import '../theme/app_theme.dart';
 
 /// Yazio-stílusú összefoglaló kártya.
 class NutritionDiarySummaryCard extends StatelessWidget {
@@ -43,9 +43,9 @@ class NutritionDiarySummaryCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: AppSzinek.kartya,
+        color: AppColors.kartya,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppSzinek.szegely),
+        border: Border.all(color: AppColors.szegely),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -106,8 +106,8 @@ class NutritionDiarySummaryCard extends StatelessWidget {
   Widget _oldalStatOszlop(String value, String label) {
     return Column(
       children: [
-        Text(value, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppSzinek.szoveg)),
-        Text(label, style: TextStyle(fontSize: 12, color: AppSzinek.mellekSzoveg)),
+        Text(value, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.szoveg)),
+        Text(label, style: TextStyle(fontSize: 12, color: AppColors.mellekSzoveg)),
       ],
     );
   }
@@ -131,9 +131,9 @@ class NutritionMealsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: AppSzinek.kartya,
+        color: AppColors.kartya,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppSzinek.szegely),
+        border: Border.all(color: AppColors.szegely),
       ),
       child: Column(
         children: EtkezesTipus.osszes.asMap().entries.map((e) {
@@ -153,7 +153,7 @@ class NutritionMealsCard extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   child: Row(
                     children: [
-                      Icon(EtkezesTipus.ikon(tipus), size: 22, color: AppSzinek.mellekSzoveg),
+                      Icon(EtkezesTipus.ikon(tipus), size: 22, color: AppColors.mellekSzoveg),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
@@ -161,11 +161,11 @@ class NutritionMealsCard extends StatelessWidget {
                           children: [
                             Row(
                               children: [
-                                Text(EtkezesTipus.cimke(tipus), style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: AppSzinek.szoveg)),
-                                Icon(Icons.chevron_right, size: 18, color: AppSzinek.halvanySzoveg),
+                                Text(EtkezesTipus.cimke(tipus), style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: AppColors.szoveg)),
+                                Icon(Icons.chevron_right, size: 18, color: AppColors.halvanySzoveg),
                               ],
                             ),
-                            Text('$aktualis / $cel kcal', style: TextStyle(fontSize: 13, color: AppSzinek.mellekSzoveg)),
+                            Text('$aktualis / $cel kcal', style: TextStyle(fontSize: 13, color: AppColors.mellekSzoveg)),
                           ],
                         ),
                       ),
@@ -182,7 +182,7 @@ class NutritionMealsCard extends StatelessWidget {
                   ),
                 ),
               ),
-              if (!utolso) Divider(height: 1, indent: 50, color: AppSzinek.szegely),
+              if (!utolso) Divider(height: 1, indent: 50, color: AppColors.szegely),
             ],
           );
         }).toList(),
@@ -253,9 +253,9 @@ class MakroErtekSor extends StatelessWidget {
       margin: const EdgeInsets.symmetric(vertical: 2),
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
       decoration: BoxDecoration(
-        color: kiemelt ? const Color(0xFF34C759).withValues(alpha: 0.08) : AppSzinek.kartya,
+        color: kiemelt ? const Color(0xFF34C759).withValues(alpha: 0.08) : AppColors.kartya,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: kiemelt ? const Color(0xFF34C759).withValues(alpha: 0.25) : AppSzinek.szegely),
+        border: Border.all(color: kiemelt ? const Color(0xFF34C759).withValues(alpha: 0.25) : AppColors.szegely),
       ),
       child: Row(
         children: [
@@ -276,7 +276,7 @@ class MakroErtekSor extends StatelessWidget {
       style: TextStyle(
         fontSize: 13,
         fontWeight: kiemelt ? FontWeight.w800 : FontWeight.w600,
-        color: AppSzinek.szoveg,
+        color: AppColors.szoveg,
       ),
     );
   }

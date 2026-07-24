@@ -38,10 +38,10 @@ class LoggedFoodModel {
     required this.foodName,
     this.amountGrams = 0,
     this.mealType = '',
-    this.kepUrl = '',
-    this.receptbol = false,
-    this.receptId = '',
-    this.adagSzam = 1,
+    this.imageUrl = '',
+    this.fromRecipe = false,
+    this.recipeId = '',
+    this.servings = 1,
     this.caloriesPer100g = 0,
     this.proteinPer100g = 0,
     this.carbsPer100g = 0,
@@ -52,29 +52,35 @@ class LoggedFoodModel {
   final String foodName;
   final double amountGrams;
   final String mealType;
-  final String kepUrl;
-  final bool receptbol;
-  final String receptId;
-  final double adagSzam;
+  final String imageUrl;
+  final bool fromRecipe;
+  final String recipeId;
+  final double servings;
   final double caloriesPer100g;
   final double proteinPer100g;
   final double carbsPer100g;
   final double fatPer100g;
 
-  double get calculatedCalories => receptbol
-      ? caloriesPer100g * adagSzam
+  // Legacy aliases
+  String get kepUrl => imageUrl;
+  bool get receptbol => fromRecipe;
+  String get receptId => recipeId;
+  double get adagSzam => servings;
+
+  double get calculatedCalories => fromRecipe
+      ? caloriesPer100g * servings
       : (caloriesPer100g * amountGrams) / 100;
 
-  double get calculatedProtein => receptbol
-      ? proteinPer100g * adagSzam
+  double get calculatedProtein => fromRecipe
+      ? proteinPer100g * servings
       : (proteinPer100g * amountGrams) / 100;
 
-  double get calculatedCarbs => receptbol
-      ? carbsPer100g * adagSzam
+  double get calculatedCarbs => fromRecipe
+      ? carbsPer100g * servings
       : (carbsPer100g * amountGrams) / 100;
 
-  double get calculatedFat => receptbol
-      ? fatPer100g * adagSzam
+  double get calculatedFat => fromRecipe
+      ? fatPer100g * servings
       : (fatPer100g * amountGrams) / 100;
 
   factory LoggedFoodModel.fromJson(Map<String, dynamic> json) {
@@ -83,10 +89,10 @@ class LoggedFoodModel {
       foodName: json['foodName'] as String? ?? '',
       amountGrams: (json['amountGrams'] as num?)?.toDouble() ?? 0,
       mealType: json['mealType'] as String? ?? '',
-      kepUrl: json['kepUrl'] as String? ?? '',
-      receptbol: json['receptbol'] as bool? ?? false,
-      receptId: json['receptId'] as String? ?? '',
-      adagSzam: (json['adagSzam'] as num?)?.toDouble() ?? 1,
+      imageUrl: json['imageUrl'] as String? ?? json['kepUrl'] as String? ?? '',
+      fromRecipe: json['fromRecipe'] as bool? ?? json['receptbol'] as bool? ?? false,
+      recipeId: json['recipeId'] as String? ?? json['receptId'] as String? ?? '',
+      servings: (json['servings'] as num?)?.toDouble() ?? (json['adagSzam'] as num?)?.toDouble() ?? 1,
       caloriesPer100g: (json['caloriesPer100g'] as num?)?.toDouble() ?? 0,
       proteinPer100g: (json['proteinPer100g'] as num?)?.toDouble() ?? 0,
       carbsPer100g: (json['carbsPer100g'] as num?)?.toDouble() ?? 0,
@@ -99,10 +105,10 @@ class LoggedFoodModel {
         'foodName': foodName,
         'amountGrams': amountGrams,
         'mealType': mealType,
-        'kepUrl': kepUrl,
-        'receptbol': receptbol,
-        'receptId': receptId,
-        'adagSzam': adagSzam,
+        'imageUrl': imageUrl,
+        'fromRecipe': fromRecipe,
+        'recipeId': recipeId,
+        'servings': servings,
         'caloriesPer100g': caloriesPer100g,
         'proteinPer100g': proteinPer100g,
         'carbsPer100g': carbsPer100g,
@@ -111,6 +117,7 @@ class LoggedFoodModel {
 
   LoggedFoodModel copyWith({
     double? amountGrams,
+    double? servings,
     double? adagSzam,
     String? mealType,
   }) {
@@ -119,10 +126,10 @@ class LoggedFoodModel {
       foodName: foodName,
       amountGrams: amountGrams ?? this.amountGrams,
       mealType: mealType ?? this.mealType,
-      kepUrl: kepUrl,
-      receptbol: receptbol,
-      receptId: receptId,
-      adagSzam: adagSzam ?? this.adagSzam,
+      imageUrl: imageUrl,
+      fromRecipe: fromRecipe,
+      recipeId: recipeId,
+      servings: servings ?? adagSzam ?? this.servings,
       caloriesPer100g: caloriesPer100g,
       proteinPer100g: proteinPer100g,
       carbsPer100g: carbsPer100g,
@@ -186,140 +193,181 @@ class DailyNutritionModel {
   }
 }
 
-class ReceptListaElemModel {
-  ReceptListaElemModel({
+class RecipeListItemModel {
+  RecipeListItemModel({
     required this.id,
-    required this.nev,
-    required this.kategoria,
-    required this.kepUrl,
-    required this.becsultKaloria,
-    this.becsultFeherje = 0,
-    this.becsultSzenhidrat = 0,
-    this.becsultZsir = 0,
-    this.hozzavaloSzam = 0,
-    this.yazioCimkek = const [],
+    required this.name,
+    required this.category,
+    required this.imageUrl,
+    required this.estimatedCalories,
+    this.estimatedProtein = 0,
+    this.estimatedCarbs = 0,
+    this.estimatedFat = 0,
+    this.ingredientCount = 0,
+    this.yazioTags = const [],
   });
 
   final String id;
-  final String nev;
-  final String kategoria;
-  final String kepUrl;
-  final int becsultKaloria;
-  final double becsultFeherje;
-  final double becsultSzenhidrat;
-  final double becsultZsir;
-  final int hozzavaloSzam;
-  final List<String> yazioCimkek;
+  final String name;
+  final String category;
+  final String imageUrl;
+  final int estimatedCalories;
+  final double estimatedProtein;
+  final double estimatedCarbs;
+  final double estimatedFat;
+  final int ingredientCount;
+  final List<String> yazioTags;
 
-  factory ReceptListaElemModel.fromJson(Map<String, dynamic> json) {
-    return ReceptListaElemModel(
+  // Legacy getters for screens still mid-migrate
+  String get nev => name;
+  String get kategoria => category;
+  String get kepUrl => imageUrl;
+  int get becsultKaloria => estimatedCalories;
+  double get becsultFeherje => estimatedProtein;
+  double get becsultSzenhidrat => estimatedCarbs;
+  double get becsultZsir => estimatedFat;
+  int get hozzavaloSzam => ingredientCount;
+  List<String> get yazioCimkek => yazioTags;
+
+  factory RecipeListItemModel.fromJson(Map<String, dynamic> json) {
+    return RecipeListItemModel(
       id: json['id'] as String? ?? '',
-      nev: json['nev'] as String? ?? '',
-      kategoria: json['kategoria'] as String? ?? '',
-      kepUrl: json['kepUrl'] as String? ?? '',
-      becsultKaloria: (json['becsultKaloria'] as num?)?.round() ?? 0,
-      becsultFeherje: (json['becsultFeherje'] as num?)?.toDouble() ?? 0,
-      becsultSzenhidrat: (json['becsultSzenhidrat'] as num?)?.toDouble() ?? 0,
-      becsultZsir: (json['becsultZsir'] as num?)?.toDouble() ?? 0,
-      hozzavaloSzam: (json['hozzavaloSzam'] as num?)?.round() ?? 0,
-      yazioCimkek: (json['yazioCimkek'] as List<dynamic>? ?? []).map((e) => e.toString()).toList(),
+      name: (json['name'] ?? json['nev']) as String? ?? '',
+      category: (json['category'] ?? json['kategoria']) as String? ?? '',
+      imageUrl: (json['imageUrl'] ?? json['kepUrl']) as String? ?? '',
+      estimatedCalories: ((json['estimatedCalories'] ?? json['becsultKaloria']) as num?)?.round() ?? 0,
+      estimatedProtein: ((json['estimatedProtein'] ?? json['becsultFeherje']) as num?)?.toDouble() ?? 0,
+      estimatedCarbs: ((json['estimatedCarbs'] ?? json['becsultSzenhidrat']) as num?)?.toDouble() ?? 0,
+      estimatedFat: ((json['estimatedFat'] ?? json['becsultZsir']) as num?)?.toDouble() ?? 0,
+      ingredientCount: ((json['ingredientCount'] ?? json['hozzavaloSzam']) as num?)?.round() ?? 0,
+      yazioTags: [
+        ...(json['yazioTags'] as List<dynamic>? ?? []).map((e) => e.toString()),
+        ...(json['yazioCimkek'] as List<dynamic>? ?? []).map((e) => e.toString()),
+        ...(json['tags'] as List<dynamic>? ?? []).map((e) => e.toString()),
+        ...(json['cimkek'] as List<dynamic>? ?? []).map((e) => e.toString()),
+      ],
     );
   }
 }
 
-class ReceptReszletesModel extends ReceptListaElemModel {
-  ReceptReszletesModel({
+typedef ReceptListaElemModel = RecipeListItemModel;
+
+class RecipeDetailModel extends RecipeListItemModel {
+  RecipeDetailModel({
     required super.id,
-    required super.nev,
-    required super.kategoria,
-    required super.kepUrl,
-    required super.becsultKaloria,
-    super.becsultFeherje,
-    super.becsultSzenhidrat,
-    super.becsultZsir,
-    super.hozzavaloSzam,
-    super.yazioCimkek,
-    this.leiras = '',
+    required super.name,
+    required super.category,
+    required super.imageUrl,
+    required super.estimatedCalories,
+    super.estimatedProtein,
+    super.estimatedCarbs,
+    super.estimatedFat,
+    super.ingredientCount,
+    super.yazioTags,
+    this.description = '',
     this.youtubeUrl = '',
-    this.szarmazasiTerulet = '',
-    this.osszetevok = const [],
+    this.origin = '',
+    this.ingredients = const [],
   });
 
-  final String leiras;
+  final String description;
   final String youtubeUrl;
-  final String szarmazasiTerulet;
-  final List<ReceptOsszetevoModel> osszetevok;
+  final String origin;
+  final List<RecipeIngredientModel> ingredients;
 
-  factory ReceptReszletesModel.fromJson(Map<String, dynamic> json) {
-    return ReceptReszletesModel(
+  String get leiras => description;
+  String get szarmazasiTerulet => origin;
+  List<RecipeIngredientModel> get osszetevok => ingredients;
+
+  factory RecipeDetailModel.fromJson(Map<String, dynamic> json) {
+    final ingredientsRaw = json['ingredients'] ?? json['osszetevok'];
+    return RecipeDetailModel(
       id: json['id'] as String? ?? '',
-      nev: json['nev'] as String? ?? '',
-      kategoria: json['kategoria'] as String? ?? '',
-      kepUrl: json['kepUrl'] as String? ?? '',
-      becsultKaloria: (json['becsultKaloria'] as num?)?.round() ?? 0,
-      becsultFeherje: (json['becsultFeherje'] as num?)?.toDouble() ?? 0,
-      becsultSzenhidrat: (json['becsultSzenhidrat'] as num?)?.toDouble() ?? 0,
-      becsultZsir: (json['becsultZsir'] as num?)?.toDouble() ?? 0,
-      hozzavaloSzam: (json['hozzavaloSzam'] as num?)?.round() ?? 0,
-      yazioCimkek: [
+      name: (json['name'] ?? json['nev']) as String? ?? '',
+      category: (json['category'] ?? json['kategoria']) as String? ?? '',
+      imageUrl: (json['imageUrl'] ?? json['kepUrl']) as String? ?? '',
+      estimatedCalories: ((json['estimatedCalories'] ?? json['becsultKaloria']) as num?)?.round() ?? 0,
+      estimatedProtein: ((json['estimatedProtein'] ?? json['becsultFeherje']) as num?)?.toDouble() ?? 0,
+      estimatedCarbs: ((json['estimatedCarbs'] ?? json['becsultSzenhidrat']) as num?)?.toDouble() ?? 0,
+      estimatedFat: ((json['estimatedFat'] ?? json['becsultZsir']) as num?)?.toDouble() ?? 0,
+      ingredientCount: ((json['ingredientCount'] ?? json['hozzavaloSzam']) as num?)?.round() ?? 0,
+      yazioTags: [
+        ...(json['yazioTags'] as List<dynamic>? ?? []).map((e) => e.toString()),
         ...(json['yazioCimkek'] as List<dynamic>? ?? []).map((e) => e.toString()),
+        ...(json['tags'] as List<dynamic>? ?? []).map((e) => e.toString()),
         ...(json['cimkek'] as List<dynamic>? ?? []).map((e) => e.toString()),
       ],
-      leiras: json['leiras'] as String? ?? '',
+      description: (json['description'] ?? json['leiras']) as String? ?? '',
       youtubeUrl: json['youtubeUrl'] as String? ?? '',
-      szarmazasiTerulet: json['szarmazasiTerulet'] as String? ?? '',
-      osszetevok: (json['osszetevok'] as List<dynamic>? ?? [])
-          .map((e) => ReceptOsszetevoModel.fromJson(e as Map<String, dynamic>))
+      origin: (json['origin'] ?? json['szarmazasiTerulet']) as String? ?? '',
+      ingredients: (ingredientsRaw as List<dynamic>? ?? [])
+          .map((e) => RecipeIngredientModel.fromJson(e as Map<String, dynamic>))
           .toList(),
     );
   }
 }
 
-class ReceptOsszetevoModel {
-  ReceptOsszetevoModel({required this.nev, required this.mennyiseg});
+typedef ReceptReszletesModel = RecipeDetailModel;
 
-  final String nev;
-  final String mennyiseg;
+class RecipeIngredientModel {
+  RecipeIngredientModel({required this.name, required this.amount});
 
-  factory ReceptOsszetevoModel.fromJson(Map<String, dynamic> json) {
-    return ReceptOsszetevoModel(
-      nev: json['nev'] as String? ?? '',
-      mennyiseg: json['mennyiseg'] as String? ?? '',
+  final String name;
+  final String amount;
+
+  String get nev => name;
+  String get mennyiseg => amount;
+
+  factory RecipeIngredientModel.fromJson(Map<String, dynamic> json) {
+    return RecipeIngredientModel(
+      name: (json['name'] ?? json['nev']) as String? ?? '',
+      amount: (json['amount'] ?? json['mennyiseg']) as String? ?? '',
     );
   }
 }
 
-class ReceptKategoriaModel {
-  ReceptKategoriaModel({required this.id, required this.nev, this.ikon = ''});
+typedef ReceptOsszetevoModel = RecipeIngredientModel;
+
+class RecipeCategoryModel {
+  RecipeCategoryModel({required this.id, required this.name, this.icon = ''});
 
   final String id;
-  final String nev;
-  final String ikon;
+  final String name;
+  final String icon;
 
-  factory ReceptKategoriaModel.fromJson(Map<String, dynamic> json) {
-    return ReceptKategoriaModel(
+  String get nev => name;
+  String get ikon => icon;
+
+  factory RecipeCategoryModel.fromJson(Map<String, dynamic> json) {
+    return RecipeCategoryModel(
       id: json['id'] as String? ?? '',
-      nev: json['nev'] as String? ?? '',
-      ikon: json['ikon'] as String? ?? '',
+      name: (json['name'] ?? json['nev']) as String? ?? '',
+      icon: (json['icon'] ?? json['ikon']) as String? ?? '',
     );
   }
 }
 
-class KaloriaTartomanyModel {
-  KaloriaTartomanyModel({required this.min, required this.max, required this.nev});
+typedef ReceptKategoriaModel = RecipeCategoryModel;
+
+class CalorieRangeModel {
+  CalorieRangeModel({required this.min, required this.max, required this.name});
 
   final int min;
   final int max;
-  final String nev;
+  final String name;
 
-  factory KaloriaTartomanyModel.fromJson(Map<String, dynamic> json) {
-    return KaloriaTartomanyModel(
+  String get nev => name;
+
+  factory CalorieRangeModel.fromJson(Map<String, dynamic> json) {
+    return CalorieRangeModel(
       min: (json['min'] as num?)?.round() ?? 0,
       max: (json['max'] as num?)?.round() ?? 0,
-      nev: json['nev'] as String? ?? '',
+      name: (json['name'] ?? json['nev']) as String? ?? '',
     );
   }
 }
+
+typedef KaloriaTartomanyModel = CalorieRangeModel;
 
 /// Étkezés típusok — backend: reggeli / ebed / vacsora / nasi
 class EtkezesTipus {

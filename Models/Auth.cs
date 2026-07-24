@@ -1,8 +1,9 @@
 using System.Text.RegularExpressions;
+using FitnessBackend.Services;
 
 namespace FitnessBackend.Models
 {
-    public class OnboardingRegistrationDto
+    public class RegisterRequest
     {
         public string Email { get; set; } = "";
         public string Password { get; set; } = "";
@@ -15,54 +16,10 @@ namespace FitnessBackend.Models
         public string Source { get; set; } = "";
     }
 
-    public static class AuthValidator
+    public class LoginRequest
     {
-        private static readonly Regex EmailRegex =
-            new Regex(@"^[^@\s]+@[^@\s]+\.[^@\s]+$", RegexOptions.Compiled);
-
-        public static string? ValidateRegistration(OnboardingRegistrationDto dto)
-        {
-            if (string.IsNullOrWhiteSpace(dto.Email) || !EmailRegex.IsMatch(dto.Email))
-                return "Érvénytelen e-mail formátum.";
-
-            if (string.IsNullOrWhiteSpace(dto.Password) || dto.Password.Length < 6)
-                return "A jelszó legalább 6 karakter legyen.";
-
-            if (string.IsNullOrWhiteSpace(dto.Username) || dto.Username.Length < 3)
-                return "A felhasználónév legalább 3 karakter legyen.";
-
-            return null;
-        }
-    }
-
-    // Regisztrált fiókok — fájlba mentve, backend újraindítás után is megmaradnak.
-    public static class FelhasznaloFiok
-    {
-        public static List<RegisteredUser> Felhasznalok { get; } = new();
-
-        public static bool LetezikeEmail(string email) =>
-            Felhasznalok.Any(f => f.Email.Equals(email, StringComparison.OrdinalIgnoreCase));
-
-        public static bool LetezikeUsername(string username) =>
-            Felhasznalok.Any(f => f.Username.Equals(username, StringComparison.OrdinalIgnoreCase));
-
-        public static RegisteredUser? KeresesEmailVagyNevvel(string input)
-        {
-            if (string.IsNullOrWhiteSpace(input)) return null;
-            return Felhasznalok.FirstOrDefault(f =>
-                       f.Email.Equals(input, StringComparison.OrdinalIgnoreCase))
-                   ?? Felhasznalok.FirstOrDefault(f =>
-                       f.Username.Equals(input, StringComparison.OrdinalIgnoreCase));
-        }
-
-        public static void Hozzaadas(RegisteredUser user)
-        {
-            Felhasznalok.RemoveAll(f =>
-                f.Email.Equals(user.Email, StringComparison.OrdinalIgnoreCase) ||
-                f.Username.Equals(user.Username, StringComparison.OrdinalIgnoreCase));
-            Felhasznalok.Add(user);
-            DataPersistence.FelhasznalokMentese();
-        }
+        public string Username { get; set; } = "";
+        public string Password { get; set; } = "";
     }
 
     public class RegisteredUser
@@ -70,18 +27,48 @@ namespace FitnessBackend.Models
         public string Id { get; set; } = Guid.NewGuid().ToString("N")[..8];
         public string Email { get; set; } = "";
         public string Username { get; set; } = "";
-        public string JelszoHash { get; set; } = "";
+        public string PasswordHash { get; set; } = "";
         public string WeightUnit { get; set; } = "kg";
         public string DistanceUnit { get; set; } = "km";
         public string MeasurementUnit { get; set; } = "cm";
         public double Weight { get; set; }
         public string County { get; set; } = "";
         public string Source { get; set; } = "";
-        public DateTime RegisztraltAt { get; set; } = DateTime.Now;
+        public DateTime RegisteredAt { get; set; } = DateTime.Now;
     }
 
-    public class FelhasznaloFiokExport
+    public class AccountExport
     {
-        public List<RegisteredUser> Felhasznalok { get; set; } = new();
+        public List<RegisteredUser> Users { get; set; } = new();
+    }
+
+    public static class AccountStore
+    {
+        public static List<RegisteredUser> Users { get; } = new();
+
+        public static string HashPassword(string password) =>
+            Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(password));
+
+        public static bool EmailTaken(string email) =>
+            Users.Any(u => u.Email.Equals(email, StringComparison.OrdinalIgnoreCase));
+
+        public static bool UsernameTaken(string username) =>
+            Users.Any(u => u.Username.Equals(username, StringComparison.OrdinalIgnoreCase));
+
+        public static RegisteredUser? FindByEmailOrUsername(string input)
+        {
+            if (string.IsNullOrWhiteSpace(input)) return null;
+            return Users.FirstOrDefault(u => u.Email.Equals(input, StringComparison.OrdinalIgnoreCase))
+                ?? Users.FirstOrDefault(u => u.Username.Equals(input, StringComparison.OrdinalIgnoreCase));
+        }
+
+        public static void Add(RegisteredUser user)
+        {
+            Users.RemoveAll(u =>
+                u.Email.Equals(user.Email, StringComparison.OrdinalIgnoreCase) ||
+                u.Username.Equals(user.Username, StringComparison.OrdinalIgnoreCase));
+            Users.Add(user);
+            DataStore.SaveAccounts();
+        }
     }
 }

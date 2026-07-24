@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../theme/app_tema.dart';
+import '../theme/app_theme.dart';
 
 /// Kaloria osszefoglalo — sajat dizajn, nem Apple/Yazio gyuru.
 class NutritionSummaryCard extends StatelessWidget {
@@ -38,9 +38,9 @@ class NutritionSummaryCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppSzinek.kartya,
+        color: AppColors.kartya,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppSzinek.szegely),
+        border: Border.all(color: AppColors.szegely),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -56,7 +56,7 @@ class NutritionSummaryCard extends StatelessWidget {
                       '$remaining',
                       style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: _accent),
                     ),
-                    Text('kcal maradt ma', style: TextStyle(fontSize: 12, color: AppSzinek.mellekSzoveg)),
+                    Text('kcal maradt ma', style: TextStyle(fontSize: 12, color: AppColors.mellekSzoveg)),
                     const SizedBox(height: 8),
                     ClipRRect(
                       borderRadius: BorderRadius.circular(8),
@@ -68,7 +68,7 @@ class NutritionSummaryCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Text('Cél: $goal kcal', style: TextStyle(fontSize: 11, color: AppSzinek.halvanySzoveg)),
+                    Text('Cél: $goal kcal', style: TextStyle(fontSize: 11, color: AppColors.halvanySzoveg)),
                   ],
                 ),
               ),
@@ -103,7 +103,7 @@ class _StatPill extends StatelessWidget {
         Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: color)),
         if (unit.isNotEmpty)
           Text(unit, style: TextStyle(fontSize: 10, color: color.withValues(alpha: 0.7))),
-        Text(label, style: TextStyle(fontSize: 11, color: AppSzinek.mellekSzoveg)),
+        Text(label, style: TextStyle(fontSize: 11, color: AppColors.mellekSzoveg)),
       ],
     );
   }
@@ -127,7 +127,7 @@ class _MacroRow extends StatelessWidget {
     final p = goal > 0 ? (current / goal).clamp(0.0, 1.0) : 0.0;
     return Row(
       children: [
-        SizedBox(width: 90, child: Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppSzinek.szoveg))),
+        SizedBox(width: 90, child: Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.szoveg))),
         Expanded(
           child: ClipRRect(
             borderRadius: BorderRadius.circular(4),
@@ -135,7 +135,7 @@ class _MacroRow extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 8),
-        Text('$current/${goal}g', style: TextStyle(fontSize: 12, color: AppSzinek.mellekSzoveg)),
+        Text('$current/${goal}g', style: TextStyle(fontSize: 12, color: AppColors.mellekSzoveg)),
       ],
     );
   }

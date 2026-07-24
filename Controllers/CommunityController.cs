@@ -1,343 +1,212 @@
 using Microsoft.AspNetCore.Mvc;
 using FitnessBackend.Models;
+using FitnessBackend.Services;
 
 namespace FitnessBackend.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/community")]
     public class CommunityController : ControllerBase
     {
-        private readonly IWebHostEnvironment _kornyezet;
+        private readonly IWebHostEnvironment _env;
 
-        public CommunityController(IWebHostEnvironment kornyezet)
-        {
-            _kornyezet = kornyezet;
-        }
+        public CommunityController(IWebHostEnvironment env) => _env = env;
 
-        // 0. SZELFI FELTÖLTÉS — a telefon elküldi a képet, visszakapod az URL-t
-        [HttpPost("szelfi-feltoltes")]
+        [HttpPost("selfie-upload")]
         [RequestSizeLimit(5 * 1024 * 1024)]
-        public async Task<ActionResult<object>> SzelfiFeltoltes(IFormFile kep, [FromQuery] string userName)
+        public async Task<ActionResult<object>> UploadSelfie(IFormFile file, [FromQuery] string userName)
         {
-            if (kep == null || kep.Length == 0)
-            {
+            if (file == null || file.Length == 0)
                 return BadRequest("Kep fajl kotelezo.");
-            }
 
             if (string.IsNullOrWhiteSpace(userName))
-            {
                 return BadRequest("userName query parameter kotelezo.");
-            }
 
-            var engedelyezett = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            {
-                ".jpg", ".jpeg", ".png", ".webp"
-            };
+            var allowed = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                { ".jpg", ".jpeg", ".png", ".webp" };
 
-            var kiterjesztes = Path.GetExtension(kep.FileName);
-            if (!engedelyezett.Contains(kiterjesztes))
-            {
+            var ext = Path.GetExtension(file.FileName);
+            if (!allowed.Contains(ext))
                 return BadRequest("Csak jpg, jpeg, png vagy webp formatum engedelyezett.");
-            }
 
-            var mappa = Path.Combine(_kornyezet.WebRootPath ?? "", "uploads", "selfies");
-            Directory.CreateDirectory(mappa);
+            var dir = Path.Combine(_env.WebRootPath ?? "", "uploads", "selfies");
+            Directory.CreateDirectory(dir);
 
-            var biztonsagos_nev = $"{SanitizeFileName(userName)}_{Guid.NewGuid():N}{kiterjesztes.ToLowerInvariant()}";
-            var teljes_utvonal = Path.Combine(mappa, biztonsagos_nev);
+            var safeName = $"{CommunityService.SanitizeFileName(userName)}_{Guid.NewGuid():N}{ext.ToLowerInvariant()}";
+            var path = Path.Combine(dir, safeName);
 
-            await using (var stream = new FileStream(teljes_utvonal, FileMode.Create))
-            {
-                await kep.CopyToAsync(stream);
-            }
+            await using (var stream = new FileStream(path, FileMode.Create))
+                await file.CopyToAsync(stream);
 
             return Ok(new
             {
-                selfieUrl = $"/uploads/selfies/{biztonsagos_nev}",
-                uzenet = "Szelfi feltoltve. Ezt az URL-t add meg a megosztasnal."
+                selfieUrl = $"/uploads/selfies/{safeName}",
+                message = "Szelfi feltoltve. Ezt az URL-t add meg a megosztasnal."
             });
         }
 
-        // 1. MEGYÉK LISTÁJA
-        [HttpGet("megyek")]
-        public List<MegyeInfo> MegyekListaja()
-        {
-            return CommunityTarolo.MagyarMegyek;
-        }
+        [HttpGet("counties")]
+        public List<CountyInfo> Counties() => CommunityStore.Counties;
 
-        // 2. RÉGIÓK LISTÁJA
-        [HttpGet("regiok")]
-        public List<string> RegiokListaja()
-        {
-            return CommunityTarolo.MagyarMegyek.Select(m => m.Regio).Distinct().OrderBy(r => r).ToList();
-        }
+        [HttpGet("regions")]
+        public List<string> Regions() =>
+            CommunityStore.Counties.Select(c => c.Region).Distinct().OrderBy(r => r).ToList();
 
-        // 3. TELJES FEED — mindig friss elöl (legújabb posztok)
         [HttpGet("feed")]
-        public List<CommunityPost> TeljesFeed()
-        {
-            return FeedRendezese(CommunityTarolo.Posztok);
-        }
+        public List<CommunityPost> Feed() => CommunityService.SortFeed(CommunityStore.Posts);
 
-        // 4. FEED MEGYE SZERINT — pl. "Mit edzettek ma Jász-Nagykun-Szolnokban?"
-        [HttpGet("feed/megye/{megye_id}")]
-        public ActionResult<List<CommunityPost>> FeedMegyeSzerint(string megye_id)
+        [HttpGet("feed/county/{countyId}")]
+        public ActionResult<List<CommunityPost>> FeedByCounty(string countyId)
         {
-            var megye = MegyeKeresese(megye_id);
-            if (megye == null)
-            {
+            if (CommunityStore.FindCounty(countyId) == null)
                 return NotFound("Ismeretlen megye.");
-            }
-
-            var szurt = CommunityTarolo.Posztok
-                .Where(p => p.Megye.Equals(megye.Nev, StringComparison.OrdinalIgnoreCase)
-                    || p.Megye.Equals(megye.Id, StringComparison.OrdinalIgnoreCase))
-                .ToList();
-
-            return Ok(FeedRendezese(szurt));
+            return Ok(CommunityService.FeedByCounty(countyId));
         }
 
-        // 5. FEED RÉGIÓ SZERINT — pl. Észak-Alföld
-        [HttpGet("feed/regio/{regio_nev}")]
-        public ActionResult<List<CommunityPost>> FeedRegioSzerint(string regio_nev)
-        {
-            var szurt = CommunityTarolo.Posztok
-                .Where(p => p.Regio.Equals(regio_nev, StringComparison.OrdinalIgnoreCase))
-                .ToList();
+        [HttpGet("feed/region/{region}")]
+        public ActionResult<List<CommunityPost>> FeedByRegion(string region) =>
+            Ok(CommunityService.FeedByRegion(region));
 
-            return Ok(FeedRendezese(szurt));
+        [HttpPost("share")]
+        public ActionResult<CommunityPost> Share([FromBody] ShareRequest req)
+        {
+            var (post, err) = CommunityStore.CreatePost(req);
+            if (err != null) return BadRequest(err);
+            return Ok(post);
         }
 
-        // 6. MEGOSZTÁS — edzés + szelfi + megye (Hevy Finish után)
-        [HttpPost("megosztas")]
-        public ActionResult<CommunityPost> EdzesMegosztasa([FromBody] MegosztasKeres keres)
+        [HttpGet("{postId}")]
+        public ActionResult<CommunityPost> GetPost(string postId)
         {
-            var (poszt, hiba) = CommunityTarolo.UjPosztLetrehozasa(keres);
-
-            if (hiba != null)
-            {
-                return BadRequest(hiba);
-            }
-
-            return Ok(poszt);
+            var post = CommunityStore.FindPost(postId);
+            if (post == null) return NotFound("Nincs ilyen poszt.");
+            return Ok(post);
         }
 
-        // 7. EGY POSZT RÉSZLETEI
-        [HttpGet("{post_id}")]
-        public ActionResult<CommunityPost> PosztReszletei(string post_id)
+        [HttpPost("{postId}/like")]
+        public ActionResult<CommunityPost> Like([FromBody] LikeRequest req, string postId)
         {
-            var poszt = PosztKeresese(post_id);
-            if (poszt == null)
-            {
-                return NotFound("Nincs ilyen poszt.");
-            }
-
-            return Ok(poszt);
-        }
-
-        // 8. LIKE
-        [HttpPost("{post_id}/like")]
-        public ActionResult<CommunityPost> PosztLike([FromBody] LikeKeres keres, string post_id)
-        {
-            var poszt = PosztKeresese(post_id);
-            if (poszt == null)
-            {
-                return NotFound("Nincs ilyen poszt.");
-            }
-
-            if (string.IsNullOrWhiteSpace(keres.UserName))
-            {
+            var post = CommunityStore.FindPost(postId);
+            if (post == null) return NotFound("Nincs ilyen poszt.");
+            if (string.IsNullOrWhiteSpace(req.UserName))
                 return BadRequest("UserName kotelezo.");
-            }
 
-            if (!poszt.Likeolok.Contains(keres.UserName))
+            if (!post.LikedBy.Contains(req.UserName))
             {
-                poszt.Likeolok.Add(keres.UserName);
-                poszt.LikeSzam = poszt.Likeolok.Count;
+                post.LikedBy.Add(req.UserName);
+                post.LikeCount = post.LikedBy.Count;
             }
-
-            return Ok(poszt);
+            return Ok(post);
         }
 
-        // 9. LIKE VISSZAVONÁSA
-        [HttpDelete("{post_id}/like")]
-        public ActionResult<CommunityPost> PosztUnlike([FromQuery] string userName, string post_id)
+        [HttpDelete("{postId}/like")]
+        public ActionResult<CommunityPost> Unlike([FromQuery] string userName, string postId)
         {
-            var poszt = PosztKeresese(post_id);
-            if (poszt == null)
-            {
-                return NotFound("Nincs ilyen poszt.");
-            }
+            var post = CommunityStore.FindPost(postId);
+            if (post == null) return NotFound("Nincs ilyen poszt.");
 
-            poszt.Likeolok.Remove(userName);
-            poszt.LikeSzam = poszt.Likeolok.Count;
-            return Ok(poszt);
+            post.LikedBy.Remove(userName);
+            post.LikeCount = post.LikedBy.Count;
+            return Ok(post);
         }
 
-        // 10. KOMMENT ÍRÁSA
-        [HttpPost("{post_id}/komment")]
-        public ActionResult<CommunityComment> KommentIrasa(string post_id, [FromBody] KommentKeres keres)
+        [HttpPost("{postId}/comment")]
+        public ActionResult<CommunityComment> AddComment(string postId, [FromBody] CommentRequest req)
         {
-            var poszt = PosztKeresese(post_id);
-            if (poszt == null)
-            {
-                return NotFound("Nincs ilyen poszt.");
-            }
+            var post = CommunityStore.FindPost(postId);
+            if (post == null) return NotFound("Nincs ilyen poszt.");
+            if (string.IsNullOrWhiteSpace(req.UserName) || string.IsNullOrWhiteSpace(req.Text))
+                return BadRequest("UserName es Text kotelezo.");
 
-            if (string.IsNullOrWhiteSpace(keres.UserName) || string.IsNullOrWhiteSpace(keres.Szoveg))
+            var comment = new CommunityComment
             {
-                return BadRequest("UserName es Szoveg kotelezo.");
-            }
-
-            var uj_komment = new CommunityComment
-            {
-                Id = $"komment_{Guid.NewGuid().ToString("N")[..8]}",
-                UserName = keres.UserName,
-                Szoveg = keres.Szoveg,
-                Idobelyeg = DateTime.Now
+                Id = $"comment_{Guid.NewGuid().ToString("N")[..8]}",
+                UserName = req.UserName,
+                Text = req.Text,
+                CreatedAt = DateTime.Now
             };
-
-            poszt.Kommentek.Add(uj_komment);
-            return Ok(uj_komment);
+            post.Comments.Add(comment);
+            return Ok(comment);
         }
 
-        // 11. KOMMENTEK LISTÁJA
-        [HttpGet("{post_id}/kommentek")]
-        public ActionResult<List<CommunityComment>> KommentekListaja(string post_id)
+        [HttpGet("{postId}/comments")]
+        public ActionResult<List<CommunityComment>> Comments(string postId)
         {
-            var poszt = PosztKeresese(post_id);
-            if (poszt == null)
-            {
-                return NotFound("Nincs ilyen poszt.");
-            }
-
-            return Ok(poszt.Kommentek.OrderByDescending(k => k.Idobelyeg).ToList());
+            var post = CommunityStore.FindPost(postId);
+            if (post == null) return NotFound("Nincs ilyen poszt.");
+            return Ok(post.Comments.OrderByDescending(c => c.CreatedAt).ToList());
         }
 
-        // 12. MENTÉS RUTINKÉNT — haver edzéstervét lemented
-        [HttpPost("{post_id}/mentes-rutinkent")]
-        public ActionResult<Routine> MentésRutinkent(string post_id, [FromQuery] string userName)
+        [HttpPost("{postId}/save-as-plan")]
+        public ActionResult<Plan> SaveAsPlan(string postId, [FromQuery] string userName)
         {
-            var poszt = PosztKeresese(post_id);
-            if (poszt == null)
-            {
-                return NotFound("Nincs ilyen poszt.");
-            }
-
-            if (poszt.Edzes.Exercises.Count == 0)
-            {
+            var post = CommunityStore.FindPost(postId);
+            if (post == null) return NotFound("Nincs ilyen poszt.");
+            if (post.Workout.Exercises.Count == 0)
                 return BadRequest("A poszton nincs gyakorlat, rutin nem mentheto.");
-            }
 
-            var uj_rutin = Routine.LetrehozasKozossegPosztbol(poszt, userName);
-            EdzesTervTarolo.MentettRutinok.Add(uj_rutin);
-            DataPersistence.RutinokMentese();
-            return Ok(uj_rutin);
+            var plan = Plan.FromCommunityPost(post, userName);
+            PlanStore.SavedPlans.Add(plan);
+            DataStore.SavePlans();
+            return Ok(plan);
         }
 
-        // 13. FELHASZNÁLÓ KERESÉS
-        [HttpGet("felhasznalok")]
-        public ActionResult<List<object>> FelhasznalokKeresese([FromQuery] string? kereses = null)
-        {
-            var osszes = CommunityTarolo.Posztok
-                .GroupBy(p => p.UserName)
-                .Select(g => new
-                {
-                    userName = g.Key,
-                    posztSzam = g.Count(),
-                    osszLike = g.Sum(p => p.LikeSzam),
-                    utolsoEdzes = g.Max(p => p.Megosztva),
-                    legutobbiEdzesCim = g.OrderByDescending(p => p.Megosztva).First().Edzes.Title
-                })
-                .OrderByDescending(u => u.posztSzam);
+        [HttpGet("users")]
+        public ActionResult<object> SearchUsers([FromQuery] string? q = null) =>
+            Ok(CommunityService.UserStats(q));
 
-            if (!string.IsNullOrWhiteSpace(kereses))
-            {
-                var szurt = osszes
-                    .Where(u => u.userName.Contains(kereses, StringComparison.OrdinalIgnoreCase))
-                    .ToList<object>();
-                return Ok(szurt);
-            }
-
-            return Ok(osszes.ToList<object>());
-        }
-
-        // 14. FELHASZNÁLÓ POSZTJAI
-        [HttpGet("felhasznalo/{userName}")]
-        public ActionResult<List<CommunityPost>> FelhasznaloPosztjai(string userName)
-        {
-            var posztok = CommunityTarolo.Posztok
+        [HttpGet("user/{userName}")]
+        public ActionResult<List<CommunityPost>> UserPosts(string userName) =>
+            Ok(CommunityStore.Posts
                 .Where(p => p.UserName.Equals(userName, StringComparison.OrdinalIgnoreCase))
-                .OrderByDescending(p => p.Megosztva)
-                .ToList();
-            return Ok(posztok);
-        }
+                .OrderByDescending(p => p.SharedAt)
+                .ToList());
 
-        // 15. KÖVETÉS
-        [HttpPost("kovet/{kovetett}")]
-        public ActionResult KovetesFelvetel(string kovetett, [FromQuery] string koveto)
+        [HttpPost("follow/{target}")]
+        public ActionResult Follow(string target, [FromQuery] string follower)
         {
-            if (string.IsNullOrWhiteSpace(koveto)) return BadRequest("koveto query param kotelezo.");
-            if (!CommunityTarolo.KoveteEllenorzes(koveto, kovetett))
+            if (string.IsNullOrWhiteSpace(follower))
+                return BadRequest("follower query param kotelezo.");
+
+            if (!CommunityStore.IsFollowing(follower, target))
             {
-                CommunityTarolo.Kovetek.Add(new KovetesInfo { Koveto = koveto, Kovetett = kovetett, Ota = DateTime.Now });
+                CommunityStore.Follows.Add(new FollowInfo
+                {
+                    Follower = follower,
+                    Following = target,
+                    Since = DateTime.Now
+                });
             }
-            return Ok(new { koveto, kovetett, kovet = true });
+            return Ok(new { follower, following = target, followingNow = true });
         }
 
-        // 16. KÖVETÉS VISSZAVONÁSA
-        [HttpDelete("kovet/{kovetett}")]
-        public ActionResult KovetesVisszavonasa(string kovetett, [FromQuery] string koveto)
+        [HttpDelete("follow/{target}")]
+        public ActionResult Unfollow(string target, [FromQuery] string follower)
         {
-            var elem = CommunityTarolo.Kovetek
-                .FirstOrDefault(k => k.Koveto == koveto && k.Kovetett == kovetett);
-            if (elem != null) CommunityTarolo.Kovetek.Remove(elem);
-            return Ok(new { koveto, kovetett, kovet = false });
+            var item = CommunityStore.Follows
+                .FirstOrDefault(f => f.Follower == follower && f.Following == target);
+            if (item != null) CommunityStore.Follows.Remove(item);
+            return Ok(new { follower, following = target, followingNow = false });
         }
 
-        // 17. KÖVETÉSEK LEKÉRDEZÉSE
-        [HttpGet("kovetesek")]
-        public ActionResult<object> KovetesekLekerdezese([FromQuery] string userName)
+        [HttpGet("follows")]
+        public ActionResult<object> Follows([FromQuery] string userName)
         {
-            var kovetett = CommunityTarolo.Kovetek
-                .Where(k => k.Koveto == userName)
-                .Select(k => k.Kovetett)
+            var following = CommunityStore.Follows
+                .Where(f => f.Follower == userName)
+                .Select(f => f.Following)
                 .ToList();
-            var koveto = CommunityTarolo.Kovetek
-                .Where(k => k.Kovetett == userName)
-                .Select(k => k.Koveto)
+            var followers = CommunityStore.Follows
+                .Where(f => f.Following == userName)
+                .Select(f => f.Follower)
                 .ToList();
-            return Ok(new { kovetett, koveto, kovetettSzam = kovetett.Count, kovetoSzam = koveto.Count });
-        }
-
-        // --- Segédfüggvények ---
-
-        private static string SanitizeFileName(string nev)
-        {
-            var karakterek = nev
-                .Where(c => char.IsLetterOrDigit(c) || c == '-' || c == '_')
-                .ToArray();
-
-            var tisztitott = new string(karakterek);
-            return string.IsNullOrWhiteSpace(tisztitott) ? "user" : tisztitott.ToLowerInvariant();
-        }
-
-        private static List<CommunityPost> FeedRendezese(List<CommunityPost> posztok)
-        {
-            return posztok.OrderByDescending(p => p.Megosztva).ToList();
-        }
-
-        private static CommunityPost? PosztKeresese(string post_id)
-        {
-            return CommunityTarolo.Posztok
-                .FirstOrDefault(p => p.Id.Equals(post_id, StringComparison.OrdinalIgnoreCase));
-        }
-
-        private static MegyeInfo? MegyeKeresese(string megye_azonosito)
-        {
-            return CommunityTarolo.MagyarMegyek.FirstOrDefault(m =>
-                m.Id.Equals(megye_azonosito, StringComparison.OrdinalIgnoreCase) ||
-                m.Nev.Equals(megye_azonosito, StringComparison.OrdinalIgnoreCase));
+            return Ok(new
+            {
+                following,
+                followers,
+                followingCount = following.Count,
+                followerCount = followers.Count
+            });
         }
     }
 }

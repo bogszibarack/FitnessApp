@@ -1,11 +1,11 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/workout_models.dart';
 import '../../services/sound_service.dart';
-import '../../widgets/modern_gomb.dart';
+import '../../services/workout_service.dart';
+import '../../widgets/modern_button.dart';
 
 /// Edzés befejezése után megjelenő összefoglaló + progresszió-tervező.
 class WorkoutSummaryScreen extends StatefulWidget {
@@ -28,12 +28,12 @@ class WorkoutSummaryScreen extends StatefulWidget {
 class _WorkoutSummaryScreenState extends State<WorkoutSummaryScreen> with SingleTickerProviderStateMixin {
   late final TextEditingController _cimCtrl;
   bool _mentRutin = false;
-  double _progresszio = 5.0;
+  double _progress = 5.0;
   bool _mentes = false;
   late AnimationController _animCtrl;
   late Animation<double> _fadeAnim;
 
-  static const _prefKey = 'utolso_progresszio';
+  final _service = WorkoutService.instance;
 
   @override
   void initState() {
@@ -44,20 +44,18 @@ class _WorkoutSummaryScreenState extends State<WorkoutSummaryScreen> with Single
     SoundService.instance.edzesBefejezesHang();
     _fadeAnim = CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut);
     _animCtrl.forward();
-    _loadPreferences();
+    _loadProgresszio();
   }
 
-  Future<void> _loadPreferences() async {
-    final prefs = await SharedPreferences.getInstance();
-    final mentett = prefs.getDouble(_prefKey);
-    if (mentett != null && mounted) {
-      setState(() => _progresszio = mentett.clamp(0.0, 20.0));
-    }
+  Future<void> _loadProgresszio() async {
+    try {
+      final mentett = await _service.getProgressPercent();
+      if (mounted) setState(() => _progress = mentett);
+    } catch (_) {}
   }
 
-  Future<void> _savePreferences() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setDouble(_prefKey, _progresszio);
+  Future<void> _saveProgresszio() async {
+    await _service.saveProgressPercent(_progress);
   }
 
   @override
@@ -70,10 +68,10 @@ class _WorkoutSummaryScreenState extends State<WorkoutSummaryScreen> with Single
   // ─── Progresszió értékelő logika ──────────────────────────────────────────
 
   _ProgresszioSzint get _szint {
-    if (_progresszio == 0) return _ProgresszioSzint.deload;
-    if (_progresszio <= 2.5) return _ProgresszioSzint.mikro;
-    if (_progresszio <= 5.0) return _ProgresszioSzint.ajanlott;
-    if (_progresszio <= 10.0) return _ProgresszioSzint.aggressziv;
+    if (_progress == 0) return _ProgresszioSzint.deload;
+    if (_progress <= 2.5) return _ProgresszioSzint.mikro;
+    if (_progress <= 5.0) return _ProgresszioSzint.ajanlott;
+    if (_progress <= 10.0) return _ProgresszioSzint.aggressziv;
     return _ProgresszioSzint.tulterheles;
   }
 
@@ -235,7 +233,7 @@ class _WorkoutSummaryScreenState extends State<WorkoutSummaryScreen> with Single
   Widget _buildProgresszioSzekcio(_ProgresszioSzint szint) {
     final szin = szint.szin;
     final terheles = widget.edzes.osszTomegKg;
-    final jovoheti = terheles * (1 + _progresszio / 100);
+    final jovoheti = terheles * (1 + _progress / 100);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
@@ -262,7 +260,7 @@ class _WorkoutSummaryScreenState extends State<WorkoutSummaryScreen> with Single
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
-                        _progresszio == 0 ? '0' : '+${_progresszio.toStringAsFixed(1)}',
+                        _progress == 0 ? '0' : '+${_progress.toStringAsFixed(1)}',
                         style: TextStyle(
                           fontSize: 42,
                           fontWeight: FontWeight.w900,
@@ -301,8 +299,8 @@ class _WorkoutSummaryScreenState extends State<WorkoutSummaryScreen> with Single
               min: 0,
               max: 20,
               divisions: 40,
-              value: _progresszio,
-              onChanged: (v) => setState(() => _progresszio = (v * 2).round() / 2),
+              value: _progress,
+              onChanged: (v) => setState(() => _progress = (v * 2).round() / 2),
             ),
           ),
           Padding(
@@ -370,7 +368,7 @@ class _WorkoutSummaryScreenState extends State<WorkoutSummaryScreen> with Single
           const _SzekcioFejlec(cim: 'Elvégzett gyakorlatok'),
           const SizedBox(height: 10),
           ...widget.edzes.exercises.map((gy) {
-            final elvegzett = gy.sets.where((s) => s.elvegezve).toList();
+            final elvegzett = gy.sets.where((s) => s.isDone).toList();
             if (elvegzett.isEmpty) return const SizedBox.shrink();
             final maxSuly = elvegzett.map((s) => s.weight).fold(0.0, max);
             final osszIsmIndex = elvegzett.fold(0, (sum, s) => sum + s.reps);
@@ -426,12 +424,12 @@ class _WorkoutSummaryScreenState extends State<WorkoutSummaryScreen> with Single
   }
 
   Future<void> _onMentes() async {
-    Haptika.kozepes();
+    Haptics.medium();
     setState(() => _mentes = true);
-    await _savePreferences();
+    await _saveProgresszio();
     try {
       final cim = _cimCtrl.text.trim().isEmpty ? widget.edzes.title : _cimCtrl.text.trim();
-      await widget.onMentes(cim, _mentRutin, _progresszio);
+      await widget.onMentes(cim, _mentRutin, _progress);
     } catch (e) {
       if (mounted) {
         setState(() => _mentes = false);

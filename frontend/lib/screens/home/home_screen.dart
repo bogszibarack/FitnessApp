@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/community_models.dart';
 import '../../models/daily_health_data.dart';
 import '../../services/apple_health_service.dart';
 import '../../services/community_service.dart';
 import '../../services/home_service.dart';
+import '../../services/local_store.dart';
 import '../../services/streak_service.dart';
-import '../../theme/app_tema.dart';
+import '../../theme/app_theme.dart';
 import '../../widgets/health_data_panel.dart';
 import '../../widgets/nutrition_summary_card.dart';
 import '../community/community_screen.dart';
@@ -30,7 +30,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final _communityService = CommunityService.instance;
   DailyHealthData _data = DailyHealthData.empty();
   MealCalories _meals = const MealCalories();
-  List<CommunityPosztModel> _feedElonezet = [];
+  List<CommunityPostModel> _feedElonezet = [];
   bool _loading = true;
   bool _permissionNeeded = false;
   String? _error;
@@ -52,9 +52,9 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final result = await _homeService.loadToday();
       if (!mounted) return;
-      final streak = await StreakService.frissitEsKap(result.data.caloriesConsumed > 0);
+      final streak = await StreakService.refreshAndGet(result.data.caloriesConsumed > 0);
       // Feed előnézet betöltése (csak az első 2 poszt)
-      List<CommunityPosztModel> feedElonezet = [];
+      List<CommunityPostModel> feedElonezet = [];
       try {
         final lista = await _communityService.feed();
         feedElonezet = lista.take(2).toList();
@@ -86,8 +86,7 @@ class _HomeScreenState extends State<HomeScreen> {
     // Ezért mindig mentjük a health_enabled flagot és próbálunk adatot tölteni.
     await _healthService.requestPermissions();
     if (!mounted) return;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('health_enabled', true);
+    await LocalStore.instance.setHealthEnabled(true);
     await _loadData();
   }
 
@@ -109,7 +108,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final weekNumber = _weekOfYear(now);
 
     return Scaffold(
-      backgroundColor: AppSzinek.hatter,
+      backgroundColor: AppColors.hatter,
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _loadData,
@@ -128,7 +127,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         'Ma',
                         style: Theme.of(context).textTheme.headlineLarge?.copyWith(
                               fontWeight: FontWeight.w800,
-                              color: AppSzinek.szoveg,
+                              color: AppColors.szoveg,
                               fontSize: 34,
                             ),
                       ),
@@ -196,10 +195,10 @@ class _HomeScreenState extends State<HomeScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppSzinek.kartya,
+        color: AppColors.kartya,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppSzinek.szegely),
-        boxShadow: [BoxShadow(color: AppSzinek.arnyek, blurRadius: 8, offset: const Offset(0, 2))],
+        border: Border.all(color: AppColors.szegely),
+        boxShadow: [BoxShadow(color: AppColors.arnyek, blurRadius: 8, offset: const Offset(0, 2))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -332,7 +331,7 @@ class _HomeScreenState extends State<HomeScreen> {
         IconButton(
           onPressed: _loadData,
           icon: const Icon(Icons.refresh),
-          color: AppSzinek.szoveg,
+          color: AppColors.szoveg,
         ),
       ],
     );
@@ -347,7 +346,7 @@ class _HomeScreenState extends State<HomeScreen> {
         gradient: aktiv
             ? const LinearGradient(colors: [Color(0xFFFF6D00), Color(0xFFFFB300)])
             : null,
-        color: aktiv ? null : AppSzinek.halvanyKitoltes,
+        color: aktiv ? null : AppColors.halvanyKitoltes,
         borderRadius: BorderRadius.circular(20),
         boxShadow: aktiv
             ? [BoxShadow(color: const Color(0xFFFF6D00).withValues(alpha: 0.35), blurRadius: 8, offset: const Offset(0, 2))]
@@ -379,7 +378,7 @@ class _HomeScreenState extends State<HomeScreen> {
       children: [
         Text(
           title,
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppSzinek.szoveg),
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.szoveg),
         ),
         const Spacer(),
         if (action.isNotEmpty)
@@ -401,9 +400,9 @@ class _HomeScreenState extends State<HomeScreen> {
           Container(
             padding: const EdgeInsets.symmetric(vertical: 28),
             decoration: BoxDecoration(
-              color: AppSzinek.kartya,
+              color: AppColors.kartya,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppSzinek.szegely),
+              border: Border.all(color: AppColors.szegely),
             ),
             child: Center(
               child: Column(
@@ -446,19 +445,19 @@ class _HomeScreenState extends State<HomeScreen> {
 
 class _HomeFeedKartya extends StatelessWidget {
   const _HomeFeedKartya({required this.poszt});
-  final CommunityPosztModel poszt;
+  final CommunityPostModel poszt;
 
   @override
   Widget build(BuildContext context) {
-    final elvegzettSorozatok = poszt.edzes.exercises.fold(
-        0, (sum, gy) => sum + gy.sets.where((s) => s.elvegezve).length);
+    final elvegzettSorozatok = poszt.workout.exercises.fold(
+        0, (sum, gy) => sum + gy.sets.where((s) => s.isDone).length);
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppSzinek.kartya,
+        color: AppColors.kartya,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppSzinek.szegely),
+        border: Border.all(color: AppColors.szegely),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -482,18 +481,18 @@ class _HomeFeedKartya extends StatelessWidget {
                 children: [
                   Icon(Icons.favorite, size: 14, color: Colors.red.shade300),
                   const SizedBox(width: 3),
-                  Text('${poszt.likeSzam}',
+                  Text('${poszt.likeCount}',
                       style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
                 ],
               ),
             ],
           ),
           const SizedBox(height: 10),
-          Text(poszt.edzes.title,
+          Text(poszt.workout.title,
               style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
           const SizedBox(height: 4),
           Text(
-            '${poszt.edzes.exercises.length} gyakorlat · $elvegzettSorozatok sorozat · ${poszt.megye}',
+            '${poszt.workout.exercises.length} gyakorlat · $elvegzettSorozatok sorozat · ${poszt.county}',
             style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
           ),
         ],

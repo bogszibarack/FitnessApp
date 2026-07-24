@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../../models/exercise_model.dart';
-import '../../models/routine_model.dart';
+import '../../models/plan_model.dart';
 import '../../models/workout_models.dart';
 import '../../services/exercise_service.dart';
-import '../../services/workout_service.dart';
-import '../../theme/app_tema.dart';
+import '../../services/plan_service.dart';
+import '../../theme/app_theme.dart';
 import '../../widgets/exercise_workout_widgets.dart';
 
 /// AI (vagy egyéb) rutin előnézete — gyakorlat részletek, mint hozzáadásnál.
@@ -16,7 +16,7 @@ class RoutinePreviewScreen extends StatefulWidget {
     this.ai = false,
   });
 
-  final RoutineModel rutin;
+  final PlanModel rutin;
   final bool ai;
 
   @override
@@ -24,7 +24,7 @@ class RoutinePreviewScreen extends StatefulWidget {
 }
 
 class _RoutinePreviewScreenState extends State<RoutinePreviewScreen> {
-  final _service = WorkoutService.instance;
+  final _service = PlanService.instance;
   final _exerciseService = ExerciseService.instance;
 
   bool _mentve = false;
@@ -39,7 +39,7 @@ class _RoutinePreviewScreenState extends State<RoutinePreviewScreen> {
     super.initState();
     for (var i = 0; i < widget.rutin.exerciseIds.length; i++) {
       final id = widget.rutin.exerciseIds[i];
-      _sorozatok[id] = widget.rutin.gyakorlatSablonok
+      _sorozatok[id] = widget.rutin.exerciseTemplates
               .where((g) => g.exerciseId == id)
               .map((g) => g.sets)
               .where((s) => s.isNotEmpty)
@@ -48,7 +48,7 @@ class _RoutinePreviewScreenState extends State<RoutinePreviewScreen> {
     }
   }
 
-  RoutineModel _rutinSablonokkal() {
+  PlanModel _rutinSablonokkal() {
     final sablonok = <LoggedExerciseModel>[];
     for (var i = 0; i < widget.rutin.exerciseIds.length; i++) {
       final id = widget.rutin.exerciseIds[i];
@@ -59,7 +59,7 @@ class _RoutinePreviewScreenState extends State<RoutinePreviewScreen> {
         sets: List<LoggedSetModel>.from(_sorozatok[id] ?? WorkoutSessionModel.alapSorozatok()),
       ));
     }
-    return widget.rutin.copyWith(gyakorlatSablonok: sablonok);
+    return widget.rutin.copyWith(exerciseTemplates: sablonok);
   }
 
   Future<void> _gyakorlatKinyitasa(String id) async {
@@ -92,7 +92,7 @@ class _RoutinePreviewScreenState extends State<RoutinePreviewScreen> {
     if (_mentve || _mentesFolyamatban) return;
     setState(() => _mentesFolyamatban = true);
     try {
-      await _service.rutinMentese(_rutinSablonokkal());
+      await _service.save(_rutinSablonokkal());
       if (!mounted) return;
       setState(() {
         _mentve = true;
@@ -129,14 +129,14 @@ class _RoutinePreviewScreenState extends State<RoutinePreviewScreen> {
     final rutin = widget.rutin;
 
     return Scaffold(
-      backgroundColor: AppSzinek.felulet,
+      backgroundColor: AppColors.felulet,
       appBar: AppBar(
         title: Text(
           rutin.title,
           style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 17),
         ),
-        backgroundColor: AppSzinek.felulet,
-        foregroundColor: AppSzinek.szoveg,
+        backgroundColor: AppColors.felulet,
+        foregroundColor: AppColors.szoveg,
         elevation: 0.5,
       ),
       body: Column(

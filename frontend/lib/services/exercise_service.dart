@@ -11,40 +11,53 @@ class ExerciseService {
 
   final String _base = ApiConfig.baseUrl;
 
-  Future<List<ExerciseModel>> kereses(String keresoszo) async {
-    return szures(kereses: keresoszo.trim().isEmpty ? null : keresoszo.trim());
+  Future<List<ExerciseModel>> search(String query) async {
+    return filter(q: query.trim().isEmpty ? null : query.trim());
   }
 
-  Future<ExerciseModel?> gyakorlatLekerdezese(String id) async {
+  Future<ExerciseModel?> getById(String id) async {
     if (id.isEmpty) return null;
     final uri = Uri.parse('$_base/api/exercise/${Uri.encodeComponent(id)}');
     final response = await http.get(uri).timeout(const Duration(seconds: 60));
     if (response.statusCode == 404) return null;
-    _ellenorzes(response);
+    _check(response);
     return ExerciseModel.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
   }
+
+  Future<List<ExerciseModel>> filter({
+    String? q,
+    String? muscle,
+    String? equipment,
+    String? category,
+  }) async {
+    final params = <String, String>{};
+    if (q != null && q.isNotEmpty) params['q'] = q;
+    if (muscle != null && muscle.isNotEmpty) params['muscle'] = muscle;
+    if (equipment != null && equipment.isNotEmpty) params['equipment'] = equipment;
+    if (category != null && category.isNotEmpty) params['category'] = category;
+
+    final uri = Uri.parse('$_base/api/exercise/search').replace(queryParameters: params);
+    final response = await http.get(uri).timeout(const Duration(seconds: 60));
+    _check(response);
+
+    final list = jsonDecode(response.body) as List<dynamic>;
+    return list.map((e) => ExerciseModel.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  // Legacy aliases for call sites not yet renamed
+  Future<List<ExerciseModel>> kereses(String keresoszo) => search(keresoszo);
+
+  Future<ExerciseModel?> gyakorlatLekerdezese(String id) => getById(id);
 
   Future<List<ExerciseModel>> szures({
     String? kereses,
     String? izomcsoport,
     String? felszereles,
     String? kategoria,
-  }) async {
-    final params = <String, String>{};
-    if (kereses != null && kereses.isNotEmpty) params['kereses'] = kereses;
-    if (izomcsoport != null && izomcsoport.isNotEmpty) params['izomcsoport'] = izomcsoport;
-    if (felszereles != null && felszereles.isNotEmpty) params['felszereles'] = felszereles;
-    if (kategoria != null && kategoria.isNotEmpty) params['kategoria'] = kategoria;
+  }) =>
+      filter(q: kereses, muscle: izomcsoport, equipment: felszereles, category: kategoria);
 
-    final uri = Uri.parse('$_base/api/exercise/kereses').replace(queryParameters: params);
-    final response = await http.get(uri).timeout(const Duration(seconds: 60));
-    _ellenorzes(response);
-
-    final lista = jsonDecode(response.body) as List<dynamic>;
-    return lista.map((e) => ExerciseModel.fromJson(e as Map<String, dynamic>)).toList();
-  }
-
-  void _ellenorzes(http.Response response) {
+  void _check(http.Response response) {
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception('Gyakorlat API hiba (${response.statusCode}): ${response.body}');
     }

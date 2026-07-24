@@ -19,6 +19,6 @@ class ApiConfig {
   static String kep(String url) {
     if (url.isEmpty) return url;
     if (url.startsWith(baseUrl)) return url;
-    return '$baseUrl/api/kep?url=${Uri.encodeComponent(url)}';
+    return '$baseUrl/api/image?url=${Uri.encodeComponent(url)}';
   }
 }

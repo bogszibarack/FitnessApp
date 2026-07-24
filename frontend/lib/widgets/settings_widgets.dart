@@ -1,7 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
-import '../theme/app_tema.dart';
+import '../theme/app_theme.dart';
 
 // ─── Ikon segéd ────────────────────────────────────────────────────────────
 
@@ -70,7 +70,7 @@ class SettingsSectionHeader extends StatelessWidget {
           fontSize: 11,
           fontWeight: FontWeight.w700,
           letterSpacing: 1.1,
-          color: AppSzinek.halvanySzoveg,
+          color: AppColors.halvanySzoveg,
         ),
       ),
     );
@@ -101,7 +101,7 @@ class SettingsListTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final szin = ikonSzin ?? const Color(0xFF9E9E9E);
     return Material(
-      color: AppSzinek.kartya,
+      color: AppColors.kartya,
       child: InkWell(
         onTap: onTap,
         child: Padding(
@@ -127,7 +127,7 @@ class SettingsListTile extends StatelessWidget {
                         Expanded(
                           child: Text(
                             title,
-                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: AppSzinek.szoveg),
+                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: AppColors.szoveg),
                           ),
                         ),
                         if (proBadge)
@@ -147,12 +147,12 @@ class SettingsListTile extends StatelessWidget {
                     ),
                     if (subtitle != null) ...[
                       const SizedBox(height: 2),
-                      Text(subtitle!, style: TextStyle(fontSize: 12, color: AppSzinek.halvanySzoveg)),
+                      Text(subtitle!, style: TextStyle(fontSize: 12, color: AppColors.halvanySzoveg)),
                     ],
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right_rounded, color: AppSzinek.halvanySzoveg, size: 20),
+              Icon(Icons.chevron_right_rounded, color: AppColors.halvanySzoveg, size: 20),
             ],
           ),
         ),
@@ -187,7 +187,7 @@ class KapcsoloTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final szin = ikonSzin ?? const Color(0xFF1E88E5);
     return Container(
-      color: AppSzinek.kartya,
+      color: AppColors.kartya,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
         children: [
@@ -210,12 +210,12 @@ class KapcsoloTile extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w500,
-                    color: letiltva ? Colors.grey : AppSzinek.szoveg,
+                    color: letiltva ? Colors.grey : AppColors.szoveg,
                   ),
                 ),
                 if (subtitle != null) ...[
                   const SizedBox(height: 2),
-                  Text(subtitle!, style: TextStyle(fontSize: 12, color: AppSzinek.halvanySzoveg)),
+                  Text(subtitle!, style: TextStyle(fontSize: 12, color: AppColors.halvanySzoveg)),
                 ],
               ],
             ),
@@ -246,11 +246,11 @@ class BeallitasSzekcio extends StatelessWidget {
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 4),
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: AppSzinek.kartya,
+        color: AppColors.kartya,
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: AppSzinek.arnyek,
+            color: AppColors.arnyek,
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -261,7 +261,7 @@ class BeallitasSzekcio extends StatelessWidget {
           for (var i = 0; i < children.length; i++) ...[
             children[i],
             if (i < children.length - 1)
-              Divider(height: 1, indent: 64, color: AppSzinek.szegely),
+              Divider(height: 1, indent: 64, color: AppColors.szegely),
           ],
         ],
       ),

@@ -1,31 +1,61 @@
+class ProgressSettings {
+  const ProgressSettings({
+    this.mode = 'szazalek',
+    this.percent = 5.0,
+    this.kg = 2.5,
+    this.repBoost = 0,
+  });
+
+  final String mode;
+  final double percent;
+  final double kg;
+  final int repBoost;
+
+  factory ProgressSettings.fromJson(Map<String, dynamic> json) {
+    return ProgressSettings(
+      mode: json['mode'] as String? ?? json['novelesModja'] as String? ?? 'szazalek',
+      percent: (json['percent'] ?? json['sulySzazalek'] as num?)?.toDouble() ?? 5.0,
+      kg: (json['kg'] ?? json['sulyKg'] as num?)?.toDouble() ?? 2.5,
+      repBoost: json['repBoost'] as int? ?? json['ismetlesNoveles'] as int? ?? 0,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'mode': mode,
+        'percent': percent.clamp(0.0, 20.0),
+        'kg': kg,
+        'repBoost': repBoost,
+      };
+}
+
 class LoggedSetModel {
   LoggedSetModel({
     required this.setNumber,
-    this.bemelegites = false,
+    this.isWarmup = false,
     this.weight = 0,
     this.reps = 0,
-    this.celIsmetles = '',
+    this.targetReps = '',
     this.rpe = 0,
-    this.elvegezve = false,
-    this.elozoSulyKg = 0,
-    this.elozoIsmetles = 0,
+    this.isDone = false,
+    this.prevWeightKg = 0,
+    this.prevReps = 0,
   });
 
   final int setNumber;
-  final bool bemelegites;
+  final bool isWarmup;
   final double weight;
   final int reps;
-  final String celIsmetles;
+  final String targetReps;
   final int rpe;
-  final bool elvegezve;
-  final double elozoSulyKg;
-  final int elozoIsmetles;
+  final bool isDone;
+  final double prevWeightKg;
+  final int prevReps;
 
-  String get setLabel => bemelegites ? 'W' : '$setNumber';
+  String get setLabel => isWarmup ? 'W' : '$setNumber';
 
   String get elozoSzoveg {
-    if (elozoSulyKg > 0 || elozoIsmetles > 0) {
-      return '${elozoSulyKg == elozoSulyKg.roundToDouble() ? elozoSulyKg.toInt() : elozoSulyKg} × $elozoIsmetles';
+    if (prevWeightKg > 0 || prevReps > 0) {
+      return '${prevWeightKg == prevWeightKg.roundToDouble() ? prevWeightKg.toInt() : prevWeightKg} × $prevReps';
     }
     return '-';
   }
@@ -33,50 +63,52 @@ class LoggedSetModel {
   factory LoggedSetModel.fromJson(Map<String, dynamic> json) {
     return LoggedSetModel(
       setNumber: json['setNumber'] as int? ?? 0,
-      bemelegites: json['bemelegites'] as bool? ?? false,
+      isWarmup: json['isWarmup'] as bool? ?? json['bemelegites'] as bool? ?? false,
       weight: (json['weight'] as num?)?.toDouble() ?? 0,
       reps: json['reps'] as int? ?? 0,
-      celIsmetles: json['celIsmetles'] as String? ?? '',
+      targetReps: json['targetReps'] as String? ?? json['celIsmetles'] as String? ?? '',
       rpe: json['rpe'] as int? ?? 0,
-      elvegezve: json['elvegezve'] as bool? ?? false,
-      elozoSulyKg: (json['elozoSulyKg'] as num?)?.toDouble() ?? 0,
-      elozoIsmetles: json['elozoIsmetles'] as int? ?? 0,
+      isDone: json['isDone'] as bool? ?? json['elvegezve'] as bool? ?? false,
+      prevWeightKg: (json['prevWeightKg'] as num?)?.toDouble()
+          ?? (json['elozoSulyKg'] as num?)?.toDouble()
+          ?? 0,
+      prevReps: json['prevReps'] as int? ?? json['elozoIsmetles'] as int? ?? 0,
     );
   }
 
   Map<String, dynamic> toJson() => {
         'setNumber': setNumber,
-        'bemelegites': bemelegites,
+        'isWarmup': isWarmup,
         'weight': weight,
         'reps': reps,
-        'celIsmetles': celIsmetles,
+        'targetReps': targetReps,
         'rpe': rpe,
-        'elvegezve': elvegezve,
-        'elozoSulyKg': elozoSulyKg,
-        'elozoIsmetles': elozoIsmetles,
+        'isDone': isDone,
+        'prevWeightKg': prevWeightKg,
+        'prevReps': prevReps,
       };
 
   LoggedSetModel copyWith({
     int? setNumber,
-    bool? bemelegites,
+    bool? isWarmup,
     double? weight,
     int? reps,
-    String? celIsmetles,
+    String? targetReps,
     int? rpe,
-    bool? elvegezve,
-    double? elozoSulyKg,
-    int? elozoIsmetles,
+    bool? isDone,
+    double? prevWeightKg,
+    int? prevReps,
   }) {
     return LoggedSetModel(
       setNumber: setNumber ?? this.setNumber,
-      bemelegites: bemelegites ?? this.bemelegites,
+      isWarmup: isWarmup ?? this.isWarmup,
       weight: weight ?? this.weight,
       reps: reps ?? this.reps,
-      celIsmetles: celIsmetles ?? this.celIsmetles,
+      targetReps: targetReps ?? this.targetReps,
       rpe: rpe ?? this.rpe,
-      elvegezve: elvegezve ?? this.elvegezve,
-      elozoSulyKg: elozoSulyKg ?? this.elozoSulyKg,
-      elozoIsmetles: elozoIsmetles ?? this.elozoIsmetles,
+      isDone: isDone ?? this.isDone,
+      prevWeightKg: prevWeightKg ?? this.prevWeightKg,
+      prevReps: prevReps ?? this.prevReps,
     );
   }
 }
@@ -92,7 +124,7 @@ class LoggedExerciseModel {
   final String exerciseName;
   final List<LoggedSetModel> sets;
 
-  int get elvegzettSorozatok => sets.where((s) => s.elvegezve).length;
+  int get elvegzettSorozatok => sets.where((s) => s.isDone).length;
 
   factory LoggedExerciseModel.fromJson(Map<String, dynamic> json) {
     return LoggedExerciseModel(
@@ -119,9 +151,9 @@ class WorkoutSessionModel {
     required this.exercises,
     this.id = 0,
     this.durationSeconds = 0,
-    this.osszTomegKg = 0,
-    this.osszSorozatSzam = 0,
-    this.elteltMasodperc = 0,
+    this.totalVolumeKg = 0,
+    this.completedSets = 0,
+    this.elapsedSeconds = 0,
   });
 
   final int id;
@@ -130,9 +162,14 @@ class WorkoutSessionModel {
   final int durationSeconds;
   final bool isActive;
   final List<LoggedExerciseModel> exercises;
-  final double osszTomegKg;
-  final int osszSorozatSzam;
-  final int elteltMasodperc;
+  final double totalVolumeKg;
+  final int completedSets;
+  final int elapsedSeconds;
+
+  // Legacy aliases
+  double get osszTomegKg => totalVolumeKg;
+  int get osszSorozatSzam => completedSets;
+  int get elteltMasodperc => elapsedSeconds;
 
   factory WorkoutSessionModel.fromJson(Map<String, dynamic> json) {
     return WorkoutSessionModel(
@@ -144,18 +181,18 @@ class WorkoutSessionModel {
       exercises: (json['exercises'] as List<dynamic>? ?? [])
           .map((e) => LoggedExerciseModel.fromJson(e as Map<String, dynamic>))
           .toList(),
-      osszTomegKg: (json['osszTomegKg'] as num?)?.toDouble() ?? 0,
-      osszSorozatSzam: json['osszSorozatSzam'] as int? ?? 0,
-      elteltMasodperc: json['elteltMasodperc'] as int? ?? 0,
+      totalVolumeKg: ((json['totalVolumeKg'] ?? json['osszTomegKg']) as num?)?.toDouble() ?? 0,
+      completedSets: (json['completedSets'] ?? json['osszSorozatSzam']) as int? ?? 0,
+      elapsedSeconds: (json['elapsedSeconds'] ?? json['elteltMasodperc']) as int? ?? 0,
     );
   }
 
   static List<LoggedSetModel> alapSorozatok() {
     return [
-      LoggedSetModel(setNumber: 1, bemelegites: true, celIsmetles: '10'),
-      LoggedSetModel(setNumber: 2, bemelegites: true, celIsmetles: '4-6'),
-      LoggedSetModel(setNumber: 3, bemelegites: false, celIsmetles: '10-12'),
-      LoggedSetModel(setNumber: 4, bemelegites: false, celIsmetles: '10-12'),
+      LoggedSetModel(setNumber: 1, isWarmup: true, targetReps: '10'),
+      LoggedSetModel(setNumber: 2, isWarmup: true, targetReps: '4-6'),
+      LoggedSetModel(setNumber: 3, isWarmup: false, targetReps: '10-12'),
+      LoggedSetModel(setNumber: 4, isWarmup: false, targetReps: '10-12'),
     ];
   }
 
@@ -169,7 +206,7 @@ class WorkoutSessionModel {
   }
 
   String get idoSzoveg {
-    final mp = durationSeconds > 0 ? durationSeconds : elteltMasodperc;
+    final mp = durationSeconds > 0 ? durationSeconds : elapsedSeconds;
     final perc = mp ~/ 60;
     final masodperc = mp % 60;
     return '${perc.toString().padLeft(2, '0')}:${masodperc.toString().padLeft(2, '0')}';
@@ -201,9 +238,9 @@ class WorkoutSessionModel {
       durationSeconds: durationSeconds,
       isActive: isActive,
       exercises: exercises ?? this.exercises,
-      osszTomegKg: osszTomegKg,
-      osszSorozatSzam: osszSorozatSzam,
-      elteltMasodperc: elteltMasodperc,
+      totalVolumeKg: totalVolumeKg,
+      completedSets: completedSets,
+      elapsedSeconds: elapsedSeconds,
     );
   }
 }

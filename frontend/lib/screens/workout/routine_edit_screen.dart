@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../../config/api_config.dart';
 import '../../models/exercise_model.dart';
-import '../../models/routine_model.dart';
+import '../../models/plan_model.dart';
 import '../../models/workout_models.dart';
-import '../../services/workout_service.dart';
-import '../../theme/app_tema.dart';
+import '../../services/plan_service.dart';
+import '../../theme/app_theme.dart';
 import '../../widgets/exercise_workout_widgets.dart';
 import 'exercise_picker_screen.dart';
 
@@ -17,7 +17,7 @@ class RoutineEditScreen extends StatefulWidget {
     this.ujRutin = false,
   });
 
-  final RoutineModel rutin;
+  final PlanModel rutin;
   final bool ujRutin;
 
   @override
@@ -25,7 +25,7 @@ class RoutineEditScreen extends StatefulWidget {
 }
 
 class _RoutineEditScreenState extends State<RoutineEditScreen> {
-  final _service = WorkoutService.instance;
+  final _service = PlanService.instance;
   late final TextEditingController _cimController;
   late List<LoggedExerciseModel> _gyakorlatok;
   bool _mentes = false;
@@ -36,8 +36,8 @@ class _RoutineEditScreenState extends State<RoutineEditScreen> {
   void initState() {
     super.initState();
     _cimController = TextEditingController(text: widget.rutin.title);
-    if (widget.rutin.gyakorlatSablonok.isNotEmpty) {
-      _gyakorlatok = List.from(widget.rutin.gyakorlatSablonok);
+    if (widget.rutin.exerciseTemplates.isNotEmpty) {
+      _gyakorlatok = List.from(widget.rutin.exerciseTemplates);
     } else {
       _gyakorlatok = widget.rutin.exerciseIds.asMap().entries.map((e) {
         final idx = e.key;
@@ -87,12 +87,12 @@ class _RoutineEditScreenState extends State<RoutineEditScreen> {
         title: cim,
         exerciseIds: _gyakorlatok.map((g) => g.exerciseId).toList(),
         exerciseNames: _gyakorlatok.map((g) => g.exerciseName).toList(),
-        gyakorlatSablonok: _gyakorlatok,
+        exerciseTemplates: _gyakorlatok,
       );
 
       if (_ujRutin) {
-        await _service.rutinMentese(
-          RoutineModel(
+        await _service.save(
+          PlanModel(
             id: '',
             title: friss.title,
             difficulty: widget.rutin.difficulty.isNotEmpty ? widget.rutin.difficulty : 'beginner',
@@ -101,11 +101,11 @@ class _RoutineEditScreenState extends State<RoutineEditScreen> {
             exerciseIds: friss.exerciseIds,
             exerciseNames: friss.exerciseNames,
             creatorName: ApiConfig.defaultUserName,
-            gyakorlatSablonok: friss.gyakorlatSablonok,
+            exerciseTemplates: friss.exerciseTemplates,
           ),
         );
       } else {
-        await _service.rutinModositas(friss);
+        await _service.update(friss);
       }
 
       if (!mounted) return;
@@ -138,7 +138,7 @@ class _RoutineEditScreenState extends State<RoutineEditScreen> {
     if (ok != true) return;
 
     try {
-      await _service.rutinTorlese(widget.rutin.id);
+      await _service.delete(widget.rutin.id);
       if (!mounted) return;
       Navigator.of(context).pop(true);
     } catch (e) {
@@ -158,14 +158,14 @@ class _RoutineEditScreenState extends State<RoutineEditScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppSzinek.hatter,
+      backgroundColor: AppColors.hatter,
       appBar: AppBar(
         title: Text(
           _ujRutin ? 'Új rutin' : 'Rutin szerkesztése',
           style: const TextStyle(fontWeight: FontWeight.w700),
         ),
-        backgroundColor: AppSzinek.felulet,
-        foregroundColor: AppSzinek.szoveg,
+        backgroundColor: AppColors.felulet,
+        foregroundColor: AppColors.szoveg,
         elevation: 0.5,
         actions: [
           if (!_ujRutin)

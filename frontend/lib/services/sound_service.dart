@@ -1,46 +1,46 @@
 import 'package:flutter/services.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
-/// Kezeli az in-app hangokat és rezgéseket.
-/// Beállítások SharedPreferences-be mentve, hogy az edzésbeállítás képernyőn
-/// kikapcsolt PR hang valóban hatásos legyen.
+import 'local_store.dart';
+
+/// In-app sounds and haptics. Settings persisted via [LocalStore].
 class SoundService {
   SoundService._();
   static final SoundService instance = SoundService._();
 
-  static const _kulcsHangok = 'sound_hangok';
-  static const _kulcsPrHang = 'sound_pr_hang';
+  bool _soundEnabled = true;
+  bool _prSound = true;
+  bool _initialized = false;
 
-  bool _hangok = true;
-  bool _prHang = true;
-  bool _inicializalva = false;
+  Future<void> init() async {
+    if (_initialized) return;
+    _initialized = true;
+    final settings = await LocalStore.instance.getSoundSettings();
+    _soundEnabled = settings.soundEnabled;
+    _prSound = settings.soundPr;
+  }
 
-  Future<void> inicializalas() async {
-    if (_inicializalva) return;
-    _inicializalva = true;
-    final prefs = await SharedPreferences.getInstance();
-    _hangok = prefs.getBool(_kulcsHangok) ?? true;
-    _prHang = prefs.getBool(_kulcsPrHang) ?? true;
+  Future<void> inicializalas() => init();
+
+  Future<void> saveSettings({bool? soundEnabled, bool? prSound}) async {
+    if (soundEnabled != null) _soundEnabled = soundEnabled;
+    if (prSound != null) _prSound = prSound;
+    await LocalStore.instance.setSoundSettings(
+      soundEnabled: soundEnabled,
+      soundPr: prSound,
+    );
   }
 
   Future<void> beallitasMentes({bool? hangok, bool? prHang}) async {
-    final prefs = await SharedPreferences.getInstance();
-    if (hangok != null) {
-      _hangok = hangok;
-      await prefs.setBool(_kulcsHangok, hangok);
-    }
-    if (prHang != null) {
-      _prHang = prHang;
-      await prefs.setBool(_kulcsPrHang, prHang);
-    }
+    await saveSettings(soundEnabled: hangok, prSound: prHang);
   }
 
-  bool get hangokAktiv => _hangok;
-  bool get prHangAktiv => _hangok && _prHang;
+  bool get soundEnabled => _soundEnabled;
+  bool get prSoundEnabled => _soundEnabled && _prSound;
+  bool get hangokAktiv => soundEnabled;
+  bool get prHangAktiv => prSoundEnabled;
 
-  /// PR hang: erős ütés-haptic + rendszer alert hang.
-  Future<void> prHangJatszas() async {
-    if (!_hangok || !_prHang) return;
+  Future<void> playPrSound() async {
+    if (!prSoundEnabled) return;
     await HapticFeedback.heavyImpact();
     await Future<void>.delayed(const Duration(milliseconds: 80));
     await SystemSound.play(SystemSoundType.alert);
@@ -48,9 +48,10 @@ class SoundService {
     await HapticFeedback.mediumImpact();
   }
 
-  /// Edzés befejezés: háromszoros leszálló haptic (fanfár érzet).
-  Future<void> edzesBefejezesHang() async {
-    if (!_hangok) return;
+  Future<void> prHangJatszas() => playPrSound();
+
+  Future<void> playWorkoutCompleteSound() async {
+    if (!_soundEnabled) return;
     await HapticFeedback.heavyImpact();
     await Future<void>.delayed(const Duration(milliseconds: 180));
     await HapticFeedback.heavyImpact();
@@ -59,4 +60,6 @@ class SoundService {
     await Future<void>.delayed(const Duration(milliseconds: 100));
     await HapticFeedback.lightImpact();
   }
+
+  Future<void> edzesBefejezesHang() => playWorkoutCompleteSound();
 }

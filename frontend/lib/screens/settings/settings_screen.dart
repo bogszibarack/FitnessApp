@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/beallitas_models.dart';
 import '../../services/apple_health_service.dart';
-import '../../services/beallitasok_service.dart';
+import '../../services/local_store.dart';
+import '../../services/settings_service.dart';
 import '../../services/streak_service.dart';
-import '../../theme/app_tema.dart';
+import '../../theme/app_theme.dart';
 import '../../utils/platform_utils.dart';
 import '../../widgets/settings_widgets.dart';
 import '../onboarding/onboarding_screen.dart';
@@ -19,7 +19,7 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  late final BeallitasokService _service;
+  late final SettingsService _service;
   List<BeallitasMenuSzekcio> _szekciok = [];
   bool _betolt = true;
   String? _hiba;
@@ -31,7 +31,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void initState() {
     super.initState();
-    _service = BeallitasokService();
+    _service = SettingsService();
     _init();
   }
 
@@ -39,14 +39,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() { _betolt = true; _hiba = null; });
     try {
       final szekciok = await _service.menuLekerdezes();
-      final streak = await StreakService.lekeres();
+      final streak = await StreakService.fetch();
       String nev = '';
       try {
-        final profil = await _service.getSzekcio('/api/beallitasok/${_service.userName}/profil');
+        final profil = await _service.getSzekcio('/api/settings/${_service.userName}/profile');
         nev = profil['nev'] as String? ?? '';
       } catch (_) {}
-      final prefs = await SharedPreferences.getInstance();
-      final healthEnabled = prefs.getBool('health_enabled') ?? false;
+      final healthEnabled = await LocalStore.instance.getHealthEnabled();
       if (!mounted) return;
       setState(() {
         _szekciok = szekciok;
@@ -78,10 +77,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       case 'integraciok-all': kepernyo = IntegraciokScreen(service: _service); break;
       case 'export-import': kepernyo = ExportScreen(service: _service); break;
       case 'utmutato-kezdes':
-        kepernyo = StatikusTartalomScreen(cim: 'Kezdő útmutató', apiUt: '/api/beallitasok/utmutatok/kezdes', service: _service);
+        kepernyo = StatikusTartalomScreen(cim: 'Kezdő útmutató', apiUt: '/api/settings/guides/getting-started', service: _service);
         break;
       case 'utmutato-rutin':
-        kepernyo = StatikusTartalomScreen(cim: 'Rutin segítség', apiUt: '/api/beallitasok/utmutatok/rutin', service: _service);
+        kepernyo = StatikusTartalomScreen(cim: 'Rutin segítség', apiUt: '/api/settings/guides/routine', service: _service);
         break;
       case 'gyik':         kepernyo = GyikScreen(service: _service); break;
       case 'kapcsolat':    kepernyo = KapcsolatScreen(service: _service); break;
@@ -95,7 +94,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppSzinek.hatter,
+      backgroundColor: AppColors.hatter,
       body: SafeArea(
         child: _betolt
             ? const Center(child: CircularProgressIndicator())
@@ -131,7 +130,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w900,
-              color: AppSzinek.szoveg,
+              color: AppColors.szoveg,
               letterSpacing: -0.5,
             ),
           ),
@@ -150,9 +149,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
         margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: AppSzinek.kartya,
+          color: AppColors.kartya,
           borderRadius: BorderRadius.circular(18),
-          boxShadow: [BoxShadow(color: AppSzinek.arnyek, blurRadius: 10, offset: const Offset(0, 3))],
+          boxShadow: [BoxShadow(color: AppColors.arnyek, blurRadius: 10, offset: const Offset(0, 3))],
         ),
         child: Row(
           children: [
@@ -184,9 +183,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(_nev, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppSzinek.szoveg)),
+                  Text(_nev, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.szoveg)),
                   const SizedBox(height: 4),
-                  Text('Profil szerkesztése', style: TextStyle(fontSize: 13, color: AppSzinek.halvanySzoveg)),
+                  Text('Profil szerkesztése', style: TextStyle(fontSize: 13, color: AppColors.halvanySzoveg)),
                 ],
               ),
             ),
@@ -217,11 +216,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       child: Container(
         decoration: BoxDecoration(
-          color: AppSzinek.kartya,
+          color: AppColors.kartya,
           borderRadius: BorderRadius.circular(18),
           boxShadow: [
             BoxShadow(
-              color: AppSzinek.arnyek,
+              color: AppColors.arnyek,
               blurRadius: 10,
               offset: const Offset(0, 3),
             ),
@@ -257,7 +256,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
-                            color: AppSzinek.szoveg,
+                            color: AppColors.szoveg,
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -322,7 +321,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       'Lépésszám, kalória, edzés és egyéb mozgásadatok szinkronizálása a Home képernyőre.',
                       style: TextStyle(
                         fontSize: 12,
-                        color: AppSzinek.mellekSzoveg,
+                        color: AppColors.mellekSzoveg,
                         height: 1.45,
                       ),
                     ),
@@ -378,8 +377,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() => _healthBetolt = true);
     try {
       await AppleHealthService.instance.requestPermissions();
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('health_enabled', true);
+      await LocalStore.instance.setHealthEnabled(true);
       if (!mounted) return;
       setState(() {
         _healthEnabled = true;
@@ -410,11 +408,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
         children: [
           Container(
             decoration: BoxDecoration(
-              color: AppSzinek.kartya,
+              color: AppColors.kartya,
               borderRadius: BorderRadius.circular(14),
               boxShadow: [
                 BoxShadow(
-                  color: AppSzinek.arnyek,
+                  color: AppColors.arnyek,
                   blurRadius: 6,
                   offset: const Offset(0, 2),
                 )
@@ -487,9 +485,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     if (megerosit != true || !mounted) return;
 
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('onboarding_complete', false);
-    await prefs.remove('current_user_name');
+    await LocalStore.instance.clearSession();
 
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(

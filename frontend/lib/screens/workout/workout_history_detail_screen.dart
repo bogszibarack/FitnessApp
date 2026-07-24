@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../models/workout_models.dart';
 import '../../services/workout_service.dart';
-import '../../theme/app_tema.dart';
+import '../../theme/app_theme.dart';
 import '../../widgets/exercise_workout_widgets.dart';
 
 /// Befejezett edzés megtekintése és szerkesztése.
@@ -41,7 +41,7 @@ class _WorkoutHistoryDetailScreenState extends State<WorkoutHistoryDetailScreen>
         title: _cimController.text.trim(),
         exercises: _gyakorlatok,
       );
-      await _service.edzesTortenetModositas(friss);
+      await _service.updateHistoryEntry(friss);
       if (!mounted) return;
       Navigator.of(context).pop(true);
     } catch (e) {
@@ -72,7 +72,7 @@ class _WorkoutHistoryDetailScreenState extends State<WorkoutHistoryDetailScreen>
     if (ok != true) return;
 
     try {
-      await _service.edzesTortenetTorlese(widget.edzes.id);
+      await _service.deleteHistoryEntry(widget.edzes.id);
       if (!mounted) return;
       Navigator.of(context).pop(true);
     } catch (e) {
@@ -92,10 +92,10 @@ class _WorkoutHistoryDetailScreenState extends State<WorkoutHistoryDetailScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppSzinek.hatter,
+      backgroundColor: AppColors.hatter,
       appBar: AppBar(
-        backgroundColor: AppSzinek.felulet,
-        foregroundColor: AppSzinek.szoveg,
+        backgroundColor: AppColors.felulet,
+        foregroundColor: AppColors.szoveg,
         elevation: 0.5,
         title: const Text('Edzés szerkesztése', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
         actions: [

@@ -1,24 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
-import 'config/api_config.dart';
 import 'screens/main_shell.dart';
 import 'screens/onboarding/onboarding_screen.dart';
+import 'services/local_store.dart';
 import 'services/sound_service.dart';
-import 'theme/app_tema.dart';
+import 'theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await SoundService.instance.inicializalas();
-  await TemaVezerlo.betoltes();
-
-  // Mentett felhasználónév betöltése (ha volt már onboarding)
-  final prefs = await SharedPreferences.getInstance();
-  final savedName = prefs.getString('current_user_name');
-  if (savedName != null && savedName.isNotEmpty) {
-    ApiConfig.defaultUserName = savedName;
-  }
-
+  await SoundService.instance.init();
+  await ThemeController.load();
+  await LocalStore.instance.loadSession();
   runApp(const FitnessApp());
 }
 
@@ -44,21 +35,20 @@ class _FitnessAppState extends State<FitnessApp> with WidgetsBindingObserver {
 
   @override
   void didChangePlatformBrightness() {
-    // Rendszer módban az OS világos/sötét váltását is követjük.
-    setState(() => AppSzinek.frissites());
+    setState(() => AppColors.refresh());
   }
 
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<ThemeMode>(
-      valueListenable: TemaVezerlo.mod,
+      valueListenable: ThemeController.mode,
       builder: (context, mod, _) {
-        AppSzinek.frissites();
+        AppColors.refresh();
         return MaterialApp(
           title: 'Flexio',
           debugShowCheckedModeBanner: false,
-          theme: vilagosTema(),
-          darkTheme: sotetTema(),
+          theme: lightTheme(),
+          darkTheme: darkTheme(),
           themeMode: mod,
           home: const _SplashRouter(),
         );
@@ -80,7 +70,7 @@ class _SplashRouterState extends State<_SplashRouter>
   late final Animation<double> _scaleAnim;
   late final Animation<double> _fadeAnim;
 
-  Widget? _kovetkezo;
+  Widget? _next;
 
   @override
   void initState() {
@@ -95,13 +85,11 @@ class _SplashRouterState extends State<_SplashRouter>
         .drive(Tween(begin: 0.0, end: 1.0));
 
     _ctrl.forward().then((_) async {
-      // Meghatározzuk a következő képernyőt a splash után
-      final prefs = await SharedPreferences.getInstance();
-      final onboardingKesz = prefs.getBool('onboarding_complete') ?? false;
+      final session = await LocalStore.instance.loadSession();
       await Future.delayed(const Duration(milliseconds: 600));
       if (!mounted) return;
       setState(() {
-        _kovetkezo = onboardingKesz
+        _next = session.onboardingComplete
             ? const MainShell()
             : const OnboardingScreen();
       });
@@ -116,10 +104,10 @@ class _SplashRouterState extends State<_SplashRouter>
 
   @override
   Widget build(BuildContext context) {
-    if (_kovetkezo != null) return _kovetkezo!;
+    if (_next != null) return _next!;
 
     return Scaffold(
-      backgroundColor: AppSzinek.felulet,
+      backgroundColor: AppColors.felulet,
       body: Center(
         child: AnimatedBuilder(
           animation: _ctrl,
@@ -141,7 +129,7 @@ class _SplashRouterState extends State<_SplashRouter>
                     style: TextStyle(
                       fontSize: 32,
                       fontWeight: FontWeight.w900,
-                      color: AppSzinek.szoveg,
+                      color: AppColors.szoveg,
                       letterSpacing: -1,
                     ),
                   ),

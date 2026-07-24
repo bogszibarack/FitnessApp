@@ -1,13 +1,11 @@
-import 'dart:convert';
 import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../config/api_config.dart';
 import '../../services/apple_health_service.dart';
+import '../../services/auth_service.dart';
+import '../../services/local_store.dart';
 import '../main_shell.dart';
 import 'login_screen.dart';
 
@@ -73,7 +71,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final _featurePageCtrl = PageController();
   int _featurePage = 0;
 
-  bool _betoltes = false;
+  bool _loading = false;
 
   @override
   void dispose() {
@@ -125,161 +123,66 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       return;
     }
 
-    setState(() => _betoltes = true);
+    setState(() => _loading = true);
     try {
-      // Helyi ellenőrzés (backend-újraindítás esetén is megbízható)
-      final prefs = await SharedPreferences.getInstance();
-      final rawJson = prefs.getString('local_accounts') ?? '[]';
-      final List<dynamic> fiokList = jsonDecode(rawJson) as List<dynamic>;
-      for (final f in fiokList) {
-        final fiok = f as Map<String, dynamic>;
-        if ((fiok['email'] as String).toLowerCase() == email.toLowerCase()) {
-          _hibaUzenet('Ez az e-mail cím már foglalt. Próbálj bejelentkezni!');
-          return;
-        }
-        if ((fiok['username'] as String).toLowerCase() == user.toLowerCase()) {
-          _hibaUzenet('Ez a felhasználónév már foglalt. Válassz másikat!');
-          return;
-        }
+      if (await AuthService.instance.checkEmail(email)) {
+        _hibaUzenet('Ez az e-mail cím már foglalt. Próbálj bejelentkezni!');
+        return;
       }
-
-      // Backend ellenőrzés (ha elérhető)
-      final emailUrl = Uri.parse(
-          '${ApiConfig.baseUrl}/api/auth/check-email?email=${Uri.encodeComponent(email)}');
-      final emailResp =
-          await http.get(emailUrl).timeout(const Duration(seconds: 5));
-      if (emailResp.statusCode == 200) {
-        final json = jsonDecode(emailResp.body) as Map<String, dynamic>;
-        if (json['occupied'] == true) {
-          _hibaUzenet('Ez az e-mail cím már foglalt. Próbálj bejelentkezni!');
-          return;
-        }
-      }
-      final userUrl = Uri.parse(
-          '${ApiConfig.baseUrl}/api/auth/check-username?username=${Uri.encodeComponent(user)}');
-      final userResp =
-          await http.get(userUrl).timeout(const Duration(seconds: 5));
-      if (userResp.statusCode == 200) {
-        final json = jsonDecode(userResp.body) as Map<String, dynamic>;
-        if (json['occupied'] == true) {
-          _hibaUzenet('Ez a felhasználónév már foglalt. Válassz másikat!');
-          return;
-        }
+      if (await AuthService.instance.checkUsername(user)) {
+        _hibaUzenet('Ez a felhasználónév már foglalt. Válassz másikat!');
+        return;
       }
     } catch (_) {
-      // Backend nem elérhető — helyi ellenőrzés már megtörtént, folytatjuk
+      _hibaUzenet('A szerver nem elérhető. Ellenőrizd az internetkapcsolatot!');
+      return;
     } finally {
-      if (mounted) setState(() => _betoltes = false);
+      if (mounted) setState(() => _loading = false);
     }
 
     _kovetkezoLepesre();
   }
 
   Future<void> _regisztracioKuldes() async {
-    setState(() => _betoltes = true);
+    setState(() => _loading = true);
 
     final email = _emailCtrl.text.trim().toLowerCase();
     final username = _userCtrl.text.trim();
     final password = _passCtrl.text;
 
-    // Helyi mentés MINDIG megtörténik — backend-független bejelentkezéshez
-    await _helybentiMentes(email: email, username: username, password: password);
-
     try {
-      final url = Uri.parse('${ApiConfig.baseUrl}/api/auth/register-onboarding');
-      final valasz = await http
-          .post(
-            url,
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({
-              'Email': email,
-              'Password': password,
-              'Username': username,
-              'WeightUnit': _sulyEgyseg,
-              'DistanceUnit': _tavolsagEgyseg,
-              'MeasurementUnit': _testmeretEgyseg,
-              'Weight': double.tryParse(_sulyCtrl.text) ?? 0,
-              'County': _valasztottMegye ?? '',
-              'Source': _valasztottForras ?? '',
-            }),
-          )
-          .timeout(const Duration(seconds: 10));
+      final userName = await AuthService.instance.register(
+        email: email,
+        password: password,
+        username: username,
+        weightUnit: _sulyEgyseg,
+        distanceUnit: _tavolsagEgyseg,
+        measurementUnit: _testmeretEgyseg,
+        weight: double.tryParse(_sulyCtrl.text) ?? 0,
+        county: _valasztottMegye ?? '',
+        source: _valasztottForras ?? '',
+      );
 
       if (!mounted) return;
-
-      if (valasz.statusCode == 200) {
-        final json = jsonDecode(valasz.body) as Map<String, dynamic>;
-        final userName = json['userName'] as String? ?? username;
-        await _onboardingBefejezese(userName);
-      } else if (valasz.statusCode == 409) {
-        // Már létezik: beengedjük, az adatok megvannak helyileg
-        await _onboardingBefejezese(username);
+      await _onboardingBefejezese(userName);
+    } on AuthException catch (e) {
+      if (!mounted) return;
+      if (e.statusCode == 409) {
+        _hibaUzenet(e.errorMessage ?? 'Ez a fiók már létezik. Jelentkezz be!');
       } else {
-        final json = jsonDecode(valasz.body) as Map<String, dynamic>;
-        _hibaUzenet(json['error'] as String? ?? 'Hiba történt a regisztráció során.');
+        _hibaUzenet(e.errorMessage ?? 'Hiba történt a regisztráció során.');
       }
     } catch (_) {
-      // Backend nem elérhető — helyi adatokkal folytatjuk
-      if (!mounted) return;
-      await _onboardingBefejezese(username.isNotEmpty ? username : 'Felhasználó');
-    } finally {
-      if (mounted) setState(() => _betoltes = false);
-    }
-  }
-
-  /// Regisztrált fiók helyi mentése SharedPreferences-be.
-  /// Ez garantálja, hogy backend-újraindítás után is be lehessen lépni.
-  Future<void> _helybentiMentes({
-    required String email,
-    required String username,
-    required String password,
-  }) async {
-    final prefs = await SharedPreferences.getInstance();
-    // Meglévő fiókok beolvasása (JSON lista)
-    final rawJson = prefs.getString('local_accounts') ?? '[]';
-    final List<dynamic> fiokList = jsonDecode(rawJson) as List<dynamic>;
-
-    // Duplikált email/username ellenőrzés
-    final mar = fiokList.any((f) {
-      final m = f as Map<String, dynamic>;
-      return (m['email'] as String).toLowerCase() == email ||
-          (m['username'] as String).toLowerCase() == username.toLowerCase();
-    });
-    if (!mar) {
-      fiokList.add({
-        'email': email,
-        'username': username,
-        'password': password,
-      });
-    } else {
-      // Frissítés, ha ugyanaz az email/felhasználónév — pl. újra regisztrál
-      for (var i = 0; i < fiokList.length; i++) {
-        final m = fiokList[i] as Map<String, dynamic>;
-        if ((m['email'] as String).toLowerCase() == email ||
-            (m['username'] as String).toLowerCase() == username.toLowerCase()) {
-          fiokList[i] = {
-            'email': email,
-            'username': username,
-            'password': password,
-          };
-          break;
-        }
+      if (mounted) {
+        _hibaUzenet('A szerver nem elérhető. A regisztrációhoz internet kell.');
       }
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
-    await prefs.setString('local_accounts', jsonEncode(fiokList));
   }
 
   Future<void> _onboardingBefejezese(String userName) async {
-    ApiConfig.defaultUserName = userName;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('onboarding_complete', true);
-    await prefs.setString('current_user_name', userName);
-    await prefs.setString('weight_unit', _sulyEgyseg);
-    await prefs.setString('distance_unit', _tavolsagEgyseg);
-    await prefs.setString('measurement_unit', _testmeretEgyseg);
-    if (_valasztottMegye != null) {
-      await prefs.setString('county', _valasztottMegye!);
-    }
+    await LocalStore.instance.setSession(userName);
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const MainShell()),
@@ -344,8 +247,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 _AppleHealthPage(
                   onEngedelyez: () async {
                     await AppleHealthService.instance.requestPermissions();
-                    final prefs = await SharedPreferences.getInstance();
-                    await prefs.setBool('health_enabled', true);
+                    await LocalStore.instance.setHealthEnabled(true);
                     _kovetkezoLepesre();
                   },
                   onKihagyas: _kovetkezoLepesre,
@@ -378,7 +280,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   onSkip: _kihagyasra,
                 ),
                 _SuccessPage(
-                  betoltes: _betoltes,
+                  loading: _loading,
                   onKezdes: _regisztracioKuldes,
                 ),
               ],
@@ -1843,10 +1745,10 @@ class _ChartPainter extends CustomPainter {
 // ─── Lap 7: Befejezés ────────────────────────────────────────────────────────
 
 class _SuccessPage extends StatefulWidget {
-  final bool betoltes;
+  final bool loading;
   final VoidCallback onKezdes;
 
-  const _SuccessPage({required this.betoltes, required this.onKezdes});
+  const _SuccessPage({required this.loading, required this.onKezdes});
 
   @override
   State<_SuccessPage> createState() => _SuccessPageState();
@@ -1940,9 +1842,9 @@ class _SuccessPageState extends State<_SuccessPage>
               ),
               const Spacer(flex: 3),
               _ContinueButton(
-                label: widget.betoltes ? '' : 'Kezdés!',
-                onTap: widget.betoltes ? () {} : widget.onKezdes,
-                loading: widget.betoltes,
+                label: widget.loading ? '' : 'Kezdés!',
+                onTap: widget.loading ? () {} : widget.onKezdes,
+                loading: widget.loading,
               ),
               const SizedBox(height: 32),
             ],

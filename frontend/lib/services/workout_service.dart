@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../config/api_config.dart';
-import '../models/routine_model.dart';
+import '../models/plan_model.dart';
 import '../models/workout_models.dart';
 
 class WorkoutService {
@@ -12,32 +12,9 @@ class WorkoutService {
 
   final String _base = ApiConfig.baseUrl;
 
-  Future<List<RoutineModel>> aiAjanlatok({
-    String difficulty = 'beginner',
-    String targetMuscle = 'Chest',
-    String sportCategory = 'gym',
-  }) async {
-    final response = await http.post(
-      Uri.parse('$_base/api/routine/ai-generalas'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'difficulty': difficulty,
-        'targetMuscle': targetMuscle,
-        'sportCategory': sportCategory,
-      }),
-    );
-    _ellenorzes(response);
-    final lista = jsonDecode(response.body) as List<dynamic>;
-    return lista.map((e) => RoutineModel.fromJson(e as Map<String, dynamic>)).toList();
-  }
-
-  Future<List<RoutineModel>> sajatRutinok() async {
-    return _getLista('/api/routine/sajatok');
-  }
-
-  Future<List<WorkoutSessionModel>> edzesTortenet() async {
+  Future<List<WorkoutSessionModel>> workoutHistory() async {
     final response = await http.get(Uri.parse('$_base/api/workout/history'));
-    _ellenorzes(response);
+    _check(response);
     final lista = jsonDecode(response.body) as List<dynamic>;
     return lista
         .map((e) => WorkoutSessionModel.fromJson(e as Map<String, dynamic>))
@@ -46,64 +23,59 @@ class WorkoutService {
         .toList();
   }
 
-  Future<List<RoutineModel>> _getLista(String ut) async {
-    final response = await http.get(Uri.parse('$_base$ut'));
-    _ellenorzes(response);
-    final lista = jsonDecode(response.body) as List<dynamic>;
-    return lista.map((e) => RoutineModel.fromJson(e as Map<String, dynamic>)).toList();
-  }
-
-  Future<WorkoutSessionModel> uresEdzesInditasa() async {
+  Future<WorkoutSessionModel> startEmptyWorkout() async {
     final response = await http.post(Uri.parse('$_base/api/workout/uj-ures-edzes'));
-    _ellenorzes(response);
+    _check(response);
     return WorkoutSessionModel.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
   }
 
-  Future<WorkoutSessionModel> rutinInditasa(RoutineModel rutin, {bool mentett = false}) async {
-    final uri = mentett && rutin.id.isNotEmpty
-        ? Uri.parse('$_base/api/workout/inditas-rutinbol/${rutin.id}')
+  Future<WorkoutSessionModel> startFromPlan(PlanModel plan, {bool saved = false}) async {
+    final uri = saved && plan.id.isNotEmpty
+        ? Uri.parse('$_base/api/workout/inditas-rutinbol/${plan.id}')
         : Uri.parse('$_base/api/workout/inditas-rutinbol');
 
-    final response = mentett && rutin.id.isNotEmpty
+    final response = saved && plan.id.isNotEmpty
         ? await http.post(uri)
         : await http.post(
             uri,
             headers: {'Content-Type': 'application/json'},
-            body: jsonEncode(rutin.toJson()),
+            body: jsonEncode(plan.toJson()),
           );
 
-    _ellenorzes(response);
+    _check(response);
     return WorkoutSessionModel.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
   }
 
-  Future<WorkoutSessionModel?> aktivEdzes() async {
+  Future<WorkoutSessionModel?> activeWorkout() async {
     final response = await http.get(Uri.parse('$_base/api/workout/aktiv'));
     if (response.statusCode == 404) return null;
-    _ellenorzes(response);
+    _check(response);
     return WorkoutSessionModel.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
   }
 
-  Future<WorkoutSessionModel> edzesBefejezese() async {
+  Future<WorkoutSessionModel?> activeWorkoutOrNull() => activeWorkout();
+
+  Future<WorkoutSessionModel> finishWorkout() async {
     final response = await http.post(Uri.parse('$_base/api/workout/aktiv/befejezes'));
-    _ellenorzes(response);
+    _check(response);
     return WorkoutSessionModel.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
   }
 
-  Future<void> edzesElvetese() async {
+  Future<void> discardWorkout() async {
     final response = await http.delete(Uri.parse('$_base/api/workout/aktiv'));
-    _ellenorzes(response);
+    _check(response);
   }
 
-  Future<void> edzesCimFrissitese(String cim) async {
+  Future<void> updateWorkoutTitle(String title) async {
     final response = await http.put(
       Uri.parse('$_base/api/workout/aktiv'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'title': cim}),
+      body: jsonEncode({'title': title}),
     );
-    _ellenorzes(response);
+    _check(response);
   }
 
-  Future<LoggedExerciseModel> gyakorlatHozzaadasa({
+  Future<LoggedExerciseModel> addExercise({
     required String exerciseId,
     required String exerciseName,
     List<LoggedSetModel>? sets,
@@ -117,176 +89,168 @@ class WorkoutService {
         'sets': (sets ?? []).map((s) => s.toJson()).toList(),
       }),
     );
-    _ellenorzes(response);
-    var gyakorlat = LoggedExerciseModel.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
+    _check(response);
+    var exercise = LoggedExerciseModel.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
 
     if (sets != null && sets.isNotEmpty) {
-      gyakorlat = await sorozatokFrissitese(exerciseId, sets);
+      exercise = await updateSets(exerciseId, sets);
     }
 
-    return gyakorlat;
+    return exercise;
   }
 
-  Future<LoggedExerciseModel> gyakorlatLekerdezese(String exerciseId) async {
-    final response = await http.get(Uri.parse('$_base/api/workout/aktiv/gyakorlat/${Uri.encodeComponent(exerciseId)}'));
-    _ellenorzes(response);
+  Future<LoggedExerciseModel> getExercise(String exerciseId) async {
+    final response = await http.get(
+      Uri.parse('$_base/api/workout/aktiv/gyakorlat/${Uri.encodeComponent(exerciseId)}'),
+    );
+    _check(response);
     return LoggedExerciseModel.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
   }
 
-  Future<LoggedExerciseModel> sorozatokFrissitese(String exerciseId, List<LoggedSetModel> sorozatok) async {
+  Future<LoggedExerciseModel> updateSets(String exerciseId, List<LoggedSetModel> sets) async {
     final response = await http.put(
       Uri.parse('$_base/api/workout/aktiv/gyakorlat/${Uri.encodeComponent(exerciseId)}/sorozatok'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(sorozatok.map((s) => s.toJson()).toList()),
+      body: jsonEncode(sets.map((s) => s.toJson()).toList()),
     );
-    _ellenorzes(response);
+    _check(response);
     return LoggedExerciseModel.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
   }
 
-  Future<LoggedSetModel> sorozatHozzaadasa(String exerciseId, {bool bemelegites = false}) async {
+  Future<LoggedSetModel> addSet(String exerciseId, {bool isWarmup = false}) async {
     final response = await http.post(
       Uri.parse('$_base/api/workout/aktiv/gyakorlat/${Uri.encodeComponent(exerciseId)}/sorozat'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'setNumber': 0,
-        'bemelegites': bemelegites,
+        'isWarmup': isWarmup,
         'weight': 0,
         'reps': 0,
-        'celIsmetles': bemelegites ? '10' : '10-12',
-        'elvegezve': false,
+        'targetReps': isWarmup ? '10' : '10-12',
+        'isDone': false,
       }),
     );
-    _ellenorzes(response);
+    _check(response);
     return LoggedSetModel.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
   }
 
-  Future<LoggedSetModel> sorozatModositasa(
+  Future<LoggedSetModel> updateSet(
     String exerciseId,
-    int sorozatSzam, {
+    int setNumber, {
     required double weight,
     required int reps,
-    String? celIsmetles,
+    String? targetReps,
   }) async {
     final response = await http.put(
-      Uri.parse('$_base/api/workout/aktiv/gyakorlat/${Uri.encodeComponent(exerciseId)}/sorozat/$sorozatSzam'),
+      Uri.parse('$_base/api/workout/aktiv/gyakorlat/${Uri.encodeComponent(exerciseId)}/sorozat/$setNumber'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'weight': weight,
         'reps': reps,
-        if (celIsmetles != null) 'celIsmetles': celIsmetles,
+        if (targetReps != null) 'targetReps': targetReps,
       }),
     );
-    _ellenorzes(response);
+    _check(response);
     return LoggedSetModel.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
   }
 
-  Future<LoggedSetModel> sorozatPipalasa(
+  Future<LoggedSetModel> completeSet(
     String exerciseId,
-    int sorozatSzam, {
+    int setNumber, {
     required double weight,
     required int reps,
   }) async {
     final response = await http.post(
-      Uri.parse('$_base/api/workout/aktiv/gyakorlat/${Uri.encodeComponent(exerciseId)}/sorozat/$sorozatSzam/pipa'),
+      Uri.parse('$_base/api/workout/aktiv/gyakorlat/${Uri.encodeComponent(exerciseId)}/sorozat/$setNumber/pipa'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'weight': weight, 'reps': reps}),
     );
-    _ellenorzes(response);
+    _check(response);
     return LoggedSetModel.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
   }
 
-  Future<LoggedSetModel> sorozatPipaVisszavonasa(String exerciseId, int sorozatSzam) async {
+  Future<LoggedSetModel> uncompleteSet(String exerciseId, int setNumber) async {
     final response = await http.delete(
-      Uri.parse('$_base/api/workout/aktiv/gyakorlat/${Uri.encodeComponent(exerciseId)}/sorozat/$sorozatSzam/pipa'),
+      Uri.parse('$_base/api/workout/aktiv/gyakorlat/${Uri.encodeComponent(exerciseId)}/sorozat/$setNumber/pipa'),
     );
-    _ellenorzes(response);
+    _check(response);
     return LoggedSetModel.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
   }
 
-  Future<void> sorozatTorlese(String exerciseId, int sorozatSzam) async {
+  Future<void> deleteSet(String exerciseId, int setNumber) async {
     final response = await http.delete(
-      Uri.parse('$_base/api/workout/aktiv/gyakorlat/${Uri.encodeComponent(exerciseId)}/sorozat/$sorozatSzam'),
+      Uri.parse('$_base/api/workout/aktiv/gyakorlat/${Uri.encodeComponent(exerciseId)}/sorozat/$setNumber'),
     );
-    _ellenorzes(response);
+    _check(response);
   }
 
-  Future<void> gyakorlatTorlese(String exerciseId) async {
+  Future<void> deleteExercise(String exerciseId) async {
     final response = await http.delete(
       Uri.parse('$_base/api/workout/aktiv/gyakorlat/${Uri.encodeComponent(exerciseId)}'),
     );
-    _ellenorzes(response);
+    _check(response);
   }
 
-  Future<RoutineModel> rutinMentese(RoutineModel rutin) async {
-    final response = await http.post(
-      Uri.parse('$_base/api/routine/mentes'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(rutin.toJson()),
-    );
-    _ellenorzes(response);
-    return RoutineModel.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
-  }
-
-  Future<RoutineModel> rutinMenteseEdzesbol({
-    required WorkoutSessionModel edzes,
-    required String rutinCim,
-  }) async {
-    final gyakorlatok = edzes.exercises;
-    final rutin = {
-      'title': rutinCim,
-      'difficulty': 'beginner',
-      'targetMuscle': gyakorlatok.isNotEmpty ? 'Full Body' : 'General',
-      'sportCategory': 'gym',
-      'creatorName': ApiConfig.defaultUserName,
-      'exerciseIds': gyakorlatok.map((g) => g.exerciseId).toList(),
-      'exerciseNames': gyakorlatok.map((g) => g.exerciseName).toList(),
-      'gyakorlatSablonok': gyakorlatok.map((g) => g.toJson()).toList(),
-    };
-
-    final response = await http.post(
-      Uri.parse('$_base/api/routine/mentes'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(rutin),
-    );
-    _ellenorzes(response);
-    return RoutineModel.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
-  }
-
-  Future<RoutineModel> rutinModositas(RoutineModel rutin) async {
+  Future<WorkoutSessionModel> updateHistoryEntry(WorkoutSessionModel session) async {
     final response = await http.put(
-      Uri.parse('$_base/api/routine/${rutin.id}'),
+      Uri.parse('$_base/api/workout/history/${session.id}'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(rutin.toJson()),
+      body: jsonEncode(session.toJson()),
     );
-    _ellenorzes(response);
-    return RoutineModel.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
-  }
-
-  Future<void> rutinTorlese(String rutinId) async {
-    final response = await http.delete(Uri.parse('$_base/api/routine/$rutinId'));
-    _ellenorzes(response);
-  }
-
-  Future<WorkoutSessionModel> edzesTortenetModositas(WorkoutSessionModel edzes) async {
-    final response = await http.put(
-      Uri.parse('$_base/api/workout/history/${edzes.id}'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(edzes.toJson()),
-    );
-    _ellenorzes(response);
+    _check(response);
     return WorkoutSessionModel.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
   }
 
-  Future<void> edzesTortenetTorlese(int edzesId) async {
-    final response = await http.delete(Uri.parse('$_base/api/workout/history/$edzesId'));
-    _ellenorzes(response);
+  Future<void> deleteHistoryEntry(int sessionId) async {
+    final response = await http.delete(Uri.parse('$_base/api/workout/history/$sessionId'));
+    _check(response);
   }
 
-  Future<WorkoutSessionModel?> aktivEdzesVagyNull() => aktivEdzes();
+  Future<ProgressSettings> getProgressSettings() async {
+    final response = await http.get(Uri.parse('$_base/api/workout/progress-settings'));
+    _check(response);
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    return ProgressSettings.fromJson(data);
+  }
 
-  void _ellenorzes(http.Response response) {
+  Future<void> saveProgressSettings(ProgressSettings settings) async {
+    final response = await http.put(
+      Uri.parse('$_base/api/workout/progress-settings'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(settings.toJson()),
+    );
+    _check(response);
+  }
+
+  Future<double> getProgressPercent() async {
+    final settings = await getProgressSettings();
+    return settings.percent.clamp(0.0, 20.0);
+  }
+
+  Future<void> saveProgressPercent(double percent) async {
+    final current = await getProgressSettings();
+    await saveProgressSettings(current.copyWith(percent: percent.clamp(0.0, 20.0)));
+  }
+
+  void _check(http.Response response) {
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception('API hiba (${response.statusCode}): ${response.body}');
     }
+  }
+}
+
+extension ProgressSettingsCopy on ProgressSettings {
+  ProgressSettings copyWith({
+    String? mode,
+    double? percent,
+    double? kg,
+    int? repBoost,
+  }) {
+    return ProgressSettings(
+      mode: mode ?? this.mode,
+      percent: percent ?? this.percent,
+      kg: kg ?? this.kg,
+      repBoost: repBoost ?? this.repBoost,
+    );
   }
 }

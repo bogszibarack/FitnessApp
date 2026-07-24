@@ -2,7 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../theme/app_tema.dart';
+import '../theme/app_theme.dart';
 
 class CalorieRing extends StatelessWidget {
   const CalorieRing({
@@ -44,7 +44,7 @@ class CalorieRing extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.w700,
-                  color: AppSzinek.szoveg,
+                  color: AppColors.szoveg,
                   height: 1.1,
                 ),
               ),
@@ -149,7 +149,7 @@ class MacroBar extends StatelessWidget {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
-                color: AppSzinek.szoveg,
+                color: AppColors.szoveg,
               ),
             ),
             Text(

@@ -8,8 +8,8 @@ import '../models/workout_models.dart';
 import '../services/exercise_service.dart';
 import '../services/sound_service.dart';
 import '../services/workout_service.dart';
-import '../theme/app_tema.dart';
-import 'modern_gomb.dart';
+import '../theme/app_theme.dart';
+import 'modern_button.dart';
 import 'pr_popup.dart';
 
 /// Kép / animáció a gyakorlatról (GitHub képkockák).
@@ -66,7 +66,7 @@ class _ExerciseMediaPreviewState extends State<ExerciseMediaPreview> {
       return AspectRatio(
         aspectRatio: widget.compact ? 2.2 : 16 / 10,
         child: ColoredBox(
-          color: AppSzinek.halvanyKitoltes,
+          color: AppColors.halvanyKitoltes,
           child: Icon(Icons.fitness_center, size: widget.compact ? 40 : 64, color: Colors.grey.shade400),
         ),
       );
@@ -230,7 +230,7 @@ class _SorozatSorState extends State<SorozatSor> {
     // Ha a jelenlegi súly 0, de van előző adat, azt mutatjuk előre kitöltve
     final megjelenitesSuly = widget.sorozat.weight > 0
         ? widget.sorozat.weight
-        : widget.sorozat.elozoSulyKg;
+        : widget.sorozat.prevWeightKg;
     _sulyController = TextEditingController(text: _sulySzoveg(megjelenitesSuly));
     _ismController = TextEditingController(text: widget.sorozat.reps > 0 ? '${widget.sorozat.reps}' : '');
     _sulyController.addListener(_autoMentes);
@@ -249,7 +249,7 @@ class _SorozatSorState extends State<SorozatSor> {
       final uj = widget.sorozat.reps > 0 ? '${widget.sorozat.reps}' : '';
       if (_ismErtek() != widget.sorozat.reps) _ismController.text = uj;
     }
-    if (oldWidget.sorozat.elvegezve != widget.sorozat.elvegezve) {
+    if (oldWidget.sorozat.isDone != widget.sorozat.isDone) {
       _sulyController.text = _sulySzoveg(widget.sorozat.weight);
       _ismController.text = widget.sorozat.reps > 0 ? '${widget.sorozat.reps}' : '';
     }
@@ -287,12 +287,12 @@ class _SorozatSorState extends State<SorozatSor> {
   }
 
   bool _prErzekeles(double suly) {
-    final elozo = widget.sorozat.elozoSulyKg;
-    return !widget.sorozat.elvegezve && suly > 0 && elozo > 0 && suly > elozo;
+    final elozo = widget.sorozat.prevWeightKg;
+    return !widget.sorozat.isDone && suly > 0 && elozo > 0 && suly > elozo;
   }
 
   Future<void> _prCelebracio(double suly) async {
-    Haptika.eros();
+    Haptics.heavy();
     if (mounted) PrPopup.mutat(context, suly: suly);
     await SoundService.instance.prHangJatszas();
   }
@@ -300,10 +300,10 @@ class _SorozatSorState extends State<SorozatSor> {
   @override
   Widget build(BuildContext context) {
     final s = widget.sorozat;
-    final kesz = s.elvegezve;
+    final kesz = s.isDone;
     final hatter = kesz
-        ? (AppSzinek.sotet ? const Color(0xFF15351F) : Colors.green.shade50)
-        : AppSzinek.kartya;
+        ? (AppColors.dark ? const Color(0xFF15351F) : Colors.green.shade50)
+        : AppColors.kartya;
 
     Widget sor = Container(
       margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
@@ -312,8 +312,8 @@ class _SorozatSorState extends State<SorozatSor> {
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
             color: kesz
-                ? (AppSzinek.sotet ? const Color(0xFF2E6B3F) : Colors.green.shade200)
-                : AppSzinek.szegely),
+                ? (AppColors.dark ? const Color(0xFF2E6B3F) : Colors.green.shade200)
+                : AppColors.szegely),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
@@ -326,7 +326,7 @@ class _SorozatSorState extends State<SorozatSor> {
                 style: TextStyle(
                   fontWeight: FontWeight.w700,
                   fontSize: 13,
-                  color: s.bemelegites ? Colors.orange.shade700 : AppSzinek.szoveg,
+                  color: s.isWarmup ? Colors.orange.shade700 : AppColors.szoveg,
                 ),
               ),
             ),
@@ -358,7 +358,7 @@ class _SorozatSorState extends State<SorozatSor> {
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                 decoration: InputDecoration(
-                  hintText: s.celIsmetles.isNotEmpty ? s.celIsmetles : 'ism',
+                  hintText: s.targetReps.isNotEmpty ? s.targetReps : 'ism',
                   isDense: true,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
                   border: InputBorder.none,
@@ -373,7 +373,7 @@ class _SorozatSorState extends State<SorozatSor> {
                 onPressed: () async {
                   final suly = _sulyErtek();
                   final prDetek = _prErzekeles(suly);
-                  Haptika.konnyu();
+                  Haptics.light();
                   await _mentesHaKell();
                   await widget.onPipa(suly, _ismErtek());
                   if (prDetek) await _prCelebracio(suly);
@@ -393,7 +393,7 @@ class _SorozatSorState extends State<SorozatSor> {
     if (widget.onTorles == null) return sor;
 
     return Dismissible(
-      key: ValueKey('dismiss-${s.setNumber}-${s.bemelegites}'),
+      key: ValueKey('dismiss-${s.setNumber}-${s.isWarmup}'),
       direction: DismissDirection.endToStart,
       background: Container(
         margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
@@ -443,7 +443,7 @@ class HelyiSorozatSzerkeszto extends StatelessWidget {
     final lista = List<LoggedSetModel>.from(sorozatok);
     lista.add(LoggedSetModel(
       setNumber: lista.length + 1,
-      celIsmetles: '10-12',
+      targetReps: '10-12',
     ));
     onValtozas(lista);
   }
@@ -463,7 +463,7 @@ class HelyiSorozatSzerkeszto extends StatelessWidget {
             )),
         Padding(
           padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
-          child: ModernGomb(
+          child: ModernButton(
             cimke: 'Sorozat hozzáadása',
             ikon: Icons.add,
             kicsi: true,
@@ -534,9 +534,9 @@ class _HelyiSorozatSorState extends State<_HelyiSorozatSor> {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
       decoration: BoxDecoration(
-        color: AppSzinek.kartya,
+        color: AppColors.kartya,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppSzinek.szegely),
+        border: Border.all(color: AppColors.szegely),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
@@ -549,7 +549,7 @@ class _HelyiSorozatSorState extends State<_HelyiSorozatSor> {
                 style: TextStyle(
                   fontWeight: FontWeight.w700,
                   fontSize: 13,
-                  color: s.bemelegites ? Colors.orange.shade700 : AppSzinek.szoveg,
+                  color: s.isWarmup ? Colors.orange.shade700 : AppColors.szoveg,
                 ),
               ),
             ),
@@ -578,7 +578,7 @@ class _HelyiSorozatSorState extends State<_HelyiSorozatSor> {
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                 decoration: InputDecoration(
-                  hintText: s.celIsmetles.isNotEmpty ? s.celIsmetles : 'ism',
+                  hintText: s.targetReps.isNotEmpty ? s.targetReps : 'ism',
                   isDense: true,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
                   border: InputBorder.none,
@@ -640,9 +640,9 @@ class _InlineGyakorlatPanelState extends State<InlineGyakorlatPanel> {
     setState(() => _betolt = true);
     try {
       final metaFuture = _exerciseService.gyakorlatLekerdezese(widget.exerciseId);
-      var gyakorlat = await _workoutService.gyakorlatLekerdezese(widget.exerciseId);
+      var gyakorlat = await _workoutService.getExercise(widget.exerciseId);
       if (gyakorlat.sets.isEmpty) {
-        gyakorlat = await _workoutService.sorozatokFrissitese(
+        gyakorlat = await _workoutService.updateSets(
           widget.exerciseId,
           WorkoutSessionModel.alapSorozatok(),
         );
@@ -661,7 +661,7 @@ class _InlineGyakorlatPanelState extends State<InlineGyakorlatPanel> {
   }
 
   Future<void> _frissit() async {
-    final gyakorlat = await _workoutService.gyakorlatLekerdezese(widget.exerciseId);
+    final gyakorlat = await _workoutService.getExercise(widget.exerciseId);
     if (!mounted) return;
     setState(() => _gyakorlat = gyakorlat);
     widget.onFrissult();
@@ -691,19 +691,19 @@ class _InlineGyakorlatPanelState extends State<InlineGyakorlatPanel> {
         ],
         const SorozatFejlec(),
         ...gyakorlat.sets.map((s) => SorozatSor(
-              key: ValueKey('${s.setNumber}-${s.elvegezve}'),
+              key: ValueKey('${s.setNumber}-${s.isDone}'),
               sorozat: s,
-              onMent: (suly, ism) => _workoutService.sorozatModositasa(
+              onMent: (suly, ism) => _workoutService.updateSet(
                 widget.exerciseId,
                 s.setNumber,
                 weight: suly,
                 reps: ism,
               ),
               onPipa: (suly, ism) async {
-                if (s.elvegezve) {
-                  await _workoutService.sorozatPipaVisszavonasa(widget.exerciseId, s.setNumber);
+                if (s.isDone) {
+                  await _workoutService.uncompleteSet(widget.exerciseId, s.setNumber);
                 } else {
-                  await _workoutService.sorozatPipalasa(
+                  await _workoutService.completeSet(
                     widget.exerciseId,
                     s.setNumber,
                     weight: suly,
@@ -713,20 +713,20 @@ class _InlineGyakorlatPanelState extends State<InlineGyakorlatPanel> {
                 await _frissit();
               },
               onTorles: () async {
-                await _workoutService.sorozatTorlese(widget.exerciseId, s.setNumber);
+                await _workoutService.deleteSet(widget.exerciseId, s.setNumber);
                 await _frissit();
               },
             )),
         Padding(
           padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
-          child: ModernGomb(
+          child: ModernButton(
             cimke: 'Sorozat hozzáadása',
             ikon: Icons.add,
             kicsi: true,
             kitoltott: false,
             teljesSzelesseg: true,
             onTap: () async {
-              await _workoutService.sorozatHozzaadasa(widget.exerciseId);
+              await _workoutService.addSet(widget.exerciseId);
               await _frissit();
             },
           ),

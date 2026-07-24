@@ -5,10 +5,10 @@ import 'package:image_picker/image_picker.dart';
 import '../../config/api_config.dart';
 import '../../models/beallitas_models.dart';
 import '../../services/apple_health_service.dart';
-import '../../services/beallitasok_service.dart';
+import '../../services/settings_service.dart';
 import '../../services/sound_service.dart';
-import '../../theme/app_tema.dart';
-import '../../widgets/modern_gomb.dart';
+import '../../theme/app_theme.dart';
+import '../../widgets/modern_button.dart';
 import '../../widgets/settings_widgets.dart';
 
 // ─── Alap detail scaffold ───────────────────────────────────────────────────
@@ -29,12 +29,12 @@ class _DetailScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppSzinek.hatter,
+      backgroundColor: AppColors.hatter,
       appBar: AppBar(
-        backgroundColor: AppSzinek.felulet,
-        foregroundColor: AppSzinek.szoveg,
+        backgroundColor: AppColors.felulet,
+        foregroundColor: AppColors.szoveg,
         elevation: 0,
-        surfaceTintColor: AppSzinek.felulet,
+        surfaceTintColor: AppColors.felulet,
         title: Text(cim, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 17)),
         actions: [
           if (mentes != null)
@@ -58,7 +58,7 @@ class _DetailScaffold extends StatelessWidget {
 
 class ProfilScreen extends StatefulWidget {
   const ProfilScreen({super.key, required this.service});
-  final BeallitasokService service;
+  final SettingsService service;
 
   @override
   State<ProfilScreen> createState() => _ProfilScreenState();
@@ -82,11 +82,11 @@ class _ProfilScreenState extends State<ProfilScreen> {
   }
 
   Future<void> _betoltes() async {
-    final data = await widget.service.getSzekcio('/api/beallitasok/${widget.service.userName}/profil');
-    _nev.text = data['nev'] as String? ?? '';
+    final data = await widget.service.getSzekcio('/api/settings/${widget.service.userName}/profile');
+    _nev.text = data['name'] as String? ?? '';
     _bio.text = data['bio'] as String? ?? '';
     _social.text = data['socialLink'] as String? ?? '';
-    _kepUrl = data['kepUrl'] as String? ?? '';
+    _kepUrl = data['imageUrl'] as String? ?? '';
     setState(() => _betolt = false);
   }
 
@@ -94,14 +94,14 @@ class _ProfilScreenState extends State<ProfilScreen> {
     setState(() => _ment = true);
     try {
       await widget.service.putSzekcio(
-        '/api/beallitasok/${widget.service.userName}/profil',
+        '/api/settings/${widget.service.userName}/profile',
         {
-          'nev': _nev.text,
+          'name': _nev.text,
           'bio': _bio.text,
           'socialLink': _social.text,
           // A szerver a teljes profilt cseréli, ezért a kepUrl-t is küldjük,
           // különben mentéskor elveszne a feltöltött kép.
-          'kepUrl': _kepUrl,
+          'imageUrl': _kepUrl,
         },
       );
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profil elmentve!')));
@@ -113,7 +113,7 @@ class _ProfilScreenState extends State<ProfilScreen> {
   }
 
   Future<void> _kepModositas() async {
-    Haptika.konnyu();
+    Haptics.light();
     final forras = await showCupertinoModalPopup<ImageSource>(
       context: context,
       builder: (ctx) => CupertinoActionSheet(
@@ -311,7 +311,7 @@ class _ProfilScreenState extends State<ProfilScreen> {
 
 class FiokScreen extends StatefulWidget {
   const FiokScreen({super.key, required this.service});
-  final BeallitasokService service;
+  final SettingsService service;
 
   @override
   State<FiokScreen> createState() => _FiokScreenState();
@@ -324,7 +324,7 @@ class _FiokScreenState extends State<FiokScreen> {
   @override
   void initState() {
     super.initState();
-    widget.service.getSzekcio('/api/beallitasok/${widget.service.userName}/fiok').then((d) {
+    widget.service.getSzekcio('/api/settings/${widget.service.userName}/account').then((d) {
       setState(() { _fiok = d; _betolt = false; });
     });
   }
@@ -347,7 +347,7 @@ class _FiokScreenState extends State<FiokScreen> {
                     ),
                     _InfoTile(
                       cimke: 'Regisztrált',
-                      ertek: (_fiok?['regisztralt'] == true) ? 'Igen' : 'Demo mód',
+                      ertek: (_fiok?['registered'] ?? _fiok?['regisztralt'] == true) ? 'Igen' : 'Demo mód',
                     ),
                   ],
                 ),
@@ -362,7 +362,7 @@ class _FiokScreenState extends State<FiokScreen> {
 
 class TagsagScreen extends StatefulWidget {
   const TagsagScreen({super.key, required this.service});
-  final BeallitasokService service;
+  final SettingsService service;
 
   @override
   State<TagsagScreen> createState() => _TagsagScreenState();
@@ -375,14 +375,14 @@ class _TagsagScreenState extends State<TagsagScreen> {
   @override
   void initState() {
     super.initState();
-    widget.service.getSzekcio('/api/beallitasok/${widget.service.userName}/tagsag').then((d) {
-      setState(() { _pro = d['proAktiv'] as bool? ?? false; _betolt = false; });
+    widget.service.getSzekcio('/api/settings/${widget.service.userName}/membership').then((d) {
+      setState(() { _pro = d['proActive'] as bool? ?? false; _betolt = false; });
     });
   }
 
   Future<void> _mentes() async {
     await widget.service.putSzekcio(
-      '/api/beallitasok/${widget.service.userName}/tagsag',
+      '/api/settings/${widget.service.userName}/membership',
       {'proAktiv': _pro, 'csomag': _pro ? 'pro' : 'ingyenes'},
     );
     if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Tagság elmentve!')));
@@ -421,7 +421,7 @@ class _TagsagScreenState extends State<TagsagScreen> {
 
 class ErtesitesekScreen extends StatefulWidget {
   const ErtesitesekScreen({super.key, required this.service});
-  final BeallitasokService service;
+  final SettingsService service;
 
   @override
   State<ErtesitesekScreen> createState() => _ErtesitesekScreenState();
@@ -434,7 +434,7 @@ class _ErtesitesekScreenState extends State<ErtesitesekScreen> {
   @override
   void initState() {
     super.initState();
-    widget.service.getSzekcio('/api/beallitasok/${widget.service.userName}/ertesitesek').then((d) {
+    widget.service.getSzekcio('/api/settings/${widget.service.userName}/notifications').then((d) {
       setState(() {
         for (final key in _mezoLista.keys) { _k[key] = d[key] as bool? ?? true; }
         _betolt = false;
@@ -443,35 +443,35 @@ class _ErtesitesekScreenState extends State<ErtesitesekScreen> {
   }
 
   static const _mezoLista = {
-    'pushEngedelyezve': 'Push értesítések',
-    'emailEngedelyezve': 'E-mail értesítések',
-    'pihenoIdozito': 'Pihenő időzítő',
-    'kovetesErtesites': 'Követési értesítés',
-    'likeValasz': 'Kedvelés és válasz',
-    'ujEdzesKozosseg': 'Új edzés a közösségedben',
-    'sajatEdzesLike': 'Kedvelés az edzéseden',
-    'sajatEdzesKomment': 'Hozzászólás az edzéseden',
+    'pushEnabled': 'Push értesítések',
+    'emailEnabled': 'E-mail értesítések',
+    'restTimer': 'Pihenő időzítő',
+    'followAlerts': 'Követési értesítés',
+    'likeReplies': 'Kedvelés és válasz',
+    'newCommunityWorkouts': 'Új edzés a közösségedben',
+    'ownWorkoutLikes': 'Kedvelés az edzéseden',
+    'ownWorkoutComments': 'Hozzászólás az edzéseden',
   };
 
   static final _mezoIkon = <String, (IconData, Color)>{
-    'pushEngedelyezve':  (Icons.notifications_rounded,       Color(0xFFE53935)),
-    'emailEngedelyezve': (Icons.mail_rounded,                Color(0xFF1E88E5)),
-    'pihenoIdozito':     (Icons.timer_rounded,               Color(0xFF00ACC1)),
-    'kovetesErtesites':  (Icons.person_add_rounded,          Color(0xFF43A047)),
-    'likeValasz':        (Icons.favorite_rounded,            Color(0xFFE91E63)),
-    'ujEdzesKozosseg':   (Icons.fitness_center_rounded,      Color(0xFF8E24AA)),
-    'sajatEdzesLike':    (Icons.thumb_up_rounded,            Color(0xFFFF7043)),
-    'sajatEdzesKomment': (Icons.chat_bubble_rounded,         Color(0xFF039BE5)),
+    'pushEnabled':  (Icons.notifications_rounded,       Color(0xFFE53935)),
+    'emailEnabled': (Icons.mail_rounded,                Color(0xFF1E88E5)),
+    'restTimer':     (Icons.timer_rounded,               Color(0xFF00ACC1)),
+    'followAlerts':  (Icons.person_add_rounded,          Color(0xFF43A047)),
+    'likeReplies':        (Icons.favorite_rounded,            Color(0xFFE91E63)),
+    'newCommunityWorkouts':   (Icons.fitness_center_rounded,      Color(0xFF8E24AA)),
+    'ownWorkoutLikes':    (Icons.thumb_up_rounded,            Color(0xFFFF7043)),
+    'ownWorkoutComments': (Icons.chat_bubble_rounded,         Color(0xFF039BE5)),
   };
 
   Future<void> _mentes() async {
-    await widget.service.putSzekcio('/api/beallitasok/${widget.service.userName}/ertesitesek', _k);
+    await widget.service.putSzekcio('/api/settings/${widget.service.userName}/notifications', _k);
     if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Értesítések elmentve!')));
   }
 
   @override
   Widget build(BuildContext context) {
-    final push = _k['pushEngedelyezve'] ?? true;
+    final push = _k['pushEnabled'] ?? true;
 
     return _DetailScaffold(
       cim: 'Értesítések',
@@ -507,20 +507,20 @@ class _ErtesitesekScreenState extends State<ErtesitesekScreen> {
                 SettingsSectionHeader(title: 'Általános'),
                 BeallitasSzekcio(
                   children: [
-                    _kapcsoloTileEpito('pushEngedelyezve', push),
-                    _kapcsoloTileEpito('emailEngedelyezve', push),
-                    _kapcsoloTileEpito('pihenoIdozito', push),
-                    _kapcsoloTileEpito('kovetesErtesites', push),
+                    _kapcsoloTileEpito('pushEnabled', push),
+                    _kapcsoloTileEpito('emailEnabled', push),
+                    _kapcsoloTileEpito('restTimer', push),
+                    _kapcsoloTileEpito('followAlerts', push),
                   ],
                 ),
 
                 SettingsSectionHeader(title: 'Közösségi aktivitás'),
                 BeallitasSzekcio(
                   children: [
-                    _kapcsoloTileEpito('likeValasz', push),
-                    _kapcsoloTileEpito('ujEdzesKozosseg', push),
-                    _kapcsoloTileEpito('sajatEdzesLike', push),
-                    _kapcsoloTileEpito('sajatEdzesKomment', push),
+                    _kapcsoloTileEpito('likeReplies', push),
+                    _kapcsoloTileEpito('newCommunityWorkouts', push),
+                    _kapcsoloTileEpito('ownWorkoutLikes', push),
+                    _kapcsoloTileEpito('ownWorkoutComments', push),
                   ],
                 ),
                 const SizedBox(height: 32),
@@ -531,7 +531,7 @@ class _ErtesitesekScreenState extends State<ErtesitesekScreen> {
 
   Widget _kapcsoloTileEpito(String key, bool pushAktiv) {
     final (ikon, szin) = _mezoIkon[key] ?? (Icons.settings_rounded, const Color(0xFF9E9E9E));
-    final letiltva = key != 'pushEngedelyezve' && !pushAktiv;
+    final letiltva = key != 'pushEnabled' && !pushAktiv;
     return KapcsoloTile(
       icon: ikon,
       ikonSzin: szin,
@@ -547,7 +547,7 @@ class _ErtesitesekScreenState extends State<ErtesitesekScreen> {
 
 class EdzesBeallitasokScreen extends StatefulWidget {
   const EdzesBeallitasokScreen({super.key, required this.service});
-  final BeallitasokService service;
+  final SettingsService service;
 
   @override
   State<EdzesBeallitasokScreen> createState() => _EdzesBeallitasokScreenState();
@@ -567,27 +567,27 @@ class _EdzesBeallitasokScreenState extends State<EdzesBeallitasokScreen> {
   }
 
   Future<void> _init() async {
-    final data = await widget.service.getSzekcio('/api/beallitasok/${widget.service.userName}/edzes');
+    final data = await widget.service.getSzekcio('/api/settings/${widget.service.userName}/workout');
     final napok = await widget.service.hetNapjai();
     setState(() {
-      _hangok = data['hangok'] as bool? ?? true;
-      _prHang = data['prHang'] as bool? ?? true;
-      _autoKitoltes = data['automatikusKitoltes'] as bool? ?? true;
-      _kijelzo = data['kijelzoEbredve'] as bool? ?? true;
-      _rpe = data['rpeKovetes'] as bool? ?? true;
-      _superset = data['okosSuperset'] as bool? ?? true;
-      _piheno = data['pihenoIdozitoMasodperc'] as int? ?? 90;
-      _hetNap = data['hetElsoNapja'] as String? ?? 'hetfo';
+      _hangok = data['sounds'] as bool? ?? true;
+      _prHang = data['prSound'] as bool? ?? true;
+      _autoKitoltes = data['autoFill'] as bool? ?? true;
+      _kijelzo = data['keepScreenOn'] as bool? ?? true;
+      _rpe = data['trackRpe'] as bool? ?? true;
+      _superset = data['smartSuperset'] as bool? ?? true;
+      _piheno = data['restTimerSeconds'] as int? ?? 90;
+      _hetNap = data['weekStartsOn'] as String? ?? 'hetfo';
       _hetOpcio = napok;
       _betolt = false;
     });
   }
 
   Future<void> _mentes() async {
-    await widget.service.putSzekcio('/api/beallitasok/${widget.service.userName}/edzes', {
-      'hangok': _hangok, 'prHang': _prHang, 'automatikusKitoltes': _autoKitoltes,
-      'kijelzoEbredve': _kijelzo, 'rpeKovetes': _rpe, 'okosSuperset': _superset,
-      'pihenoIdozitoMasodperc': _piheno, 'hetElsoNapja': _hetNap,
+    await widget.service.putSzekcio('/api/settings/${widget.service.userName}/workout', {
+      'sounds': _hangok, 'prSound': _prHang, 'autoFill': _autoKitoltes,
+      'keepScreenOn': _kijelzo, 'trackRpe': _rpe, 'smartSuperset': _superset,
+      'restTimerSeconds': _piheno, 'weekStartsOn': _hetNap,
     });
     if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Edzés beállítások elmentve!')));
   }
@@ -682,7 +682,7 @@ class _EdzesBeallitasokScreenState extends State<EdzesBeallitasokScreen> {
 
 class PrivatSzocialScreen extends StatefulWidget {
   const PrivatSzocialScreen({super.key, required this.service});
-  final BeallitasokService service;
+  final SettingsService service;
 
   @override
   State<PrivatSzocialScreen> createState() => _PrivatSzocialScreenState();
@@ -701,14 +701,14 @@ class _PrivatSzocialScreenState extends State<PrivatSzocialScreen> {
   }
 
   Future<void> _init() async {
-    final data = await widget.service.getSzekcio('/api/beallitasok/${widget.service.userName}/privat-szocial');
+    final data = await widget.service.getSzekcio('/api/settings/${widget.service.userName}/privacy');
     final opcio = await widget.service.lathatosag();
     setState(() {
-      _lathatosag = data['profilLathatosag'] as String? ?? 'kozosseg';
-      _megosztas = data['edzesMegosztasAlapertelmezett'] as bool? ?? true;
-      _megye = data['megyeMutatasa'] as bool? ?? true;
-      _szelfi = data['szelfiKizarolagKovetoknek'] as bool? ?? false;
-      _rutin = data['rutinMasolhato'] as bool? ?? true;
+      _lathatosag = data['profileVisibility'] as String? ?? 'kozosseg';
+      _megosztas = data['shareWorkoutsByDefault'] as bool? ?? true;
+      _megye = data['showCounty'] as bool? ?? true;
+      _szelfi = data['selfieFollowersOnly'] as bool? ?? false;
+      _rutin = data['plansCopyable'] as bool? ?? true;
       _opcio = opcio;
       _betolt = false;
     });
@@ -716,9 +716,9 @@ class _PrivatSzocialScreenState extends State<PrivatSzocialScreen> {
 
   Future<void> _mentes() async {
     await widget.service.putSzekcio(
-      '/api/beallitasok/${widget.service.userName}/privat-szocial',
-      {'profilLathatosag': _lathatosag, 'edzesMegosztasAlapertelmezett': _megosztas,
-       'megyeMutatasa': _megye, 'szelfiKizarolagKovetoknek': _szelfi, 'rutinMasolhato': _rutin},
+      '/api/settings/${widget.service.userName}/privacy',
+      {'profileVisibility': _lathatosag, 'shareWorkoutsByDefault': _megosztas,
+       'showCounty': _megye, 'selfieFollowersOnly': _szelfi, 'plansCopyable': _rutin},
     );
     if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Adatvédelmi beállítások elmentve!')));
   }
@@ -766,7 +766,7 @@ class _PrivatSzocialScreenState extends State<PrivatSzocialScreen> {
 
 class EgysegScreen extends StatefulWidget {
   const EgysegScreen({super.key, required this.service});
-  final BeallitasokService service;
+  final SettingsService service;
 
   @override
   State<EgysegScreen> createState() => _EgysegScreenState();
@@ -784,23 +784,23 @@ class _EgysegScreenState extends State<EgysegScreen> {
   }
 
   Future<void> _init() async {
-    final data = await widget.service.getSzekcio('/api/beallitasok/${widget.service.userName}/egyseg');
+    final data = await widget.service.getSzekcio('/api/settings/${widget.service.userName}/units');
     final opcioRaw = await widget.service.egysegOpcio();
     setState(() {
-      _suly = data['suly'] as String? ?? 'kg';
-      _tav = data['tavolsag'] as String? ?? 'km';
-      _hossz = data['hossz'] as String? ?? 'cm';
+      _suly = data['weight'] as String? ?? 'kg';
+      _tav = data['distance'] as String? ?? 'km';
+      _hossz = data['length'] as String? ?? 'cm';
       _opcio = {
-        'suly': (opcioRaw['suly'] as List).map((e) => ValasztasiOpcio.fromJson(e)).toList(),
-        'tavolsag': (opcioRaw['tavolsag'] as List).map((e) => ValasztasiOpcio.fromJson(e)).toList(),
-        'hossz': (opcioRaw['hossz'] as List).map((e) => ValasztasiOpcio.fromJson(e)).toList(),
+        'weight': ((opcioRaw['weight'] ?? opcioRaw['suly']) as List).map((e) => ValasztasiOpcio.fromJson(e)).toList(),
+        'distance': ((opcioRaw['distance'] ?? opcioRaw['tavolsag']) as List).map((e) => ValasztasiOpcio.fromJson(e)).toList(),
+        'length': ((opcioRaw['length'] ?? opcioRaw['hossz']) as List).map((e) => ValasztasiOpcio.fromJson(e)).toList(),
       };
       _betolt = false;
     });
   }
 
   Future<void> _mentes() async {
-    await widget.service.putSzekcio('/api/beallitasok/${widget.service.userName}/egyseg', {'suly': _suly, 'tavolsag': _tav, 'hossz': _hossz});
+    await widget.service.putSzekcio('/api/settings/${widget.service.userName}/units', {'weight': _suly, 'distance': _tav, 'length': _hossz});
     if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Mértékegységek elmentve!')));
   }
 
@@ -815,9 +815,9 @@ class _EgysegScreenState extends State<EgysegScreen> {
               children: [
                 SettingsSectionHeader(title: 'Egységek'),
                 BeallitasSzekcio(children: [
-                  _DropdownTile(cimke: 'Súly', ertek: _suly, opcio: _opcio['suly'] ?? [], onChange: (v) => setState(() => _suly = v ?? 'kg')),
-                  _DropdownTile(cimke: 'Távolság', ertek: _tav, opcio: _opcio['tavolsag'] ?? [], onChange: (v) => setState(() => _tav = v ?? 'km')),
-                  _DropdownTile(cimke: 'Magasság', ertek: _hossz, opcio: _opcio['hossz'] ?? [], onChange: (v) => setState(() => _hossz = v ?? 'cm')),
+                  _DropdownTile(cimke: 'Súly', ertek: _suly, opcio: _opcio['weight'] ?? [], onChange: (v) => setState(() => _suly = v ?? 'kg')),
+                  _DropdownTile(cimke: 'Távolság', ertek: _tav, opcio: _opcio['distance'] ?? [], onChange: (v) => setState(() => _tav = v ?? 'km')),
+                  _DropdownTile(cimke: 'Magasság', ertek: _hossz, opcio: _opcio['length'] ?? [], onChange: (v) => setState(() => _hossz = v ?? 'cm')),
                 ]),
                 const SizedBox(height: 32),
               ],
@@ -830,7 +830,7 @@ class _EgysegScreenState extends State<EgysegScreen> {
 
 class NyelvScreen extends StatefulWidget {
   const NyelvScreen({super.key, required this.service});
-  final BeallitasokService service;
+  final SettingsService service;
 
   @override
   State<NyelvScreen> createState() => _NyelvScreenState();
@@ -848,13 +848,13 @@ class _NyelvScreenState extends State<NyelvScreen> {
   }
 
   Future<void> _init() async {
-    final data = await widget.service.getSzekcio('/api/beallitasok/${widget.service.userName}/nyelv');
+    final data = await widget.service.getSzekcio('/api/settings/${widget.service.userName}/language');
     final opcio = await widget.service.nyelvek();
-    setState(() { _nyelv = data['nyelv'] as String? ?? 'hu'; _opcio = opcio; _betolt = false; });
+    setState(() { _nyelv = (data['language'] ?? data['nyelv']) as String? ?? 'hu'; _opcio = opcio; _betolt = false; });
   }
 
   Future<void> _mentes() async {
-    await widget.service.putSzekcio('/api/beallitasok/${widget.service.userName}/nyelv', {'nyelv': _nyelv});
+    await widget.service.putSzekcio('/api/settings/${widget.service.userName}/language', {'language': _nyelv});
     if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Nyelv elmentve!')));
   }
 
@@ -870,7 +870,7 @@ class _NyelvScreenState extends State<NyelvScreen> {
                 SettingsSectionHeader(title: 'Felület nyelve'),
                 BeallitasSzekcio(
                   children: _opcio.map((o) => Material(
-                    color: AppSzinek.kartya,
+                    color: AppColors.kartya,
                     child: RadioListTile<String>(
                       title: Text(o.cimke, style: const TextStyle(fontSize: 15)),
                       value: o.id,
@@ -891,7 +891,7 @@ class _NyelvScreenState extends State<NyelvScreen> {
 
 class TemaScreen extends StatefulWidget {
   const TemaScreen({super.key, required this.service});
-  final BeallitasokService service;
+  final SettingsService service;
 
   @override
   State<TemaScreen> createState() => _TemaScreenState();
@@ -920,23 +920,23 @@ class _TemaScreenState extends State<TemaScreen> {
     } catch (_) {}
     if (!mounted) return;
     setState(() {
-      _mod = TemaVezerlo.aktualisId;
+      _mod = ThemeController.currentId;
       _opcio = opcio;
       _betolt = false;
     });
   }
 
   Future<void> _valasztas(String id) async {
-    Haptika.valasztas();
+    Haptics.selection();
     setState(() => _mod = id);
     // Azonnal alkalmazzuk és helyben mentjük — nem kell a Mentés gombra várni.
-    await TemaVezerlo.allitasIdbol(id);
+    await ThemeController.setFromId(id);
   }
 
   Future<void> _mentes() async {
-    await TemaVezerlo.allitasIdbol(_mod);
+    await ThemeController.setFromId(_mod);
     try {
-      await widget.service.putSzekcio('/api/beallitasok/${widget.service.userName}/tema', {'mod': _mod});
+      await widget.service.putSzekcio('/api/settings/${widget.service.userName}/theme', {'mode': _mod});
     } catch (_) {}
     if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Téma elmentve!')));
   }
@@ -961,14 +961,14 @@ class _TemaScreenState extends State<TemaScreen> {
                   children: _opcio.map((o) {
                     final ikon = _temaIkon[o.id] ?? Icons.settings_rounded;
                     return Material(
-                      color: AppSzinek.kartya,
+                      color: AppColors.kartya,
                       child: ListTile(
                         leading: Container(
                           width: 34, height: 34,
                           decoration: BoxDecoration(color: const Color(0xFF5C6BC0).withValues(alpha: 0.13), borderRadius: BorderRadius.circular(9)),
                           child: Icon(ikon, color: const Color(0xFF5C6BC0), size: 19),
                         ),
-                        title: Text(o.cimke, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: AppSzinek.szoveg)),
+                        title: Text(o.cimke, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: AppColors.szoveg)),
                         trailing: _mod == o.id
                             ? const Icon(Icons.check_circle_rounded, color: Color(0xFF1E88E5))
                             : null,
@@ -988,7 +988,7 @@ class _TemaScreenState extends State<TemaScreen> {
 
 class IntegraciokScreen extends StatefulWidget {
   const IntegraciokScreen({super.key, required this.service});
-  final BeallitasokService service;
+  final SettingsService service;
 
   @override
   State<IntegraciokScreen> createState() => _IntegraciokScreenState();
@@ -1001,7 +1001,7 @@ class _IntegraciokScreenState extends State<IntegraciokScreen> {
   @override
   void initState() {
     super.initState();
-    widget.service.getSzekcio('/api/beallitasok/${widget.service.userName}/integraciok').then((d) {
+    widget.service.getSzekcio('/api/settings/${widget.service.userName}/integrations').then((d) {
       setState(() {
         _appleHealth = d['appleHealth'] as bool? ?? false;
         _appleWatch = d['appleWatch'] as bool? ?? false;
@@ -1014,7 +1014,7 @@ class _IntegraciokScreenState extends State<IntegraciokScreen> {
 
   Future<void> _mentes() async {
     await widget.service.putSzekcio(
-      '/api/beallitasok/${widget.service.userName}/integraciok',
+      '/api/settings/${widget.service.userName}/integrations',
       {'appleHealth': _appleHealth, 'appleWatch': _appleWatch, 'googleFit': _googleFit, 'strava': _strava},
     );
     if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Integrációk elmentve!')));
@@ -1067,7 +1067,7 @@ class _IntegraciokScreenState extends State<IntegraciokScreen> {
 
 class ExportScreen extends StatefulWidget {
   const ExportScreen({super.key, required this.service});
-  final BeallitasokService service;
+  final SettingsService service;
 
   @override
   State<ExportScreen> createState() => _ExportScreenState();
@@ -1081,7 +1081,7 @@ class _ExportScreenState extends State<ExportScreen> {
     setState(() { _exportal = true; _eredmeny = null; });
     try {
       final data = await widget.service.exportAdatok();
-      setState(() => _eredmeny = 'Export kész: ${data['rutinok']?.length ?? 0} rutin, ${data['kozossegPosztok']?.length ?? 0} poszt');
+      setState(() => _eredmeny = 'Export kész: ${data['plans'] ?? data['rutinok']?.length ?? 0} rutin, ${data['communityPosts'] ?? data['kozossegPosztok']?.length ?? 0} poszt');
     } catch (e) {
       setState(() => _eredmeny = 'Hiba: $e');
     } finally {
@@ -1098,7 +1098,7 @@ class _ExportScreenState extends State<ExportScreen> {
         children: [
           Container(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(color: AppSzinek.kartya, borderRadius: BorderRadius.circular(14)),
+            decoration: BoxDecoration(color: AppColors.kartya, borderRadius: BorderRadius.circular(14)),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1133,7 +1133,7 @@ class StatikusTartalomScreen extends StatefulWidget {
   const StatikusTartalomScreen({super.key, required this.cim, required this.apiUt, required this.service});
   final String cim;
   final String apiUt;
-  final BeallitasokService service;
+  final SettingsService service;
 
   @override
   State<StatikusTartalomScreen> createState() => _StatikusTartalomScreenState();
@@ -1164,7 +1164,7 @@ class _StatikusTartalomScreenState extends State<StatikusTartalomScreen> {
                   ...((_data as Map)['lepesek'] as List).asMap().entries.map((e) => Container(
                     margin: const EdgeInsets.only(bottom: 12),
                     padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(color: AppSzinek.kartya, borderRadius: BorderRadius.circular(12)),
+                    decoration: BoxDecoration(color: AppColors.kartya, borderRadius: BorderRadius.circular(12)),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -1188,7 +1188,7 @@ class _StatikusTartalomScreenState extends State<StatikusTartalomScreen> {
 
 class GyikScreen extends StatefulWidget {
   const GyikScreen({super.key, required this.service});
-  final BeallitasokService service;
+  final SettingsService service;
 
   @override
   State<GyikScreen> createState() => _GyikScreenState();
@@ -1201,7 +1201,7 @@ class _GyikScreenState extends State<GyikScreen> {
   @override
   void initState() {
     super.initState();
-    widget.service.statikusTartalom('/api/beallitasok/gyik').then((d) {
+    widget.service.statikusTartalom('/api/settings/faq').then((d) {
       setState(() { _kerdesek = (d as Map)['kerdesek'] as List? ?? []; _betolt = false; });
     });
   }
@@ -1244,7 +1244,7 @@ class _GyikScreenState extends State<GyikScreen> {
 
 class KapcsolatScreen extends StatefulWidget {
   const KapcsolatScreen({super.key, required this.service});
-  final BeallitasokService service;
+  final SettingsService service;
 
   @override
   State<KapcsolatScreen> createState() => _KapcsolatScreenState();
@@ -1292,7 +1292,7 @@ class _KapcsolatScreenState extends State<KapcsolatScreen> {
 
 class RolunkScreen extends StatefulWidget {
   const RolunkScreen({super.key, required this.service});
-  final BeallitasokService service;
+  final SettingsService service;
 
   @override
   State<RolunkScreen> createState() => _RolunkScreenState();
@@ -1304,7 +1304,7 @@ class _RolunkScreenState extends State<RolunkScreen> {
   @override
   void initState() {
     super.initState();
-    widget.service.statikusTartalom('/api/beallitasok/rolunk').then((d) {
+    widget.service.statikusTartalom('/api/settings/about').then((d) {
       setState(() => _data = d as Map<String, dynamic>);
     });
   }
@@ -1342,7 +1342,7 @@ class _RolunkScreenState extends State<RolunkScreen> {
                 const SizedBox(height: 16),
                 Container(
                   padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(color: AppSzinek.kartya, borderRadius: BorderRadius.circular(14)),
+                  decoration: BoxDecoration(color: AppColors.kartya, borderRadius: BorderRadius.circular(14)),
                   child: Text(_data!['leiras']?.toString() ?? '', style: const TextStyle(fontSize: 15, height: 1.6)),
                 ),
                 const SizedBox(height: 32),
@@ -1422,7 +1422,7 @@ class _AdatTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: AppSzinek.kartya,
+      color: AppColors.kartya,
       child: InkWell(
         onTap: onTap,
         child: Padding(

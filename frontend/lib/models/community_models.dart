@@ -1,34 +1,46 @@
 import '../models/workout_models.dart';
 
-class CommunityPosztModel {
-  const CommunityPosztModel({
+String? _jsonString(Map<String, dynamic> json, String en, String hu) =>
+    json[en] as String? ?? json[hu] as String?;
+
+int? _jsonInt(Map<String, dynamic> json, String en, String hu) =>
+    json[en] as int? ?? json[hu] as int?;
+
+DateTime _jsonDateTime(Map<String, dynamic> json, String en, String hu) {
+  final raw = json[en] ?? json[hu];
+  if (raw == null) return DateTime.now();
+  return DateTime.tryParse(raw as String) ?? DateTime.now();
+}
+
+class CommunityPostModel {
+  const CommunityPostModel({
     required this.id,
     required this.userName,
-    required this.megye,
-    required this.regio,
+    required this.county,
+    required this.region,
     required this.selfieUrl,
-    required this.megosztva,
-    required this.edzes,
-    required this.likeSzam,
-    required this.likeolok,
-    required this.kommentek,
+    required this.sharedAt,
+    required this.workout,
+    required this.likeCount,
+    required this.likedBy,
+    required this.comments,
   });
 
   final String id;
   final String userName;
-  final String megye;
-  final String regio;
+  final String county;
+  final String region;
   final String selfieUrl;
-  final DateTime megosztva;
-  final WorkoutSessionModel edzes;
-  final int likeSzam;
-  final List<String> likeolok;
-  final List<CommunityKommentModel> kommentek;
+  final DateTime sharedAt;
+  final WorkoutSessionModel workout;
+  final int likeCount;
+  final List<String> likedBy;
+  final List<CommunityCommentModel> comments;
 
-  bool likeolt(String userName) => likeolok.contains(userName);
+  bool likeolt(String userName) => likedBy.contains(userName);
 
   String get idoSzoveg {
-    final kulonbseg = DateTime.now().difference(megosztva);
+    final kulonbseg = DateTime.now().difference(sharedAt);
     if (kulonbseg.inMinutes < 1) return 'Most';
     if (kulonbseg.inMinutes < 60) return '${kulonbseg.inMinutes} perce';
     if (kulonbseg.inHours < 24) return '${kulonbseg.inHours} órája';
@@ -36,94 +48,97 @@ class CommunityPosztModel {
     return '${kulonbseg.inDays ~/ 7} hete';
   }
 
-  CommunityPosztModel copyWith({int? likeSzam, List<String>? likeolok, List<CommunityKommentModel>? kommentek}) {
-    return CommunityPosztModel(
+  CommunityPostModel copyWith({
+    int? likeCount,
+    List<String>? likedBy,
+    List<CommunityCommentModel>? comments,
+  }) {
+    return CommunityPostModel(
       id: id,
       userName: userName,
-      megye: megye,
-      regio: regio,
+      county: county,
+      region: region,
       selfieUrl: selfieUrl,
-      megosztva: megosztva,
-      edzes: edzes,
-      likeSzam: likeSzam ?? this.likeSzam,
-      likeolok: likeolok ?? this.likeolok,
-      kommentek: kommentek ?? this.kommentek,
+      sharedAt: sharedAt,
+      workout: workout,
+      likeCount: likeCount ?? this.likeCount,
+      likedBy: likedBy ?? this.likedBy,
+      comments: comments ?? this.comments,
     );
   }
 
-  factory CommunityPosztModel.fromJson(Map<String, dynamic> json) {
-    return CommunityPosztModel(
+  factory CommunityPostModel.fromJson(Map<String, dynamic> json) {
+    final workoutJson = json['workout'] ?? json['edzes'];
+    return CommunityPostModel(
       id: json['id'] as String? ?? '',
       userName: json['userName'] as String? ?? '',
-      megye: json['megye'] as String? ?? '',
-      regio: json['regio'] as String? ?? '',
+      county: _jsonString(json, 'county', 'megye') ?? '',
+      region: _jsonString(json, 'region', 'regio') ?? '',
       selfieUrl: json['selfieUrl'] as String? ?? '',
-      megosztva: json['megosztva'] != null
-          ? DateTime.tryParse(json['megosztva'] as String) ?? DateTime.now()
-          : DateTime.now(),
-      edzes: json['edzes'] != null
-          ? WorkoutSessionModel.fromJson(json['edzes'] as Map<String, dynamic>)
+      sharedAt: _jsonDateTime(json, 'sharedAt', 'megosztva'),
+      workout: workoutJson != null
+          ? WorkoutSessionModel.fromJson(workoutJson as Map<String, dynamic>)
           : WorkoutSessionModel(
               title: '',
               startTime: null,
               isActive: false,
               exercises: [],
             ),
-      likeSzam: json['likeSzam'] as int? ?? 0,
-      likeolok: (json['likeolok'] as List<dynamic>? ?? []).map((e) => e.toString()).toList(),
-      kommentek: (json['kommentek'] as List<dynamic>? ?? [])
-          .map((e) => CommunityKommentModel.fromJson(e as Map<String, dynamic>))
+      likeCount: _jsonInt(json, 'likeCount', 'likeSzam') ?? 0,
+      likedBy: (json['likedBy'] as List<dynamic>? ?? json['likeolok'] as List<dynamic>? ?? [])
+          .map((e) => e.toString())
+          .toList(),
+      comments: (json['comments'] as List<dynamic>? ?? json['kommentek'] as List<dynamic>? ?? [])
+          .map((e) => CommunityCommentModel.fromJson(e as Map<String, dynamic>))
           .toList(),
     );
   }
 }
 
-class CommunityKommentModel {
-  const CommunityKommentModel({
+class CommunityCommentModel {
+  const CommunityCommentModel({
     required this.id,
     required this.userName,
-    required this.szoveg,
-    required this.idobelyeg,
+    required this.text,
+    required this.createdAt,
   });
 
   final String id;
   final String userName;
-  final String szoveg;
-  final DateTime idobelyeg;
+  final String text;
+  final DateTime createdAt;
 
   String get idoSzoveg {
-    final kulonbseg = DateTime.now().difference(idobelyeg);
+    final kulonbseg = DateTime.now().difference(createdAt);
     if (kulonbseg.inMinutes < 60) return '${kulonbseg.inMinutes}p';
     if (kulonbseg.inHours < 24) return '${kulonbseg.inHours}ó';
     return '${kulonbseg.inDays}n';
   }
 
-  factory CommunityKommentModel.fromJson(Map<String, dynamic> json) {
-    return CommunityKommentModel(
+  factory CommunityCommentModel.fromJson(Map<String, dynamic> json) {
+    return CommunityCommentModel(
       id: json['id'] as String? ?? '',
       userName: json['userName'] as String? ?? '',
-      szoveg: json['szoveg'] as String? ?? '',
-      idobelyeg: json['idobelyeg'] != null
-          ? DateTime.tryParse(json['idobelyeg'] as String) ?? DateTime.now()
-          : DateTime.now(),
+      text: _jsonString(json, 'text', 'szoveg') ?? '',
+      createdAt: _jsonDateTime(json, 'createdAt', 'idobelyeg'),
     );
   }
 }
 
-class CommunityFelhasznaloModel {
-  const CommunityFelhasznaloModel({
+class CommunityUserModel {
+  const CommunityUserModel({
     required this.userName,
-    required this.posztSzam,
-    required this.osszLike,
-    required this.legutobbiEdzesCim,
-    required this.utolsoEdzes,
+    required this.postCount,
+    required this.totalLikes,
+    required this.lastWorkoutTitle,
+    required this.lastWorkout,
   });
 
   final String userName;
-  final int posztSzam;
-  final int osszLike;
-  final String legutobbiEdzesCim;
-  final DateTime utolsoEdzes;
+  final int postCount;
+  final int totalLikes;
+  final String lastWorkoutTitle;
+  final DateTime lastWorkout;
 
   String get inicialeK {
     final reszek = userName.split(RegExp(r'[_.\-]'));
@@ -133,15 +148,14 @@ class CommunityFelhasznaloModel {
     return userName.substring(0, userName.length.clamp(0, 2)).toUpperCase();
   }
 
-  factory CommunityFelhasznaloModel.fromJson(Map<String, dynamic> json) {
-    return CommunityFelhasznaloModel(
+  factory CommunityUserModel.fromJson(Map<String, dynamic> json) {
+    return CommunityUserModel(
       userName: json['userName'] as String? ?? '',
-      posztSzam: json['posztSzam'] as int? ?? 0,
-      osszLike: json['osszLike'] as int? ?? 0,
-      legutobbiEdzesCim: json['legutobbiEdzesCim'] as String? ?? '',
-      utolsoEdzes: json['utolsoEdzes'] != null
-          ? DateTime.tryParse(json['utolsoEdzes'] as String) ?? DateTime.now()
-          : DateTime.now(),
+      postCount: _jsonInt(json, 'postCount', 'posztSzam') ?? 0,
+      totalLikes: _jsonInt(json, 'totalLikes', 'osszLike') ?? 0,
+      lastWorkoutTitle:
+          _jsonString(json, 'lastWorkoutTitle', 'legutobbiEdzesCim') ?? '',
+      lastWorkout: _jsonDateTime(json, 'lastWorkout', 'utolsoEdzes'),
     );
   }
 }

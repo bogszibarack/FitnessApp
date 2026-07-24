@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../config/api_config.dart';
-import '../../models/routine_model.dart';
+import '../../models/plan_model.dart';
 import '../../models/workout_models.dart';
+import '../../services/plan_service.dart';
 import '../../services/workout_service.dart';
-import '../../theme/app_tema.dart';
-import '../../widgets/modern_gomb.dart';
+import '../../theme/app_theme.dart';
+import '../../widgets/modern_button.dart';
 import 'ai_explore_screen.dart';
 import 'active_workout_screen.dart';
 import 'routine_edit_screen.dart';
@@ -23,15 +23,14 @@ class WorkoutScreen extends StatefulWidget {
 class _WorkoutScreenState extends State<WorkoutScreen> {
   static const _proYellow = Color(0xFFFFD60A);
 
-  static const _progresszioPrefKey = 'utolso_progresszio';
-
   final _service = WorkoutService.instance;
-  List<RoutineModel> _aiRutinok = [];
-  List<RoutineModel> _sajatRutinok = [];
-  List<WorkoutSessionModel> _befejezettEdzesek = [];
-  double _progresszio = 5.0;
-  bool _betolt = true;
-  bool _hiba = false;
+  final _planService = PlanService.instance;
+  List<PlanModel> _aiPlans = [];
+  List<PlanModel> _plans = [];
+  List<WorkoutSessionModel> _history = [];
+  double _progress = 5.0;
+  bool _loading = true;
+  bool _err = false;
   bool _aiNyitva = true;
   bool _sajatNyitva = true;
   bool _tortenetNyitva = true;
@@ -39,34 +38,34 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   @override
   void initState() {
     super.initState();
-    _betoltes();
+    _load();
   }
 
-  Future<void> _betoltes() async {
+  Future<void> _load() async {
     setState(() {
-      _betolt = true;
-      _hiba = false;
+      _loading = true;
+      _err = false;
     });
     try {
-      final prefs = await SharedPreferences.getInstance();
       final eredmenyek = await Future.wait([
-        _service.aiAjanlatok(targetMuscle: 'Chest'),
-        _service.sajatRutinok(),
-        _service.edzesTortenet(),
+        _planService.generateAi(targetMuscle: 'Chest'),
+        _planService.listMine(),
+        _service.workoutHistory(),
+        _service.getProgressPercent(),
       ]);
       if (!mounted) return;
       setState(() {
-        _progresszio = (prefs.getDouble(_progresszioPrefKey) ?? 5.0).clamp(0.0, 20.0);
-        _aiRutinok = eredmenyek[0] as List<RoutineModel>;
-        _sajatRutinok = eredmenyek[1] as List<RoutineModel>;
-        _befejezettEdzesek = eredmenyek[2] as List<WorkoutSessionModel>;
-        _betolt = false;
+        _aiPlans = eredmenyek[0] as List<PlanModel>;
+        _plans = eredmenyek[1] as List<PlanModel>;
+        _history = eredmenyek[2] as List<WorkoutSessionModel>;
+        _progress = (eredmenyek[3] as double).clamp(0.0, 20.0);
+        _loading = false;
       });
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _hiba = true;
-        _betolt = false;
+        _err = true;
+        _loading = false;
       });
     }
   }
@@ -74,7 +73,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   Future<void> _uresEdzesInditasa() async {
     if (!await _kezelFutoEdzest()) return;
     try {
-      await _service.uresEdzesInditasa();
+      await _service.startEmptyWorkout();
       if (!mounted) return;
       _nyissonAktivEdzest('Üres edzés');
     } catch (e) {
@@ -82,27 +81,27 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     }
   }
 
-  Future<void> _rutinInditasa(RoutineModel rutin, {bool mentett = false}) async {
+  Future<void> _rutinInditasa(PlanModel plan, {bool mentett = false}) async {
     if (!await _kezelFutoEdzest()) return;
     try {
-      await _service.rutinInditasa(rutin, mentett: mentett);
+      await _service.startFromPlan(plan, saved: mentett);
       if (!mounted) return;
-      _nyissonAktivEdzest(rutin.title);
+      _nyissonAktivEdzest(plan.title);
     } catch (e) {
       _uzenet('$e', hiba: true);
     }
   }
 
-  Future<void> _aiRutinMegnyitasa(RoutineModel rutin) async {
-    final eredmeny = await Navigator.of(context).push<RoutineModel>(
+  Future<void> _aiRutinMegnyitasa(PlanModel plan) async {
+    final eredmeny = await Navigator.of(context).push<PlanModel>(
       MaterialPageRoute(
-        builder: (_) => RoutinePreviewScreen(rutin: rutin, ai: true),
+        builder: (_) => RoutinePreviewScreen(rutin: plan, ai: true),
       ),
     );
     if (eredmeny != null) {
       await _rutinInditasa(eredmeny);
     } else {
-      await _betoltes();
+      await _load();
     }
   }
 
@@ -111,7 +110,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
       MaterialPageRoute(
         builder: (_) => RoutineEditScreen(
           ujRutin: true,
-          rutin: RoutineModel(
+          rutin: PlanModel(
             id: '',
             title: '',
             difficulty: 'beginner',
@@ -124,23 +123,23 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
         ),
       ),
     );
-    if (friss == true) await _betoltes();
+    if (friss == true) await _load();
   }
 
   Future<void> _felfedezes() async {
-    final rutin = await Navigator.of(context).push<RoutineModel>(
+    final plan = await Navigator.of(context).push<PlanModel>(
       MaterialPageRoute(builder: (_) => const AiExploreScreen()),
     );
-    if (rutin != null) {
-      await _rutinInditasa(rutin);
+    if (plan != null) {
+      await _rutinInditasa(plan);
     } else {
-      await _betoltes();
+      await _load();
     }
   }
 
   /// Ha mar fut edzes: Folytatas / Elvetés / Megse
   Future<bool> _kezelFutoEdzest() async {
-    final aktiv = await _service.aktivEdzesVagyNull();
+    final aktiv = await _service.activeWorkoutOrNull();
     if (aktiv == null) return true;
 
     if (!mounted) return false;
@@ -165,7 +164,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
       return false;
     }
     if (valasztas == 'elvet') {
-      await _service.edzesElvetese();
+      await _service.discardWorkout();
       return true;
     }
     return false;
@@ -174,26 +173,24 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   void _nyissonAktivEdzest(String cim) {
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => ActiveWorkoutScreen(edzesCim: cim)),
-    ).then((_) => _betoltes());
+    ).then((_) => _load());
   }
 
   Future<void> _kovetkezoEdzesInditasa(WorkoutSessionModel forras) async {
     if (!await _kezelFutoEdzest()) return;
     try {
-      final szorzo = 1 + _progresszio / 100;
+      final szorzo = 1 + _progress / 100;
 
-      // Az elvégzett sorozatok progressziós változata
       final modositottGyakorlatok = forras.exercises.map((gy) {
         final modositottSorozatok = gy.sets
-            .where((s) => s.elvegezve)
+            .where((s) => s.isDone)
             .toList()
             .asMap()
             .entries
             .map((e) {
-              // Ha az elvégzett sorozat súlya 0, az előző súlyt használjuk alapnak
               final alapSuly = e.value.weight > 0
                   ? e.value.weight
-                  : (e.value.elozoSulyKg > 0 ? e.value.elozoSulyKg : 0.0);
+                  : (e.value.prevWeightKg > 0 ? e.value.prevWeightKg : 0.0);
               final ujSuly = alapSuly > 0
                   ? double.parse((alapSuly * szorzo).toStringAsFixed(1))
                   : 0.0;
@@ -201,10 +198,10 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                 setNumber: e.key + 1,
                 weight: ujSuly,
                 reps: e.value.reps,
-                elvegezve: false,
-                celIsmetles: e.value.reps > 0 ? '${e.value.reps}' : e.value.celIsmetles,
-                elozoSulyKg: alapSuly,
-                elozoIsmetles: e.value.reps,
+                isDone: false,
+                targetReps: e.value.reps > 0 ? '${e.value.reps}' : e.value.targetReps,
+                prevWeightKg: alapSuly,
+                prevReps: e.value.reps,
               );
             })
             .toList();
@@ -224,31 +221,28 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
       // A cím NEM tartalmazza a % jelzést (a forrásnév alapján)
       final alapNev = forras.megjelenitettCim
           .replaceAll(RegExp(r'\s*\+[\d.]+%'), '');
-      final progresszioCimke = _progresszio == 0
+      final progressLabel = _progress == 0
           ? alapNev
-          : '$alapNev +${_progresszio.toStringAsFixed(1)}%';
+          : '$alapNev +${_progress.toStringAsFixed(1)}%';
 
-      // 1. Indítjuk az edzést a gyakorlatlistával
-      final rutin = RoutineModel(
+      final plan = PlanModel(
         id: '',
-        title: progresszioCimke,
+        title: progressLabel,
         difficulty: 'intermediate',
         targetMuscle: 'Full Body',
         sportCategory: 'gym',
         exerciseIds: modositottGyakorlatok.map((e) => e.exerciseId).toList(),
         exerciseNames: modositottGyakorlatok.map((e) => e.exerciseName).toList(),
-        gyakorlatSablonok: modositottGyakorlatok,
+        exerciseTemplates: modositottGyakorlatok,
       );
-      await _service.rutinInditasa(rutin, mentett: false);
+      await _service.startFromPlan(plan, saved: false);
 
-      // 2. Azonnali sorozat-frissítés: a backend esetleg 0-ra reset-eli a súlyt,
-      //    ezért explicit elküldjük a helyes értékeket minden gyakorlathoz
       for (final gy in modositottGyakorlatok) {
-        await _service.sorozatokFrissitese(gy.exerciseId, gy.sets);
+        await _service.updateSets(gy.exerciseId, gy.sets);
       }
 
       if (!mounted) return;
-      _nyissonAktivEdzest(progresszioCimke);
+      _nyissonAktivEdzest(progressLabel);
     } catch (e) {
       _uzenet('$e', hiba: true);
     }
@@ -266,10 +260,10 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppSzinek.felulet,
+      backgroundColor: AppColors.felulet,
       body: SafeArea(
         child: RefreshIndicator(
-          onRefresh: _betoltes,
+          onRefresh: _load,
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
@@ -277,15 +271,15 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
               SliverToBoxAdapter(child: _buildUresEdzesGomb()),
               SliverToBoxAdapter(child: _buildRutinFejlec()),
               SliverToBoxAdapter(child: _buildRutinAkcioGombok()),
-              if (_betolt)
+              if (_loading)
                 const SliverFillRemaining(
                   hasScrollBody: false,
                   child: Center(child: CircularProgressIndicator()),
                 )
-              else if (_hiba)
+              else if (_err)
                 SliverFillRemaining(hasScrollBody: false, child: _buildHiba())
               else ...[
-                if (_befejezettEdzesek.isNotEmpty)
+                if (_history.isNotEmpty)
                   _buildKovetkezoEdzesSliver(),
                 _buildAiSliver(),
                 SliverToBoxAdapter(child: _buildMenteseimFejlec()),
@@ -307,9 +301,9 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
         children: [
           Text(
             'Edzés',
-            style: TextStyle(fontSize: 34, fontWeight: FontWeight.w800, color: AppSzinek.szoveg),
+            style: TextStyle(fontSize: 34, fontWeight: FontWeight.w800, color: AppColors.szoveg),
           ),
-          Icon(Icons.keyboard_arrow_down, size: 28, color: AppSzinek.szoveg),
+          Icon(Icons.keyboard_arrow_down, size: 28, color: AppColors.szoveg),
           const Spacer(),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -331,11 +325,11 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
       child: Material(
-        color: AppSzinek.halvanyKitoltes,
+        color: AppColors.halvanyKitoltes,
         borderRadius: BorderRadius.circular(14),
         child: InkWell(
           onTap: () {
-            Haptika.kozepes();
+            Haptics.medium();
             _uresEdzesInditasa();
           },
           borderRadius: BorderRadius.circular(14),
@@ -345,11 +339,11 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.add, size: 22, color: AppSzinek.szoveg),
+                Icon(Icons.add, size: 22, color: AppColors.szoveg),
                 const SizedBox(width: 8),
                 Text(
                   'Üres edzés indítása',
-                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: AppSzinek.szoveg),
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: AppColors.szoveg),
                 ),
               ],
             ),
@@ -366,7 +360,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
         children: [
           Text(
             'Rutinok',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppSzinek.szoveg),
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.szoveg),
           ),
         ],
       ),
@@ -388,11 +382,11 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
 
   Widget _szurkGomb(IconData ikon, String cimke, VoidCallback onTap) {
     return Material(
-      color: AppSzinek.halvanyKitoltes,
+      color: AppColors.halvanyKitoltes,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         onTap: () {
-          Haptika.konnyu();
+          Haptics.light();
           onTap();
         },
         borderRadius: BorderRadius.circular(14),
@@ -401,9 +395,9 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(ikon, size: 20, color: AppSzinek.szoveg),
+              Icon(ikon, size: 20, color: AppColors.szoveg),
               const SizedBox(width: 8),
-              Text(cimke, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: AppSzinek.szoveg)),
+              Text(cimke, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: AppColors.szoveg)),
             ],
           ),
         ),
@@ -424,7 +418,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
             const SizedBox(height: 8),
             const Text('Indítsd el: dotnet run', style: TextStyle(fontSize: 13)),
             const SizedBox(height: 16),
-            FilledButton(onPressed: _betoltes, child: const Text('Újra')),
+            FilledButton(onPressed: _load, child: const Text('Újra')),
           ],
         ),
       ),
@@ -432,7 +426,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   }
 
   Widget _buildKovetkezoEdzesSliver() {
-    final legutobbiEdzesek = _befejezettEdzesek.take(3).toList();
+    final legutobbiEdzesek = _history.take(3).toList();
     return SliverToBoxAdapter(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -445,10 +439,10 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                 const SizedBox(width: 8),
                 Text(
                   'Következő edzés',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppSzinek.szoveg),
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.szoveg),
                 ),
                 const SizedBox(width: 10),
-                if (_progresszio > 0)
+                if (_progress > 0)
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
@@ -456,7 +450,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      '+${_progresszio.toStringAsFixed(1)}%',
+                      '+${_progress.toStringAsFixed(1)}%',
                       style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
@@ -481,7 +475,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
           ),
           ...legutobbiEdzesek.map((edzes) => _KovetkezoEdzesKartya(
                 edzes: edzes,
-                progresszio: _progresszio,
+                progresszio: _progress,
                 onInditas: () => _kovetkezoEdzesInditasa(edzes),
               )),
         ],
@@ -498,7 +492,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
           const SizedBox(width: 8),
           Text(
             'Mentéseim',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppSzinek.szoveg),
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.szoveg),
           ),
         ],
       ),
@@ -519,7 +513,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                   Icon(_sajatNyitva ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_right, size: 22),
                   Expanded(
                     child: Text(
-                      'Saját rutinok (${_sajatRutinok.length})',
+                      'Saját rutinok (${_plans.length})',
                       style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.grey.shade700),
                     ),
                   ),
@@ -528,7 +522,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
             ),
           ),
           if (_sajatNyitva)
-            if (_sajatRutinok.isEmpty)
+            if (_plans.isEmpty)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                 child: Text(
@@ -537,7 +531,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                 ),
               )
             else
-              ..._sajatRutinok.asMap().entries.map((e) => _RutinKartya(
+              ..._plans.asMap().entries.map((e) => _RutinKartya(
                     key: ValueKey('sajat_${e.value.id}'),
                     rutin: e.value,
                     index: e.key,
@@ -547,7 +541,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                       final friss = await Navigator.of(context).push<bool>(
                         MaterialPageRoute(builder: (_) => RoutineEditScreen(rutin: e.value)),
                       );
-                      if (friss == true) await _betoltes();
+                      if (friss == true) await _load();
                     },
                   )),
         ],
@@ -569,7 +563,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                   Icon(_tortenetNyitva ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_right, size: 22),
                   Expanded(
                     child: Text(
-                      'Befejezett edzések (${_befejezettEdzesek.length})',
+                      'Befejezett edzések (${_history.length})',
                       style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.grey.shade700),
                     ),
                   ),
@@ -578,7 +572,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
             ),
           ),
           if (_tortenetNyitva)
-            if (_befejezettEdzesek.isEmpty)
+            if (_history.isEmpty)
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
                 child: Text(
@@ -587,7 +581,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                 ),
               )
             else
-              ..._befejezettEdzesek.map((edzes) => _BefejezettEdzesKartya(
+              ..._history.map((edzes) => _BefejezettEdzesKartya(
                     edzes: edzes,
                     onTap: () async {
                       final friss = await Navigator.of(context).push<bool>(
@@ -595,7 +589,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                           builder: (_) => WorkoutHistoryDetailScreen(edzes: edzes),
                         ),
                       );
-                      if (friss == true) await _betoltes();
+                      if (friss == true) await _load();
                     },
                   )),
         ],
@@ -619,7 +613,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      'AI ajánlott edzések (${_aiRutinok.length})',
+                      'AI ajánlott edzések (${_aiPlans.length})',
                       style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.grey.shade700),
                     ),
                   ),
@@ -629,7 +623,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
             ),
           ),
           if (_aiNyitva)
-            if (_aiRutinok.isEmpty)
+            if (_aiPlans.isEmpty)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                 child: Text(
@@ -638,7 +632,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                 ),
               )
             else
-              ..._aiRutinok.asMap().entries.map((e) => _RutinKartya(
+              ..._aiPlans.asMap().entries.map((e) => _RutinKartya(
                     key: ValueKey('ai_${e.value.id}'),
                     rutin: e.value,
                     index: e.key,
@@ -663,7 +657,7 @@ class _RutinKartya extends StatelessWidget {
     this.onSzerkesztes,
   });
 
-  final RoutineModel rutin;
+  final PlanModel rutin;
   final int index;
   final VoidCallback? onInditas;
   final VoidCallback? onTap;
@@ -681,12 +675,12 @@ class _RutinKartya extends StatelessWidget {
       key: key,
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
       decoration: BoxDecoration(
-        color: AppSzinek.kartya,
+        color: AppColors.kartya,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppSzinek.szegely),
+        border: Border.all(color: AppColors.szegely),
         boxShadow: [
           BoxShadow(
-            color: AppSzinek.arnyek,
+            color: AppColors.arnyek,
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
@@ -755,7 +749,7 @@ class _RutinKartya extends StatelessWidget {
           ],
           if (onInditas != null) ...[
             const SizedBox(height: 16),
-            ModernGomb(
+            ModernButton(
               cimke: 'Rutin indítása',
               ikon: Icons.play_arrow_rounded,
               szin: _primaryBlue,
@@ -787,7 +781,7 @@ class _KovetkezoEdzesKartya extends StatelessWidget {
   Widget build(BuildContext context) {
     final szorzo = 1 + progresszio / 100;
     final elvegzettGyakorlatok = edzes.exercises
-        .where((gy) => gy.sets.any((s) => s.elvegezve))
+        .where((gy) => gy.sets.any((s) => s.isDone))
         .toList();
 
     return Container(
@@ -871,7 +865,7 @@ class _KovetkezoEdzesKartya extends StatelessWidget {
             // Gyakorlatok listája módosított súlyokkal
             if (elvegzettGyakorlatok.isNotEmpty) ...[
               ...elvegzettGyakorlatok.take(4).map((gy) {
-                final elvegzettSorozatok = gy.sets.where((s) => s.elvegezve).toList();
+                final elvegzettSorozatok = gy.sets.where((s) => s.isDone).toList();
                 final maxSulyRegi = elvegzettSorozatok
                     .map((s) => s.weight)
                     .fold(0.0, (a, b) => a > b ? a : b);
@@ -967,7 +961,7 @@ class _KovetkezoEdzesKartya extends StatelessWidget {
             ],
 
             // Indítás gomb
-            ModernGomb(
+            ModernButton(
               cimke: progresszio > 0
                   ? 'Indítás +${progresszio.toStringAsFixed(1)}% súllyal'
                   : 'Indítás (változatlan súlyok)',
@@ -994,9 +988,9 @@ class _BefejezettEdzesKartya extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
       decoration: BoxDecoration(
-        color: AppSzinek.kartya,
+        color: AppColors.kartya,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppSzinek.szegely),
+        border: Border.all(color: AppColors.szegely),
       ),
       child: InkWell(
         onTap: onTap,

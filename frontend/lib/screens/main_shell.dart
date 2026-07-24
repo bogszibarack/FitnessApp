@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../theme/app_tema.dart';
-import '../widgets/modern_gomb.dart';
+import '../theme/app_theme.dart';
+import '../widgets/modern_button.dart';
 import 'community/community_screen.dart';
 import 'home/home_screen.dart';
 import 'nutrition/naplo_screen.dart';
@@ -20,7 +20,7 @@ class _MainShellState extends State<MainShell> {
   int _homeVersion = 0;
 
   void _valtas(int index) {
-    Haptika.valasztas();
+    Haptics.selection();
     setState(() {
       if (index == 0 && _selectedIndex != 0) {
         _homeVersion++;
@@ -32,9 +32,9 @@ class _MainShellState extends State<MainShell> {
   @override
   Widget build(BuildContext context) {
     // Témaváltáskor a füleket újraépítjük (a kulcson keresztül), hogy az
-    // AppSzinek-alapú színek minden képernyőn azonnal frissüljenek.
+    // AppColors-alapú színek minden képernyőn azonnal frissüljenek.
     return ValueListenableBuilder<ThemeMode>(
-      valueListenable: TemaVezerlo.mod,
+      valueListenable: ThemeController.mode,
       builder: (context, _, _) {
         // Theme.of függőség: rendszer módban az OS váltását is követi.
         final temaKulcs = Theme.of(context).brightness.name;
@@ -101,12 +101,12 @@ class LebegoNavSav extends StatelessWidget {
       child: Container(
         height: 72,
         decoration: BoxDecoration(
-          color: AppSzinek.kartya,
+          color: AppColors.kartya,
           borderRadius: BorderRadius.circular(36),
-          border: AppSzinek.sotet ? Border.all(color: AppSzinek.szegely) : null,
+          border: AppColors.dark ? Border.all(color: AppColors.szegely) : null,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: AppSzinek.sotet ? 0.5 : 0.12),
+              color: Colors.black.withValues(alpha: AppColors.dark ? 0.5 : 0.12),
               blurRadius: 24,
               offset: const Offset(0, 8),
             ),
@@ -150,7 +150,7 @@ class LebegoNavSav extends StatelessWidget {
                       child: Icon(
                         aktiv ? elem.aktivIkon : elem.ikon,
                         size: 22,
-                        color: aktiv ? Colors.white : AppSzinek.halvanySzoveg,
+                        color: aktiv ? Colors.white : AppColors.halvanySzoveg,
                       ),
                     ),
                     const SizedBox(height: 3),
@@ -162,8 +162,8 @@ class LebegoNavSav extends StatelessWidget {
                         fontSize: 10.5,
                         fontWeight: aktiv ? FontWeight.w700 : FontWeight.w500,
                         color: aktiv
-                            ? (AppSzinek.sotet ? const Color(0xFF8A7DFF) : _aktivSzin)
-                            : AppSzinek.halvanySzoveg,
+                            ? (AppColors.dark ? const Color(0xFF8A7DFF) : _aktivSzin)
+                            : AppColors.halvanySzoveg,
                       ),
                     ),
                   ],

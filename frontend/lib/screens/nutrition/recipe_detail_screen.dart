@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import '../../config/api_config.dart';
 import '../../models/nutrition_models.dart';
 import '../../services/nutrition_service.dart';
-import '../../services/recept_service.dart';
-import '../../theme/app_tema.dart';
+import '../../services/recipe_service.dart';
+import '../../theme/app_theme.dart';
 
 /// Recept részletei + hozzáadás a naplóhoz.
 class RecipeDetailScreen extends StatefulWidget {
@@ -22,7 +22,7 @@ class RecipeDetailScreen extends StatefulWidget {
 }
 
 class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
-  final _receptService = ReceptService.instance;
+  final _recipeService = RecipeService.instance;
   final _nutritionService = NutritionService.instance;
 
   ReceptReszletesModel? _recept;
@@ -39,7 +39,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
 
   Future<void> _betoltes() async {
     try {
-      final r = await _receptService.reszletek(widget.receptId);
+      final r = await _recipeService.reszletek(widget.receptId);
       if (!mounted) return;
       setState(() {
         _recept = r;
@@ -95,13 +95,13 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     final kcal = (r.becsultKaloria * _adag).round();
 
     return Scaffold(
-      backgroundColor: AppSzinek.felulet,
+      backgroundColor: AppColors.felulet,
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
             expandedHeight: 200,
             pinned: true,
-            backgroundColor: AppSzinek.felulet,
+            backgroundColor: AppColors.felulet,
             foregroundColor: Colors.white,
             flexibleSpace: FlexibleSpaceBar(
               background: _receptFejlec(r),

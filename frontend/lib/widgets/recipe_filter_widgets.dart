@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../theme/app_tema.dart';
+import '../theme/app_theme.dart';
 
 import '../models/nutrition_models.dart';
 
@@ -226,7 +226,7 @@ class ReceptSzekcioCim extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
       child: Row(
         children: [
-          Text(cim, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppSzinek.szoveg)),
+          Text(cim, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.szoveg)),
           const Spacer(),
           if (ujraGomb != null)
             TextButton.icon(

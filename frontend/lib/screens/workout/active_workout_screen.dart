@@ -3,10 +3,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../models/workout_models.dart';
+import '../../services/plan_service.dart';
 import '../../services/workout_service.dart';
-import '../../theme/app_tema.dart';
+import '../../theme/app_theme.dart';
 import '../../widgets/exercise_workout_widgets.dart';
-import '../../widgets/modern_gomb.dart';
+import '../../widgets/modern_button.dart';
 import 'add_exercise_screen.dart';
 import 'workout_summary_screen.dart';
 
@@ -38,7 +39,7 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
   Future<void> _frissites() async {
     setState(() => _betolt = _edzes == null);
     try {
-      final edzes = await _service.aktivEdzes();
+      final edzes = await _service.activeWorkout();
       if (!mounted) return;
       setState(() {
         _edzes = edzes;
@@ -81,11 +82,11 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
           edzes: _edzes!,
           onMentes: (cim, mentRutin, progresszioSzazalek) async {
             if (cim.isNotEmpty) {
-              await _service.edzesCimFrissitese(cim);
+              await _service.updateWorkoutTitle(cim);
             }
-            final befejezett = await _service.edzesBefejezese();
+            final befejezett = await _service.finishWorkout();
             if (mentRutin) {
-              await _service.rutinMenteseEdzesbol(edzes: befejezett, rutinCim: cim);
+              await PlanService.instance.saveFromWorkout(session: befejezett, title: cim);
             }
             if (mounted) Navigator.of(context).popUntil((r) => r.isFirst || !r.isCurrent);
           },
@@ -104,12 +105,12 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
         actions: [
           TextButton(
             onPressed: () {
-              Haptika.konnyu();
+              Haptics.light();
               Navigator.pop(ctx, false);
             },
             child: const Text('Mégse'),
           ),
-          ModernGomb(
+          ModernButton(
             cimke: 'Elvetés',
             kicsi: true,
             szin: Colors.red,
@@ -120,7 +121,7 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
     );
     if (megerosites != true) return;
 
-    await _service.edzesElvetese();
+    await _service.discardWorkout();
     if (!mounted) return;
     Navigator.of(context).pop();
   }
@@ -136,10 +137,10 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
     final gyakorlatok = _edzes?.exercises ?? [];
 
     return Scaffold(
-      backgroundColor: AppSzinek.hatter,
+      backgroundColor: AppColors.hatter,
       appBar: AppBar(
-        backgroundColor: AppSzinek.felulet,
-        foregroundColor: AppSzinek.szoveg,
+        backgroundColor: AppColors.felulet,
+        foregroundColor: AppColors.szoveg,
         elevation: 0.5,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -150,7 +151,7 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
         ),
         actions: [
           Center(
-            child: ModernGomb(
+            child: ModernButton(
               cimke: 'Elvetés',
               kicsi: true,
               kitoltott: false,
@@ -160,7 +161,7 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
           ),
           const SizedBox(width: 8),
           Center(
-            child: ModernGomb(
+            child: ModernButton(
               cimke: 'Befejezés',
               kicsi: true,
               ikon: Icons.check_rounded,
@@ -173,7 +174,7 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
       ),
       floatingActionButton: _edzes == null
           ? null
-          : ModernGomb(
+          : ModernButton(
               cimke: 'Gyakorlat',
               ikon: Icons.add,
               szin: const Color(0xFF1E88E5),
@@ -212,7 +213,7 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
                                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                                 ),
                                 const SizedBox(height: 20),
-                                ModernGomb(
+                                ModernButton(
                                   cimke: 'Gyakorlat keresése',
                                   ikon: Icons.search,
                                   onTap: _gyakorlatHozzaadasa,
@@ -259,7 +260,7 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
                                     ),
                                     trailing: Icon(nyitva ? Icons.expand_less : Icons.expand_more),
                                     onTap: () {
-                                      Haptika.valasztas();
+                                      Haptics.selection();
                                       _gyakorlatNyitasa(g.exerciseId);
                                     },
                                   ),
@@ -288,9 +289,9 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppSzinek.kartya,
+        color: AppColors.kartya,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppSzinek.szegely),
+        border: Border.all(color: AppColors.szegely),
       ),
       child: Column(
         children: [

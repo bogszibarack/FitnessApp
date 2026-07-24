@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../models/routine_model.dart';
-import '../../services/workout_service.dart';
-import '../../theme/app_tema.dart';
+import '../../models/plan_model.dart';
+import '../../services/plan_service.dart';
+import '../../theme/app_theme.dart';
 
 class _EdzestervOpcio {
   const _EdzestervOpcio({
@@ -29,7 +29,7 @@ class AiExploreScreen extends StatefulWidget {
 }
 
 class _AiExploreScreenState extends State<AiExploreScreen> {
-  final _service = WorkoutService.instance;
+  final _service = PlanService.instance;
 
   static const _nehezsegek = ['beginner', 'intermediate', 'advanced'];
 
@@ -140,7 +140,7 @@ class _AiExploreScreenState extends State<AiExploreScreen> {
 
   late _EdzestervOpcio _valasztott = _opciok.firstWhere((o) => o.targetMuscle == 'Chest');
   String _nehezseg = 'beginner';
-  List<RoutineModel> _variaciok = [];
+  List<PlanModel> _variaciok = [];
   bool _betolt = false;
   String? _hiba;
 
@@ -150,7 +150,7 @@ class _AiExploreScreenState extends State<AiExploreScreen> {
       _hiba = null;
     });
     try {
-      final lista = await _service.aiAjanlatok(
+      final lista = await _service.generateAi(
         difficulty: _nehezseg,
         targetMuscle: _valasztott.targetMuscle,
         sportCategory: _valasztott.sportCategory,
@@ -169,12 +169,12 @@ class _AiExploreScreenState extends State<AiExploreScreen> {
     }
   }
 
-  Future<void> _mentes(RoutineModel rutin) async {
+  Future<void> _mentes(PlanModel plan) async {
     try {
-      await _service.rutinMentese(rutin);
+      await _service.save(plan);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Mentve: ${rutin.title}')),
+        SnackBar(content: Text('Mentve: ${plan.title}')),
       );
     } catch (e) {
       if (!mounted) return;
@@ -187,11 +187,11 @@ class _AiExploreScreenState extends State<AiExploreScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppSzinek.felulet,
+      backgroundColor: AppColors.felulet,
       appBar: AppBar(
         title: const Text('AI edzésterv', style: TextStyle(fontWeight: FontWeight.w700)),
-        backgroundColor: AppSzinek.felulet,
-        foregroundColor: AppSzinek.szoveg,
+        backgroundColor: AppColors.felulet,
+        foregroundColor: AppColors.szoveg,
         elevation: 0.5,
       ),
       body: ListView(
@@ -282,7 +282,7 @@ class _AiExploreScreenState extends State<AiExploreScreen> {
     return elemek;
   }
 
-  Widget _variacioKartya(RoutineModel r) {
+  Widget _variacioKartya(PlanModel r) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
