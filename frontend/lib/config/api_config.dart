@@ -8,11 +8,13 @@ class ApiConfig {
     if (value.isNotEmpty) _defaultUserName = value;
   }
 
-  /// Webes debug: lokális backend (dotnet run). Telefonon (debug is) a production
-  /// szerver — a localhost fizikai eszközről nem érhető el.
+  /// Production backend (Render).
+  static const String productionUrl = 'https://fitnessapp-fnfv.onrender.com';
+
+  /// Webes debug: lokális backend (dotnet run). Telefonon / release: Render.
   static String get baseUrl {
     if (kDebugMode && kIsWeb) return 'http://localhost:5150';
-    return 'https://flexio.runasp.net';
+    return productionUrl;
   }
 
   /// Külső képeket a saját szerverünkön át töltjük (CORS fix Flutter weben).
