@@ -1,3 +1,6 @@
+// Disable config file watchers before host build (Render/Linux inotify limit).
+Environment.SetEnvironmentVariable("DOTNET_HOSTBUILDER__RELOADCONFIGONCHANGE", "false");
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();

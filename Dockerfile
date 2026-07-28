@@ -17,6 +17,8 @@ COPY --from=publish /app/publish .
 
 # Persist JSON here: attach a Render Disk mounted at /var/data
 ENV DATA_DIR=/var/data
+# Avoid Linux inotify crash on Render (config file watchers)
+ENV DOTNET_HOSTBUILDER__RELOADCONFIGONCHANGE=false
 ENV ASPNETCORE_URLS=http://0.0.0.0:8080
 EXPOSE 8080
 ENTRYPOINT ["sh", "-c", "mkdir -p \"${DATA_DIR:-/var/data}\" && dotnet FitnessBackend.dll --urls http://0.0.0.0:${PORT:-8080}"]
