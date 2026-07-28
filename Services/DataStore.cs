@@ -27,6 +27,16 @@ namespace FitnessBackend.Services
 
         private static string ResolveDataDirectory()
         {
+            // Render / Docker: mount a persistent disk and set DATA_DIR (e.g. /var/data).
+            // Without this, container restarts wipe JSON files under /app/data.
+            var fromEnv = Environment.GetEnvironmentVariable("DATA_DIR");
+            if (!string.IsNullOrWhiteSpace(fromEnv))
+            {
+                Directory.CreateDirectory(fromEnv);
+                Console.WriteLine($"[DataStore] DATA_DIR={fromEnv}");
+                return fromEnv;
+            }
+
             try
             {
                 var cwd = Directory.GetCurrentDirectory();
