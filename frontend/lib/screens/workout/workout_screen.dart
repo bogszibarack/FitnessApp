@@ -31,6 +31,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   double _progress = 5.0;
   bool _loading = true;
   bool _err = false;
+  String? _errMsg;
   bool _aiNyitva = true;
   bool _sajatNyitva = true;
   bool _tortenetNyitva = true;
@@ -45,26 +46,38 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     setState(() {
       _loading = true;
       _err = false;
+      _errMsg = null;
     });
     try {
       final eredmenyek = await Future.wait([
-        _planService.generateAi(targetMuscle: 'Chest'),
         _planService.listMine(),
         _service.workoutHistory(),
         _service.getProgressPercent(),
       ]);
       if (!mounted) return;
       setState(() {
-        _aiPlans = eredmenyek[0] as List<PlanModel>;
-        _plans = eredmenyek[1] as List<PlanModel>;
-        _history = eredmenyek[2] as List<WorkoutSessionModel>;
-        _progress = (eredmenyek[3] as double).clamp(0.0, 20.0);
+        _plans = eredmenyek[0] as List<PlanModel>;
+        _history = eredmenyek[1] as List<WorkoutSessionModel>;
+        _progress = (eredmenyek[2] as double).clamp(0.0, 20.0);
         _loading = false;
       });
-    } catch (_) {
+
+      // AI suggestions are optional — don't block the whole screen.
+      try {
+        final ai = await _planService.generateAi(targetMuscle: 'Chest');
+        if (mounted) setState(() => _aiPlans = ai);
+      } catch (_) {
+        if (mounted) setState(() => _aiPlans = []);
+      }
+    } catch (e) {
       if (!mounted) return;
+      final raw = '$e';
+      final msg = raw.contains('401') || raw.contains('Unauthorized')
+          ? 'Jelentkezz be újra (a munkamenet lejárt).'
+          : 'Nem sikerült betölteni. Ellenőrizd az internetet, majd Újra.';
       setState(() {
         _err = true;
+        _errMsg = msg;
         _loading = false;
       });
     }
@@ -416,7 +429,11 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
             const SizedBox(height: 12),
             const Text('Nem sikerült betölteni a rutinokat', style: TextStyle(fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
-            const Text('Indítsd el: dotnet run', style: TextStyle(fontSize: 13)),
+            Text(
+              _errMsg ?? 'Ellenőrizd az internetet, majd próbáld újra.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 13),
+            ),
             const SizedBox(height: 16),
             FilledButton(onPressed: _load, child: const Text('Újra')),
           ],
