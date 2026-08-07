@@ -81,9 +81,18 @@ namespace FitnessBackend.Services
                 return (null, "A jelszó legalább 6 karakter legyen.", 400);
 
             var input = req.Username.Trim();
-            var user = await _db.Users.FirstOrDefaultAsync(u =>
-                u.Email == input.ToLowerInvariant() ||
-                u.Username.ToLower() == input.ToLower());
+            // Prefer exact email match when input looks like an email (avoids username collision).
+            AppUser? user;
+            if (input.Contains('@'))
+            {
+                var email = input.ToLowerInvariant();
+                user = await _db.Users.FirstOrDefaultAsync(u => u.Email == email);
+            }
+            else
+            {
+                user = await _db.Users.FirstOrDefaultAsync(u =>
+                    u.Username.ToLower() == input.ToLower());
+            }
 
             if (user == null)
                 return (null, "Nem találtunk fiókot ezzel az e-mail/felhasználónévvel. Regisztrálj!", 404);
@@ -91,8 +100,8 @@ namespace FitnessBackend.Services
             if (!VerifyPassword(user, req.Password))
                 return (null, "Hibás jelszó.", 401);
 
-            // Upgrade legacy Base64 password to bcrypt on successful login
-            if (user.PasswordIsLegacyBase64)
+            // Upgrade legacy Base64 (or mis-tagged) password to bcrypt on successful login
+            if (user.PasswordIsLegacyBase64 || !user.PasswordHash.StartsWith("$2", StringComparison.Ordinal))
             {
                 user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.Password);
                 user.PasswordIsLegacyBase64 = false;
@@ -136,6 +145,27 @@ namespace FitnessBackend.Services
             }
         }
 
+        public async Task<(bool Ok, string? Error, int Status)> ResetPasswordAsync(ResetPasswordRequest req)
+        {
+            if (string.IsNullOrWhiteSpace(req.Email) || string.IsNullOrWhiteSpace(req.Username))
+                return (false, "E-mail és felhasználónév megadása kötelező.", 400);
+            if (string.IsNullOrWhiteSpace(req.NewPassword) || req.NewPassword.Length < 6)
+                return (false, "Az új jelszó legalább 6 karakter legyen.", 400);
+
+            var email = req.Email.ToLowerInvariant().Trim();
+            var username = req.Username.Trim();
+            var user = await _db.Users.FirstOrDefaultAsync(u =>
+                u.Email == email && u.Username.ToLower() == username.ToLower());
+
+            if (user == null)
+                return (false, "Nem találtunk fiókot ezzel az e-mail + felhasználónév párossal.", 404);
+
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.NewPassword);
+            user.PasswordIsLegacyBase64 = false;
+            await _db.SaveChangesAsync();
+            return (true, null, 200);
+        }
+
         public async Task<bool> EmailTakenAsync(string email) =>
             await _db.Users.AnyAsync(u => u.Email == email.ToLowerInvariant().Trim());
 
@@ -174,15 +204,30 @@ namespace FitnessBackend.Services
             if (string.IsNullOrEmpty(user.PasswordHash))
                 return false;
 
-            if (user.PasswordIsLegacyBase64)
+            var hash = user.PasswordHash;
+
+            // Detect by hash shape — don't trust the legacy flag alone
+            // (mis-tagged rows would always fail with flag-only checks).
+            if (hash.StartsWith("$2", StringComparison.Ordinal))
             {
-                var legacy = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(password));
-                return user.PasswordHash == legacy;
+                try
+                {
+                    return BCrypt.Net.BCrypt.Verify(password, hash);
+                }
+                catch
+                {
+                    return false;
+                }
             }
 
+            var legacy = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(password));
+            if (hash == legacy)
+                return true;
+
+            // Last resort: try bcrypt even if prefix is unexpected
             try
             {
-                return BCrypt.Net.BCrypt.Verify(password, user.PasswordHash);
+                return BCrypt.Net.BCrypt.Verify(password, hash);
             }
             catch
             {
@@ -220,5 +265,12 @@ namespace FitnessBackend.Services
     public class LogoutRequest
     {
         public string? RefreshToken { get; set; }
+    }
+
+    public class ResetPasswordRequest
+    {
+        public string Email { get; set; } = "";
+        public string Username { get; set; } = "";
+        public string NewPassword { get; set; } = "";
     }
 }

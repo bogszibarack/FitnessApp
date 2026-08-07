@@ -45,14 +45,18 @@ class AuthService {
           Uri.parse('$_base/api/auth/login'),
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode({
-            'Username': usernameOrEmail,
-            'Password': password,
+            'username': usernameOrEmail,
+            'password': password,
           }),
         )
         .timeout(const Duration(seconds: 10));
     _check(response);
     final json = jsonDecode(response.body) as Map<String, dynamic>;
-    return AuthSession.fromJson(json, fallbackUserName: usernameOrEmail);
+    final session = AuthSession.fromJson(json, fallbackUserName: usernameOrEmail);
+    if (session.accessToken.isEmpty || session.refreshToken.isEmpty) {
+      throw AuthException(500, '{"error":"A szerver nem adott tokent. Próbáld újra."}');
+    }
+    return session;
   }
 
   Future<AuthSession> register({
@@ -71,21 +75,25 @@ class AuthService {
           Uri.parse('$_base/api/auth/register-onboarding'),
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode({
-            'Email': email,
-            'Password': password,
-            'Username': username,
-            'WeightUnit': weightUnit,
-            'DistanceUnit': distanceUnit,
-            'MeasurementUnit': measurementUnit,
-            'Weight': weight,
-            'County': county,
-            'Source': source,
+            'email': email,
+            'password': password,
+            'username': username,
+            'weightUnit': weightUnit,
+            'distanceUnit': distanceUnit,
+            'measurementUnit': measurementUnit,
+            'weight': weight,
+            'county': county,
+            'source': source,
           }),
         )
         .timeout(const Duration(seconds: 12));
     _check(response);
     final json = jsonDecode(response.body) as Map<String, dynamic>;
-    return AuthSession.fromJson(json, fallbackUserName: username);
+    final session = AuthSession.fromJson(json, fallbackUserName: username);
+    if (session.accessToken.isEmpty || session.refreshToken.isEmpty) {
+      throw AuthException(500, '{"error":"A szerver nem adott tokent. Próbáld újra."}');
+    }
+    return session;
   }
 
   /// Returns true if a new access token was stored.

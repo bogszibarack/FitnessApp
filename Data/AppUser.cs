@@ -12,7 +12,7 @@ namespace FitnessBackend.Data
         [MaxLength(64)]
         public string Username { get; set; } = "";
 
-        [MaxLength(200)]
+        [MaxLength(500)]
         public string PasswordHash { get; set; } = "";
 
         /// <summary>True if PasswordHash is still legacy Base64 (pre-JWT migration).</summary>

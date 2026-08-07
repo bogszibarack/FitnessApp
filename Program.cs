@@ -84,7 +84,11 @@ builder.Services
 builder.Services.AddAuthorization();
 
 builder.Services.AddRouting();
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(o =>
+    {
+        o.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
+    });
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>

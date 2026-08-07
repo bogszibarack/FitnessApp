@@ -50,8 +50,7 @@ class _LoginScreenState extends State<LoginScreen>
     super.dispose();
   }
 
-  bool get _emailOk =>
-      _emailCtrl.text.isNotEmpty && _emailCtrl.text.contains('@');
+  bool get _emailOk => _emailCtrl.text.trim().length >= 3;
   bool get _passOk => _passCtrl.text.length >= 6;
   bool get _mindenOk => _emailOk && _passOk;
 

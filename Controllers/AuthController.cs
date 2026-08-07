@@ -73,6 +73,19 @@ namespace FitnessBackend.Controllers
             return Ok(new { success = true });
         }
 
+        /// <summary>
+        /// Closed-beta recovery: reset password when email + username both match.
+        /// </summary>
+        [HttpPost("reset-password")]
+        [AllowAnonymous]
+        public async Task<ActionResult<object>> ResetPassword([FromBody] ResetPasswordRequest req)
+        {
+            var (ok, err, status) = await _auth.ResetPasswordAsync(req);
+            if (!ok)
+                return status == 404 ? NotFound(new { error = err }) : BadRequest(new { error = err });
+            return Ok(new { success = true, message = "Jelszó frissítve. Jelentkezz be az új jelszóval." });
+        }
+
         [HttpGet("check-email")]
         [AllowAnonymous]
         public async Task<ActionResult<object>> CheckEmail([FromQuery] string email)
