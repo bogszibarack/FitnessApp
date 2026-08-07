@@ -138,14 +138,19 @@ namespace FitnessBackend.Controllers
         }
 
         [HttpPost("{postId}/save-as-plan")]
-        public ActionResult<Plan> SaveAsPlan(string postId, [FromQuery] string userName)
+        public ActionResult<Plan> SaveAsPlan(string postId, [FromQuery] string? userName = null)
         {
+            var owner = CurrentUser.UserName(User)
+                ?? (string.IsNullOrWhiteSpace(userName) ? null : userName.Trim());
+            if (string.IsNullOrWhiteSpace(owner))
+                return Unauthorized(new { error = "Bejelentkezés szükséges." });
+
             var post = CommunityStore.FindPost(postId);
             if (post == null) return NotFound("Nincs ilyen poszt.");
             if (post.Workout.Exercises.Count == 0)
                 return BadRequest("A poszton nincs gyakorlat, rutin nem mentheto.");
 
-            var plan = Plan.FromCommunityPost(post, userName);
+            var plan = Plan.FromCommunityPost(post, owner);
             PlanStore.SavedPlans.Add(plan);
             DataStore.SavePlans();
             return Ok(plan);

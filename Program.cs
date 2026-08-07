@@ -130,6 +130,23 @@ using (var scope = app.Services.CreateScope())
         await db.Database.EnsureCreatedAsync();
         logger.LogInformation("[DB] Provider={Provider}", provider);
         await JsonAccountMigrator.MigrateAsync(db, logger);
+
+        // Assign pre–Phase 2 workouts/plans (no owner) to the primary account.
+        var legacyOwner =
+            await db.Users
+                .Where(u => u.Username.ToLower() == "bogszibarack_dev")
+                .Select(u => u.Username)
+                .FirstOrDefaultAsync()
+            ?? await db.Users
+                .OrderBy(u => u.CreatedAt)
+                .Select(u => u.Username)
+                .FirstOrDefaultAsync();
+
+        if (!string.IsNullOrWhiteSpace(legacyOwner))
+        {
+            FitnessBackend.Controllers.WorkoutController.AssignLegacyOwner(legacyOwner);
+            logger.LogInformation("[Workout] Legacy data owner candidate: {User}", legacyOwner);
+        }
     }
     catch (Exception ex)
     {

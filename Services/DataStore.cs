@@ -78,7 +78,9 @@ namespace FitnessBackend.Services
             .Replace("\"receptId\"", "\"recipeId\"")
             .Replace("\"adagSzam\"", "\"servings\"");
 
-        public static void Load(List<WorkoutSession> workoutHistory, ref WorkoutSession? activeWorkout)
+        public static void Load(
+            List<WorkoutSession> workoutHistory,
+            Dictionary<string, WorkoutSession> activeByUser)
         {
             try
             {
@@ -97,12 +99,7 @@ namespace FitnessBackend.Services
                 if (activePath != null)
                 {
                     var json = MigrateJson(File.ReadAllText(activePath));
-                    var saved = JsonSerializer.Deserialize<WorkoutSession>(json, Opts);
-                    if (saved != null && saved.IsActive)
-                    {
-                        activeWorkout = saved;
-                        activeWorkout.StartTime = DateTime.Now;
-                    }
+                    LoadActiveMap(json, activeByUser);
                 }
 
                 var plansPath = ReadableFile(PlansFile);
@@ -180,6 +177,69 @@ namespace FitnessBackend.Services
             }
         }
 
+        private static void LoadActiveMap(string json, Dictionary<string, WorkoutSession> activeByUser)
+        {
+            // New format: { "userName": { session... }, ... }
+            try
+            {
+                using var doc = JsonDocument.Parse(json);
+                if (doc.RootElement.ValueKind == JsonValueKind.Object)
+                {
+                    var looksLikeSession = doc.RootElement.TryGetProperty("isActive", out _)
+                        || doc.RootElement.TryGetProperty("exercises", out _)
+                        || doc.RootElement.TryGetProperty("title", out _);
+
+                    if (!looksLikeSession)
+                    {
+                        var map = JsonSerializer.Deserialize<Dictionary<string, WorkoutSession>>(json, Opts);
+                        if (map != null)
+                        {
+                            foreach (var (key, session) in map)
+                            {
+                                if (session == null || !session.IsActive) continue;
+                                session.StartTime = DateTime.Now;
+                                if (string.IsNullOrWhiteSpace(session.UserName))
+                                    session.UserName = key;
+                                activeByUser[key] = session;
+                            }
+                            return;
+                        }
+                    }
+                }
+            }
+            catch { /* fall through to legacy single-session format */ }
+
+            var saved = JsonSerializer.Deserialize<WorkoutSession>(json, Opts);
+            if (saved != null && saved.IsActive)
+            {
+                saved.StartTime = DateTime.Now;
+                var key = string.IsNullOrWhiteSpace(saved.UserName) ? "_legacy" : saved.UserName;
+                activeByUser[key] = saved;
+            }
+        }
+
+        public static void SaveActiveMap(Dictionary<string, WorkoutSession> activeByUser)
+        {
+            try
+            {
+                Directory.CreateDirectory(DataDir);
+                if (activeByUser.Count == 0)
+                {
+                    if (File.Exists(ActiveWorkoutFile)) File.Delete(ActiveWorkoutFile);
+                    return;
+                }
+
+                var json = JsonSerializer.Serialize(activeByUser, Opts);
+                SafeWrite(ActiveWorkoutFile, json);
+            }
+            catch (Exception ex)
+            {
+                LastError = $"Aktív edzés mentés: {ex.Message}";
+                Console.WriteLine($"[DataStore] Aktív edzés mentési hiba: {ex.Message}");
+            }
+        }
+
+        /// <summary>Legacy single-session API — prefer SaveActiveMap.</summary>
         public static void ClearActive()
         {
             try
@@ -191,22 +251,17 @@ namespace FitnessBackend.Services
 
         public static void SaveActive(WorkoutSession? active)
         {
-            try
+            if (active == null)
             {
-                Directory.CreateDirectory(DataDir);
-                if (active == null)
-                {
-                    ClearActive();
-                    return;
-                }
-                var json = JsonSerializer.Serialize(active, Opts);
-                SafeWrite(ActiveWorkoutFile, json);
+                ClearActive();
+                return;
             }
-            catch (Exception ex)
+
+            var key = string.IsNullOrWhiteSpace(active.UserName) ? "_legacy" : active.UserName;
+            SaveActiveMap(new Dictionary<string, WorkoutSession>(StringComparer.OrdinalIgnoreCase)
             {
-                LastError = $"Aktív edzés mentés: {ex.Message}";
-                Console.WriteLine($"[DataStore] Aktív edzés mentési hiba: {ex.Message}");
-            }
+                [key] = active
+            });
         }
 
         public static void SavePlans()

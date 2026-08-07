@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using FitnessBackend.Models;
 using FitnessBackend.Services;
@@ -6,30 +7,106 @@ namespace FitnessBackend.Controllers
 {
     [ApiController]
     [Route("api/workout")]
+    [Authorize]
     public class WorkoutController : ControllerBase
     {
-        private static WorkoutSession? activeWorkout = null;
+        private static readonly Dictionary<string, WorkoutSession> ActiveByUser = new(StringComparer.OrdinalIgnoreCase);
         private static List<WorkoutSession> workoutHistory = new();
 
         public static void LoadOnStartup()
         {
-            DataStore.Load(workoutHistory, ref activeWorkout);
+            DataStore.Load(workoutHistory, ActiveByUser);
         }
 
-        private static int NextHistoryId()
+        public static void AssignLegacyOwner(string ownerUserName)
         {
-            return workoutHistory.Count == 0 ? 1 : workoutHistory.Max(w => w.Id) + 1;
+            if (string.IsNullOrWhiteSpace(ownerUserName)) return;
+            var changed = false;
+            foreach (var w in workoutHistory.Where(w => string.IsNullOrWhiteSpace(w.UserName)))
+            {
+                w.UserName = ownerUserName;
+                changed = true;
+            }
+            if (ActiveByUser.Remove("_legacy", out var legacyActive))
+            {
+                legacyActive.UserName = ownerUserName;
+                ActiveByUser[ownerUserName] = legacyActive;
+                changed = true;
+            }
+            if (ActiveByUser.Remove("", out var emptyActive))
+            {
+                emptyActive.UserName = ownerUserName;
+                ActiveByUser[ownerUserName] = emptyActive;
+                changed = true;
+            }
+            var legacyPlanNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                { "", "Anonim", "Sajat terv", "Saját terv", "Hevy AI Trainer", "AI Edzesterv" };
+            foreach (var p in PlanStore.SavedPlans.Where(p => legacyPlanNames.Contains(p.CreatorName ?? "")))
+            {
+                p.CreatorName = ownerUserName;
+                changed = true;
+            }
+            if (changed)
+            {
+                DataStore.SaveHistory(workoutHistory);
+                DataStore.SaveActiveMap(ActiveByUser);
+                DataStore.SavePlans();
+                Console.WriteLine($"[Workout] Assigned legacy workouts/plans to {ownerUserName}");
+            }
+        }
+
+        private static int NextHistoryId() => workoutHistory.Count == 0 ? 1 : workoutHistory.Max(w => w.Id) + 1;
+
+        private List<WorkoutSession> HistoryFor(string user) =>
+            workoutHistory.Where(w => w.UserName.Equals(user, StringComparison.OrdinalIgnoreCase)).ToList();
+
+        private WorkoutSession? GetActive(string user) =>
+            ActiveByUser.TryGetValue(user, out var w) ? w : null;
+
+        private void SetActive(string user, WorkoutSession? session)
+        {
+            if (session == null) ActiveByUser.Remove(user);
+            else { session.UserName = user; ActiveByUser[user] = session; }
+            DataStore.SaveActiveMap(ActiveByUser);
         }
 
         [HttpPost("inditas-rutinbol")]
         public ActionResult<WorkoutSession> StartFromPlan([FromBody] Plan plan)
         {
-            if (activeWorkout != null)
+            var auth = CurrentUser.RequireUser(this, out var user);
+            if (auth != null) return auth;
+
+            return StartWorkoutFromPlan(user, plan);
+        }
+
+        [HttpPost("inditas-rutinbol/{plan_id}")]
+        public ActionResult<WorkoutSession> StartSavedPlan(string plan_id)
+        {
+            var auth = CurrentUser.RequireUser(this, out var user);
+            if (auth != null) return auth;
+
+            var plan = PlanStore.SavedPlans
+                .FirstOrDefault(p => p.Id.Equals(plan_id, StringComparison.OrdinalIgnoreCase));
+
+            if (plan == null)
+                return NotFound("Nincs ilyen mentett rutin.");
+
+            if (!plan.CreatorName.Equals(user, StringComparison.OrdinalIgnoreCase))
+                return NotFound("Nincs ilyen mentett rutin.");
+
+            return StartWorkoutFromPlan(user, plan);
+        }
+
+        private ActionResult<WorkoutSession> StartWorkoutFromPlan(string user, Plan plan)
+        {
+            if (GetActive(user) != null)
                 return BadRequest("Mar fut egy edzes! Eloszor fejezd be vagy dobd el.");
 
-            activeWorkout = new WorkoutSession
+            var userHistory = HistoryFor(user);
+            var session = new WorkoutSession
             {
                 Id = 0,
+                UserName = user,
                 Title = plan.Title,
                 StartTime = DateTime.Now,
                 IsActive = true,
@@ -39,50 +116,46 @@ namespace FitnessBackend.Controllers
                         exercise.Sets = WorkoutService.CreateDefaultSets(plan.Difficulty);
 
                     if (plan.ExerciseTemplates.Count == 0)
-                        WorkoutService.FillPreviousData(exercise, workoutHistory);
+                        WorkoutService.FillPreviousData(exercise, userHistory);
 
                     return exercise;
                 }).ToList()
             };
 
-            DataStore.SaveActive(activeWorkout);
-            return Ok(activeWorkout);
-        }
-
-        [HttpPost("inditas-rutinbol/{plan_id}")]
-        public ActionResult<WorkoutSession> StartSavedPlan(string plan_id)
-        {
-            var plan = PlanStore.SavedPlans
-                .FirstOrDefault(p => p.Id.Equals(plan_id, StringComparison.OrdinalIgnoreCase));
-
-            if (plan == null)
-                return NotFound("Nincs ilyen mentett rutin.");
-
-            return StartFromPlan(plan);
+            SetActive(user, session);
+            return Ok(session);
         }
 
         [HttpPost("uj-ures-edzes")]
         public ActionResult<WorkoutSession> StartEmptyWorkout()
         {
-            if (activeWorkout != null)
+            var auth = CurrentUser.RequireUser(this, out var user);
+            if (auth != null) return auth;
+
+            if (GetActive(user) != null)
                 return BadRequest("Mar fut egy edzes! Eloszor fejezd be vagy dobd el.");
 
-            activeWorkout = new WorkoutSession
+            var session = new WorkoutSession
             {
                 Id = 0,
+                UserName = user,
                 Title = "Empty Workout",
                 StartTime = DateTime.Now,
                 IsActive = true,
                 Exercises = new List<LoggedExercise>()
             };
 
-            DataStore.SaveActive(activeWorkout);
-            return Ok(activeWorkout);
+            SetActive(user, session);
+            return Ok(session);
         }
 
         [HttpGet("aktiv")]
         public ActionResult<WorkoutSession> GetActiveWorkout()
         {
+            var auth = CurrentUser.RequireUser(this, out var user);
+            if (auth != null) return auth;
+
+            var activeWorkout = GetActive(user);
             if (activeWorkout == null)
                 return NotFound("Nincs futó edzés. Indíts egyet: POST /api/workout/uj-ures-edzes");
 
@@ -92,19 +165,27 @@ namespace FitnessBackend.Controllers
         [HttpPut("aktiv")]
         public ActionResult<WorkoutSession> UpdateActiveWorkout([FromBody] EdzesModositasKeres update)
         {
+            var auth = CurrentUser.RequireUser(this, out var user);
+            if (auth != null) return auth;
+
+            var activeWorkout = GetActive(user);
             if (activeWorkout == null)
                 return NotFound("Nincs futó edzés.");
 
             if (!string.IsNullOrWhiteSpace(update.Title))
                 activeWorkout.Title = update.Title;
 
-            DataStore.SaveActive(activeWorkout);
+            SetActive(user, activeWorkout);
             return Ok(activeWorkout);
         }
 
         [HttpGet("aktiv/gyakorlat/{exercise_id}")]
         public ActionResult<LoggedExercise> GetExercise(string exercise_id)
         {
+            var auth = CurrentUser.RequireUser(this, out var user);
+            if (auth != null) return auth;
+
+            var activeWorkout = GetActive(user);
             if (activeWorkout == null)
                 return NotFound("Nincs futó edzés.");
 
@@ -120,6 +201,10 @@ namespace FitnessBackend.Controllers
         [HttpPost("aktiv/gyakorlat-hozzaadas")]
         public ActionResult<LoggedExercise> AddExercise([FromBody] LoggedExercise newExercise)
         {
+            var auth = CurrentUser.RequireUser(this, out var user);
+            if (auth != null) return auth;
+
+            var activeWorkout = GetActive(user);
             if (activeWorkout == null)
                 return NotFound("Nincs futó edzés.");
 
@@ -140,13 +225,17 @@ namespace FitnessBackend.Controllers
             };
 
             activeWorkout.Exercises.Add(added);
-            DataStore.SaveActive(activeWorkout);
+            SetActive(user, activeWorkout);
             return Ok(added);
         }
 
         [HttpDelete("aktiv/gyakorlat/{exercise_id}")]
         public ActionResult<string> RemoveExercise(string exercise_id)
         {
+            var auth = CurrentUser.RequireUser(this, out var user);
+            if (auth != null) return auth;
+
+            var activeWorkout = GetActive(user);
             if (activeWorkout == null)
                 return NotFound("Nincs futó edzés.");
 
@@ -157,13 +246,17 @@ namespace FitnessBackend.Controllers
                 return NotFound($"Nincs ilyen gyakorlat az edzesben: {exercise_id}");
 
             activeWorkout.Exercises.Remove(exercise);
-            DataStore.SaveActive(activeWorkout);
+            SetActive(user, activeWorkout);
             return Ok($"Gyakorlat torolve: {exercise.ExerciseName}");
         }
 
         [HttpPut("aktiv/gyakorlat/{exercise_id}")]
         public ActionResult<LoggedExercise> UpdateExercise(string exercise_id, [FromBody] LoggedExercise updated)
         {
+            var auth = CurrentUser.RequireUser(this, out var user);
+            if (auth != null) return auth;
+
+            var activeWorkout = GetActive(user);
             if (activeWorkout == null)
                 return NotFound("Nincs futó edzés.");
 
@@ -179,13 +272,17 @@ namespace FitnessBackend.Controllers
             if (updated.Sets != null)
                 exercise.Sets = updated.Sets;
 
-            DataStore.SaveActive(activeWorkout);
+            SetActive(user, activeWorkout);
             return Ok(exercise);
         }
 
         [HttpPut("aktiv/gyakorlat/{exercise_id}/sorozatok")]
         public ActionResult<LoggedExercise> ReplaceSets(string exercise_id, [FromBody] List<LoggedSet> sets)
         {
+            var auth = CurrentUser.RequireUser(this, out var user);
+            if (auth != null) return auth;
+
+            var activeWorkout = GetActive(user);
             if (activeWorkout == null)
                 return NotFound("Nincs futó edzés.");
 
@@ -196,13 +293,17 @@ namespace FitnessBackend.Controllers
                 return NotFound($"Nincs ilyen gyakorlat az edzesben: {exercise_id}");
 
             exercise.Sets = sets;
-            DataStore.SaveActive(activeWorkout);
+            SetActive(user, activeWorkout);
             return Ok(exercise);
         }
 
         [HttpPost("aktiv/gyakorlat/{exercise_id}/sorozat")]
         public ActionResult<LoggedSet> AddSet(string exercise_id, [FromBody] LoggedSet newSet)
         {
+            var auth = CurrentUser.RequireUser(this, out var user);
+            if (auth != null) return auth;
+
+            var activeWorkout = GetActive(user);
             if (activeWorkout == null)
                 return NotFound("Nincs futó edzés.");
 
@@ -216,13 +317,17 @@ namespace FitnessBackend.Controllers
                 newSet.SetNumber = exercise.Sets.Count + 1;
 
             exercise.Sets.Add(newSet);
-            DataStore.SaveActive(activeWorkout);
+            SetActive(user, activeWorkout);
             return Ok(newSet);
         }
 
         [HttpPut("aktiv/gyakorlat/{exercise_id}/sorozat/{set_number}")]
         public ActionResult<LoggedSet> UpdateSet(string exercise_id, int set_number, [FromBody] LoggedSet updated)
         {
+            var auth = CurrentUser.RequireUser(this, out var user);
+            if (auth != null) return auth;
+
+            var activeWorkout = GetActive(user);
             if (activeWorkout == null)
                 return NotFound("Nincs futó edzés.");
 
@@ -242,7 +347,7 @@ namespace FitnessBackend.Controllers
             set.Rpe = updated.Rpe;
             set.TargetReps = updated.TargetReps;
 
-            DataStore.SaveActive(activeWorkout);
+            SetActive(user, activeWorkout);
             return Ok(set);
         }
 
@@ -252,6 +357,10 @@ namespace FitnessBackend.Controllers
             int set_number,
             [FromBody] LoggedSet? entered = null)
         {
+            var auth = CurrentUser.RequireUser(this, out var user);
+            if (auth != null) return auth;
+
+            var activeWorkout = GetActive(user);
             if (activeWorkout == null)
                 return NotFound("Nincs futó edzés.");
 
@@ -274,13 +383,17 @@ namespace FitnessBackend.Controllers
             }
 
             set.IsDone = true;
-            DataStore.SaveActive(activeWorkout);
+            SetActive(user, activeWorkout);
             return Ok(set);
         }
 
         [HttpDelete("aktiv/gyakorlat/{exercise_id}/sorozat/{set_number}/pipa")]
         public ActionResult<LoggedSet> UncheckSet(string exercise_id, int set_number)
         {
+            var auth = CurrentUser.RequireUser(this, out var user);
+            if (auth != null) return auth;
+
+            var activeWorkout = GetActive(user);
             if (activeWorkout == null)
                 return NotFound("Nincs futó edzés.");
 
@@ -296,13 +409,17 @@ namespace FitnessBackend.Controllers
                 return NotFound($"Nincs ilyen sorozat: {set_number}");
 
             set.IsDone = false;
-            DataStore.SaveActive(activeWorkout);
+            SetActive(user, activeWorkout);
             return Ok(set);
         }
 
         [HttpDelete("aktiv/gyakorlat/{exercise_id}/sorozat/{set_number}")]
         public ActionResult<string> DeleteSet(string exercise_id, int set_number)
         {
+            var auth = CurrentUser.RequireUser(this, out var user);
+            if (auth != null) return auth;
+
+            var activeWorkout = GetActive(user);
             if (activeWorkout == null)
                 return NotFound("Nincs futó edzés.");
 
@@ -318,26 +435,31 @@ namespace FitnessBackend.Controllers
                 return NotFound($"Nincs ilyen sorozat: {set_number}");
 
             exercise.Sets.Remove(set);
-            DataStore.SaveActive(activeWorkout);
+            SetActive(user, activeWorkout);
             return Ok($"Sorozat torolve: #{set_number}");
         }
 
         [HttpPost("aktiv/befejezes")]
         public ActionResult<WorkoutSession> FinishActiveWorkout()
         {
+            var auth = CurrentUser.RequireUser(this, out var user);
+            if (auth != null) return auth;
+
+            var activeWorkout = GetActive(user);
             if (activeWorkout == null)
                 return NotFound("Nincs futó edzés.");
 
+            activeWorkout.UserName = user;
             activeWorkout.DurationSeconds = activeWorkout.ElapsedSeconds;
             activeWorkout.IsActive = false;
             activeWorkout.Id = NextHistoryId();
 
             workoutHistory.Add(activeWorkout);
             var saved = activeWorkout;
-            activeWorkout = null;
+            ActiveByUser.Remove(user);
 
+            DataStore.SaveActiveMap(ActiveByUser);
             DataStore.SaveHistory(workoutHistory);
-            DataStore.ClearActive();
 
             return Ok(saved);
         }
@@ -345,19 +467,25 @@ namespace FitnessBackend.Controllers
         [HttpPost("aktiv/befejezes-es-megosztas")]
         public ActionResult<object> FinishAndShare([FromBody] ShareRequest shareRequest)
         {
+            var auth = CurrentUser.RequireUser(this, out var user);
+            if (auth != null) return auth;
+
+            var activeWorkout = GetActive(user);
             if (activeWorkout == null)
                 return NotFound("Nincs futó edzés.");
 
+            activeWorkout.UserName = user;
             activeWorkout.DurationSeconds = activeWorkout.ElapsedSeconds;
             activeWorkout.IsActive = false;
             activeWorkout.Id = NextHistoryId();
             workoutHistory.Add(activeWorkout);
 
+            shareRequest.UserName = user;
             shareRequest.Workout = activeWorkout;
-            activeWorkout = null;
+            ActiveByUser.Remove(user);
 
+            DataStore.SaveActiveMap(ActiveByUser);
             DataStore.SaveHistory(workoutHistory);
-            DataStore.ClearActive();
 
             var (post, error) = CommunityStore.CreatePost(shareRequest);
 
@@ -375,10 +503,17 @@ namespace FitnessBackend.Controllers
         [HttpPost("history/{workout_id:int}/megosztas")]
         public ActionResult<object> ShareHistoryWorkout(int workout_id, [FromBody] ShareRequest shareRequest)
         {
+            var auth = CurrentUser.RequireUser(this, out var user);
+            if (auth != null) return auth;
+
             var workout = workoutHistory.FirstOrDefault(w => w.Id == workout_id);
             if (workout == null)
                 return NotFound("Nincs ilyen befejezett edzes.");
 
+            if (!workout.UserName.Equals(user, StringComparison.OrdinalIgnoreCase))
+                return NotFound("Nincs ilyen befejezett edzes.");
+
+            shareRequest.UserName = user;
             shareRequest.Workout = workout;
             var (post, error) = CommunityStore.CreatePost(shareRequest);
 
@@ -394,27 +529,38 @@ namespace FitnessBackend.Controllers
         }
 
         [HttpDelete("aktiv")]
-        public string DiscardActiveWorkout()
+        public ActionResult<string> DiscardActiveWorkout()
         {
-            if (activeWorkout == null)
-                return "Nincs futó edzés, amit el lehetne vetni.";
+            var auth = CurrentUser.RequireUser(this, out var user);
+            if (auth != null) return auth;
 
-            activeWorkout = null;
-            DataStore.ClearActive();
-            return "Az edzés elvetve.";
+            if (GetActive(user) == null)
+                return Ok("Nincs futó edzés, amit el lehetne vetni.");
+
+            SetActive(user, null);
+            return Ok("Az edzés elvetve.");
         }
 
         [HttpGet("history")]
-        public List<WorkoutSession> GetHistory()
+        public ActionResult<List<WorkoutSession>> GetHistory()
         {
-            return workoutHistory;
+            var auth = CurrentUser.RequireUser(this, out var user);
+            if (auth != null) return auth;
+
+            return Ok(HistoryFor(user));
         }
 
         [HttpPut("history/{workout_id:int}")]
         public ActionResult<WorkoutSession> UpdateHistoryWorkout(int workout_id, [FromBody] WorkoutSession updated)
         {
+            var auth = CurrentUser.RequireUser(this, out var user);
+            if (auth != null) return auth;
+
             var workout = workoutHistory.FirstOrDefault(w => w.Id == workout_id);
             if (workout == null)
+                return NotFound("Nincs ilyen befejezett edzes.");
+
+            if (!workout.UserName.Equals(user, StringComparison.OrdinalIgnoreCase))
                 return NotFound("Nincs ilyen befejezett edzes.");
 
             if (!string.IsNullOrWhiteSpace(updated.Title))
@@ -430,8 +576,14 @@ namespace FitnessBackend.Controllers
         [HttpDelete("history/{workout_id:int}")]
         public ActionResult<string> DeleteHistoryWorkout(int workout_id)
         {
+            var auth = CurrentUser.RequireUser(this, out var user);
+            if (auth != null) return auth;
+
             var workout = workoutHistory.FirstOrDefault(w => w.Id == workout_id);
             if (workout == null)
+                return NotFound("Nincs ilyen befejezett edzes.");
+
+            if (!workout.UserName.Equals(user, StringComparison.OrdinalIgnoreCase))
                 return NotFound("Nincs ilyen befejezett edzes.");
 
             workoutHistory.Remove(workout);
@@ -440,42 +592,55 @@ namespace FitnessBackend.Controllers
         }
 
         [HttpGet("progress-settings")]
-        public ProgressSettings GetProgressSettings()
+        public ActionResult<ProgressSettings> GetProgressSettings()
         {
-            return PlanStore.Progress;
+            var auth = CurrentUser.RequireUser(this, out var user);
+            if (auth != null) return auth;
+
+            return Ok(PlanStore.Progress);
         }
 
         [HttpPut("progress-settings")]
-        public ProgressSettings SaveProgressSettings([FromBody] ProgressSettings settings)
+        public ActionResult<ProgressSettings> SaveProgressSettings([FromBody] ProgressSettings settings)
         {
+            var auth = CurrentUser.RequireUser(this, out var user);
+            if (auth != null) return auth;
+
             PlanStore.Progress = settings;
             DataStore.SaveProgress();
-            return PlanStore.Progress;
+            return Ok(PlanStore.Progress);
         }
 
         [HttpGet("progresszio-beallitas")]
-        public ProgressSettings GetProgressSettingsLegacy()
+        public ActionResult<ProgressSettings> GetProgressSettingsLegacy()
         {
             return GetProgressSettings();
         }
 
         [HttpPut("progresszio-beallitas")]
-        public ProgressSettings SaveProgressSettingsLegacy([FromBody] ProgressSettings settings)
+        public ActionResult<ProgressSettings> SaveProgressSettingsLegacy([FromBody] ProgressSettings settings)
         {
             return SaveProgressSettings(settings);
         }
 
+        [AllowAnonymous]
         [HttpGet("diagnosztika")]
         public ActionResult<object> Diagnostics()
         {
-            return Ok(DataStore.Diagnostics(workoutHistory.Count, activeWorkout != null));
+            return Ok(DataStore.Diagnostics(workoutHistory.Count, ActiveByUser.Count > 0));
         }
 
         [HttpPost("kovetkezo-het/elonezet")]
         public ActionResult<NextWeekResponse> PreviewNextWeek([FromBody] NextWeekRequest request)
         {
+            var auth = CurrentUser.RequireUser(this, out var user);
+            if (auth != null) return auth;
+
             var previousWorkout = workoutHistory.FirstOrDefault(w => w.Id == request.PreviousWorkoutId);
             if (previousWorkout == null)
+                return NotFound("Nincs ilyen befejezett edzes az elozmenyekben.");
+
+            if (!previousWorkout.UserName.Equals(user, StringComparison.OrdinalIgnoreCase))
                 return NotFound("Nincs ilyen befejezett edzes az elozmenyekben.");
 
             var settings = request.ProgressSettings ?? PlanStore.Progress;
@@ -486,28 +651,39 @@ namespace FitnessBackend.Controllers
         [HttpPost("kovetkezo-het/inditas")]
         public ActionResult<WorkoutSession> StartNextWeek([FromBody] NextWeekRequest request)
         {
-            if (activeWorkout != null)
+            var auth = CurrentUser.RequireUser(this, out var user);
+            if (auth != null) return auth;
+
+            if (GetActive(user) != null)
                 return BadRequest("Mar fut egy edzes! Eloszor fejezd be vagy dobd el.");
 
             var previousWorkout = workoutHistory.FirstOrDefault(w => w.Id == request.PreviousWorkoutId);
             if (previousWorkout == null)
                 return NotFound("Nincs ilyen befejezett edzes az elozmenyekben.");
 
+            if (!previousWorkout.UserName.Equals(user, StringComparison.OrdinalIgnoreCase))
+                return NotFound("Nincs ilyen befejezett edzes az elozmenyekben.");
+
             var settings = request.ProgressSettings ?? PlanStore.Progress;
             var generated = WorkoutService.GenerateNextWeek(previousWorkout, settings);
 
-            activeWorkout = generated.SuggestedWorkout;
+            var activeWorkout = generated.SuggestedWorkout;
+            activeWorkout.UserName = user;
             activeWorkout.IsActive = true;
             activeWorkout.StartTime = DateTime.Now;
 
-            DataStore.SaveActive(activeWorkout);
+            SetActive(user, activeWorkout);
             return Ok(activeWorkout);
         }
 
         [HttpPost("finish")]
-        public string FinishWorkout([FromBody] WorkoutSession workout)
+        public ActionResult<string> FinishWorkout([FromBody] WorkoutSession workout)
         {
-            workout.Id = workoutHistory.Count + 1;
+            var auth = CurrentUser.RequireUser(this, out var user);
+            if (auth != null) return auth;
+
+            workout.UserName = user;
+            workout.Id = NextHistoryId();
             workout.IsActive = false;
 
             if (workout.StartTime == DateTime.MinValue)
@@ -518,7 +694,7 @@ namespace FitnessBackend.Controllers
 
             workoutHistory.Add(workout);
             DataStore.SaveHistory(workoutHistory);
-            return $"Sikeres mentés! Az edzésed elmentve {workout.Id} azonosítóval. Összesen {workout.Exercises.Count} gyakorlatot végeztél.";
+            return Ok($"Sikeres mentés! Az edzésed elmentve {workout.Id} azonosítóval. Összesen {workout.Exercises.Count} gyakorlatot végeztél.");
         }
     }
 }

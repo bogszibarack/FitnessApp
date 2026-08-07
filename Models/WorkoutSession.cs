@@ -3,6 +3,8 @@ namespace FitnessBackend.Models
     public class WorkoutSession
     {
         public int Id { get; set; }
+        /// <summary>Owner username from JWT (empty = legacy pre–Phase 2 data).</summary>
+        public string UserName { get; set; } = "";
         public string Title { get; set; } = "Empty Workout";
         public DateTime StartTime { get; set; }
         public int DurationSeconds { get; set; }

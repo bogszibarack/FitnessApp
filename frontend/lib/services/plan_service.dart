@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
 import '../models/plan_model.dart';
 import '../models/workout_models.dart';
+import 'api_http.dart';
 
 class PlanService {
   PlanService._();
@@ -17,9 +18,8 @@ class PlanService {
     String targetMuscle = 'Chest',
     String sportCategory = 'gym',
   }) async {
-    final response = await http.post(
+    final response = await ApiHttp.post(
       Uri.parse('$_base/api/plan/ai-generate'),
-      headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'difficulty': difficulty,
         'targetMuscle': targetMuscle,
@@ -32,16 +32,15 @@ class PlanService {
   }
 
   Future<List<PlanModel>> listMine() async {
-    final response = await http.get(Uri.parse('$_base/api/plan/mine'));
+    final response = await ApiHttp.get(Uri.parse('$_base/api/plan/mine'));
     _check(response);
     final lista = jsonDecode(response.body) as List<dynamic>;
     return lista.map((e) => PlanModel.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   Future<PlanModel> save(PlanModel plan) async {
-    final response = await http.post(
+    final response = await ApiHttp.post(
       Uri.parse('$_base/api/plan/save'),
-      headers: {'Content-Type': 'application/json'},
       body: jsonEncode(plan.toJson()),
     );
     _check(response);
@@ -68,9 +67,8 @@ class PlanService {
   }
 
   Future<PlanModel> update(PlanModel plan) async {
-    final response = await http.put(
+    final response = await ApiHttp.put(
       Uri.parse('$_base/api/plan/${plan.id}'),
-      headers: {'Content-Type': 'application/json'},
       body: jsonEncode(plan.toJson()),
     );
     _check(response);
@@ -78,19 +76,19 @@ class PlanService {
   }
 
   Future<void> delete(String planId) async {
-    final response = await http.delete(Uri.parse('$_base/api/plan/$planId'));
+    final response = await ApiHttp.delete(Uri.parse('$_base/api/plan/$planId'));
     _check(response);
   }
 
   Future<List<PlanModel>> listTemplates() async {
-    final response = await http.get(Uri.parse('$_base/api/plan/templates'));
+    final response = await ApiHttp.get(Uri.parse('$_base/api/plan/templates'));
     _check(response);
     final lista = jsonDecode(response.body) as List<dynamic>;
     return lista.map((e) => PlanModel.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   Future<PlanModel> getShared(String id) async {
-    final response = await http.get(Uri.parse('$_base/api/plan/share/$id'));
+    final response = await ApiHttp.get(Uri.parse('$_base/api/plan/share/$id'));
     _check(response);
     return PlanModel.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
   }
