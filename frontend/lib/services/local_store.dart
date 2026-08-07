@@ -9,6 +9,8 @@ class LocalStore {
 
   static const onboardingComplete = 'onboardingComplete';
   static const currentUserName = 'currentUserName';
+  static const accessToken = 'accessToken';
+  static const refreshToken = 'refreshToken';
   static const healthEnabled = 'healthEnabled';
   static const themeMode = 'themeMode';
   static const soundEnabled = 'soundEnabled';
@@ -41,12 +43,41 @@ class LocalStore {
     return (onboardingComplete: done, userName: user);
   }
 
-  Future<void> setSession(String userName) async {
+  Future<String?> getAccessToken() async {
+    final prefs = await _prefs;
+    return prefs.getString(accessToken);
+  }
+
+  Future<String?> getRefreshToken() async {
+    final prefs = await _prefs;
+    return prefs.getString(refreshToken);
+  }
+
+  Future<void> setSession(
+    String userName, {
+    String? accessToken,
+    String? refreshToken,
+  }) async {
     ApiConfig.defaultUserName = userName;
     final prefs = await _prefs;
     await prefs.setBool(onboardingComplete, true);
     await prefs.setString(currentUserName, userName);
+    if (accessToken != null && accessToken.isNotEmpty) {
+      await prefs.setString(LocalStore.accessToken, accessToken);
+    }
+    if (refreshToken != null && refreshToken.isNotEmpty) {
+      await prefs.setString(LocalStore.refreshToken, refreshToken);
+    }
     await prefs.remove('local_accounts');
+  }
+
+  Future<void> setTokens({
+    required String accessToken,
+    required String refreshToken,
+  }) async {
+    final prefs = await _prefs;
+    await prefs.setString(LocalStore.accessToken, accessToken);
+    await prefs.setString(LocalStore.refreshToken, refreshToken);
   }
 
   Future<void> clearSession() async {
@@ -54,6 +85,8 @@ class LocalStore {
     final prefs = await _prefs;
     await prefs.setBool(onboardingComplete, false);
     await prefs.remove(currentUserName);
+    await prefs.remove(accessToken);
+    await prefs.remove(refreshToken);
     for (final key in _legacyKeys) {
       await prefs.remove(key);
     }

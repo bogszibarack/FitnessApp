@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../models/beallitas_models.dart';
 import '../../services/apple_health_service.dart';
+import '../../services/auth_service.dart';
 import '../../services/local_store.dart';
 import '../../services/settings_service.dart';
 import '../../services/streak_service.dart';
@@ -485,7 +486,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     if (megerosit != true || !mounted) return;
 
-    await LocalStore.instance.clearSession();
+    await AuthService.instance.logout();
 
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(

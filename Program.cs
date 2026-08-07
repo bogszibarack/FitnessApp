@@ -1,8 +1,89 @@
-// Disable config file watchers before host build (Render/Linux inotify limit).
-Environment.SetEnvironmentVariable("DOTNET_HOSTBUILDER__RELOADCONFIGONCHANGE", "false");
+using System.Text;
+using FitnessBackend.Data;
+using FitnessBackend.Services;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Microsoft.IdentityModel.Tokens;
 
-var builder = WebApplication.CreateBuilder(args);
+var builder = WebApplication.CreateEmptyBuilder(new WebApplicationOptions
+{
+    Args = args,
+    ContentRootPath = AppContext.BaseDirectory,
+});
 
+builder.Configuration
+    .AddJsonFile("appsettings.json", optional: true, reloadOnChange: false)
+    .AddJsonFile(
+        $"appsettings.{builder.Environment.EnvironmentName}.json",
+        optional: true,
+        reloadOnChange: false)
+    .AddEnvironmentVariables();
+
+if (args is { Length: > 0 })
+    builder.Configuration.AddCommandLine(args);
+
+builder.Logging.AddConfiguration(builder.Configuration.GetSection("Logging"));
+builder.Logging.AddConsole();
+
+builder.WebHost.UseKestrel();
+builder.WebHost.UseContentRoot(AppContext.BaseDirectory);
+builder.WebHost.UseWebRoot(Path.Combine(AppContext.BaseDirectory, "wwwroot"));
+
+// --- Database (Render DATABASE_URL → Postgres; local → SQLite) ---
+var rawDb =
+    builder.Configuration["DATABASE_URL"]
+    ?? Environment.GetEnvironmentVariable("DATABASE_URL")
+    ?? builder.Configuration.GetConnectionString("Default");
+
+var (provider, connectionString) = ResolveDatabase(rawDb);
+builder.Services.AddDbContext<AppDbContext>(opt =>
+{
+    if (provider == "postgres")
+        opt.UseNpgsql(connectionString);
+    else
+        opt.UseSqlite(connectionString);
+});
+
+// --- JWT ---
+var jwtSection = builder.Configuration.GetSection(JwtOptions.SectionName);
+var jwt = jwtSection.Get<JwtOptions>() ?? new JwtOptions();
+if (string.IsNullOrWhiteSpace(jwt.Key) || jwt.Key.Length < 32)
+    jwt.Key = "FlexioDevOnlyChangeMe_UseLongSecretInProduction_32+chars!";
+builder.Services.Configure<JwtOptions>(opts =>
+{
+    opts.Key = jwt.Key;
+    opts.Issuer = jwt.Issuer;
+    opts.Audience = jwt.Audience;
+    opts.AccessTokenMinutes = jwt.AccessTokenMinutes;
+    opts.RefreshTokenDays = jwt.RefreshTokenDays;
+});
+builder.Services.AddSingleton<JwtTokenService>();
+builder.Services.AddScoped<AuthService>();
+
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = jwt.Issuer,
+            ValidAudience = jwt.Audience,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.Key)),
+            ClockSkew = TimeSpan.FromMinutes(1),
+        };
+    });
+builder.Services.AddAuthorization();
+
+builder.Services.AddRouting();
 builder.Services.AddControllers();
 builder.Services.AddCors(options =>
 {
@@ -18,7 +99,6 @@ builder.Services.AddSwaggerGen();
 var app = builder.Build();
 app.UseCors();
 
-// FatSecret Platform API keys (food search + barcode)
 FitnessBackend.Services.FatSecretConfig.ClientId =
     builder.Configuration["FatSecret:ClientId"]
     ?? Environment.GetEnvironmentVariable("FATSECRET_CLIENT_ID")
@@ -29,18 +109,33 @@ FitnessBackend.Services.FatSecretConfig.ClientSecret =
     ?? Environment.GetEnvironmentVariable("FATSECRET_CLIENT_SECRET")
     ?? "";
 
-// Spoonacular API key (recipes — secondary)
 FitnessBackend.Services.SpoonacularConfig.ApiKey =
     builder.Configuration["Spoonacular:ApiKey"]
     ?? Environment.GetEnvironmentVariable("SPOONACULAR_API_KEY")
     ?? "";
 
-// Perzisztált adatok betöltése induláskor
+// Load JSON stores (workouts etc.) then ensure DB schema + migrate accounts
 FitnessBackend.Controllers.WorkoutController.LoadOnStartup();
 
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("Startup");
+    try
+    {
+        await db.Database.EnsureCreatedAsync();
+        logger.LogInformation("[DB] Provider={Provider}", provider);
+        await JsonAccountMigrator.MigrateAsync(db, logger);
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "[DB] Startup migration failed");
+        throw;
+    }
+}
+
 string baseRoot = app.Environment.WebRootPath ?? AppContext.BaseDirectory;
-var szelfi_mappa = Path.Combine(baseRoot, "uploads", "selfies");
-Directory.CreateDirectory(szelfi_mappa);
+Directory.CreateDirectory(Path.Combine(baseRoot, "uploads", "selfies"));
 Directory.CreateDirectory(Path.Combine(baseRoot, "uploads", "profiles"));
 
 if (app.Environment.IsDevelopment())
@@ -50,8 +145,44 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors();
+app.UseAuthentication();
+app.UseAuthorization();
 app.UseStaticFiles();
-
 app.MapControllers();
 
 app.Run();
+
+static (string Provider, string ConnectionString) ResolveDatabase(string? raw)
+{
+    if (string.IsNullOrWhiteSpace(raw))
+    {
+        var dir = Environment.GetEnvironmentVariable("DATA_DIR");
+        if (string.IsNullOrWhiteSpace(dir))
+            dir = Path.Combine(Directory.GetCurrentDirectory(), "data");
+        Directory.CreateDirectory(dir);
+        var sqlitePath = Path.Combine(dir, "flexio.db");
+        return ("sqlite", $"Data Source={sqlitePath}");
+    }
+
+    if (raw.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) ||
+        raw.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase))
+    {
+        var uri = new Uri(raw);
+        var userInfo = uri.UserInfo.Split(':', 2);
+        var user = Uri.UnescapeDataString(userInfo[0]);
+        var pass = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : "";
+        var dbName = uri.AbsolutePath.Trim('/');
+        var cs =
+            $"Host={uri.Host};Port={(uri.Port > 0 ? uri.Port : 5432)};" +
+            $"Database={dbName};Username={user};Password={pass};" +
+            "SSL Mode=Require;Trust Server Certificate=true";
+        return ("postgres", cs);
+    }
+
+    // Already a key=value connection string
+    if (raw.Contains("Host=", StringComparison.OrdinalIgnoreCase) ||
+        raw.Contains("Server=", StringComparison.OrdinalIgnoreCase))
+        return ("postgres", raw);
+
+    return ("sqlite", raw);
+}

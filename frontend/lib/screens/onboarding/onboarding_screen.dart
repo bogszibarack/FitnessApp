@@ -151,7 +151,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     final password = _passCtrl.text;
 
     try {
-      final userName = await AuthService.instance.register(
+      final session = await AuthService.instance.register(
         email: email,
         password: password,
         username: username,
@@ -164,7 +164,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       );
 
       if (!mounted) return;
-      await _onboardingBefejezese(userName);
+      await _onboardingBefejezese(session);
     } on AuthException catch (e) {
       if (!mounted) return;
       if (e.statusCode == 409) {
@@ -181,8 +181,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     }
   }
 
-  Future<void> _onboardingBefejezese(String userName) async {
-    await LocalStore.instance.setSession(userName);
+  Future<void> _onboardingBefejezese(AuthSession session) async {
+    await LocalStore.instance.setSession(
+      session.userName,
+      accessToken: session.accessToken,
+      refreshToken: session.refreshToken,
+    );
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const MainShell()),
