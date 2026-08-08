@@ -125,7 +125,8 @@ namespace FitnessBackend.Controllers
         public async Task<ActionResult<object>> ListUsers()
         {
             var users = await _auth.ListUsersAsync();
-            return Ok(new { count = users.Count, users });
+            var info = await _auth.GetDbInfoAsync();
+            return Ok(new { count = users.Count, db = info, users });
         }
 
         private static object ToResponse(AuthTokenResponse r, string message) => new

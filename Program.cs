@@ -191,15 +191,21 @@ static (string Provider, string ConnectionString) ResolveDatabase(string? raw)
     if (raw.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) ||
         raw.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase))
     {
-        var uri = new Uri(raw);
+        // .NET Uri can mis-parse postgres:// — normalize via http:// first.
+        var normalized = "http://" + raw[(raw.IndexOf("://", StringComparison.Ordinal) + 3)..];
+        var uri = new Uri(normalized);
         var userInfo = uri.UserInfo.Split(':', 2);
         var user = Uri.UnescapeDataString(userInfo[0]);
         var pass = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : "";
         var dbName = uri.AbsolutePath.Trim('/');
+        if (string.IsNullOrWhiteSpace(dbName))
+            dbName = "flexio_db";
+        var port = uri.Port > 0 && uri.Port != 80 ? uri.Port : 5432;
         var cs =
-            $"Host={uri.Host};Port={(uri.Port > 0 ? uri.Port : 5432)};" +
+            $"Host={uri.Host};Port={port};" +
             $"Database={dbName};Username={user};Password={pass};" +
             "SSL Mode=Require;Trust Server Certificate=true";
+        Console.WriteLine($"[DB] Postgres Host={uri.Host} Database={dbName}");
         return ("postgres", cs);
     }
 

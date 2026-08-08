@@ -184,6 +184,19 @@ namespace FitnessBackend.Services
                 })
                 .ToListAsync();
 
+        public async Task<object> GetDbInfoAsync()
+        {
+            var conn = _db.Database.GetDbConnection();
+            if (conn.State != System.Data.ConnectionState.Open)
+                await conn.OpenAsync();
+            return new
+            {
+                provider = _db.Database.ProviderName,
+                database = conn.Database,
+                dataSource = conn.DataSource,
+            };
+        }
+
         private async Task<AuthTokenResponse> IssueTokensAsync(AppUser user, string? deviceLabel)
         {
             var access = _jwt.CreateAccessToken(user);
