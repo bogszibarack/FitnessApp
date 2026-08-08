@@ -130,6 +130,8 @@ using (var scope = app.Services.CreateScope())
         await db.Database.EnsureCreatedAsync();
         logger.LogInformation("[DB] Provider={Provider}", provider);
         await JsonAccountMigrator.MigrateAsync(db, logger);
+        if (provider == "postgres")
+            await PostgresUserRepairMigrator.MigrateAsync(db, connectionString, logger);
 
         // Legacy JSON data → only an explicit owner (never "first registered user").
         var legacyOwner =
