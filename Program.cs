@@ -188,6 +188,20 @@ static (string Provider, string ConnectionString) ResolveDatabase(string? raw)
         return ("sqlite", $"Data Source={sqlitePath}");
     }
 
+    raw = raw.Trim();
+    // Guard: pasted URL twice → "…/flexio_dbpostgresql://…"
+    if (raw.StartsWith("postgres", StringComparison.OrdinalIgnoreCase))
+    {
+        var secondPg = raw.IndexOf("postgresql://", 1, StringComparison.OrdinalIgnoreCase);
+        if (secondPg < 0)
+            secondPg = raw.IndexOf("postgres://", 1, StringComparison.OrdinalIgnoreCase);
+        if (secondPg > 0)
+        {
+            Console.WriteLine("[DB] DATABASE_URL looks double-pasted — using first URL only.");
+            raw = raw[..secondPg];
+        }
+    }
+
     if (raw.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) ||
         raw.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase))
     {
@@ -198,6 +212,9 @@ static (string Provider, string ConnectionString) ResolveDatabase(string? raw)
         var user = Uri.UnescapeDataString(userInfo[0]);
         var pass = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : "";
         var dbName = uri.AbsolutePath.Trim('/');
+        var junk = dbName.IndexOf("postgresql://", StringComparison.OrdinalIgnoreCase);
+        if (junk < 0) junk = dbName.IndexOf("postgres://", StringComparison.OrdinalIgnoreCase);
+        if (junk > 0) dbName = dbName[..junk];
         if (string.IsNullOrWhiteSpace(dbName))
             dbName = "flexio_db";
         var port = uri.Port > 0 && uri.Port != 80 ? uri.Port : 5432;
