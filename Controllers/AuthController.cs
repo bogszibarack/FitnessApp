@@ -119,6 +119,15 @@ namespace FitnessBackend.Controllers
             });
         }
 
+        /// <summary>Closed-beta: list registered accounts (no passwords).</summary>
+        [HttpGet("users")]
+        [AllowAnonymous]
+        public async Task<ActionResult<object>> ListUsers()
+        {
+            var users = await _auth.ListUsersAsync();
+            return Ok(new { count = users.Count, users });
+        }
+
         private static object ToResponse(AuthTokenResponse r, string message) => new
         {
             success = true,

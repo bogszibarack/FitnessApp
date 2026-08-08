@@ -172,6 +172,18 @@ namespace FitnessBackend.Services
         public async Task<bool> UsernameTakenAsync(string username) =>
             await _db.Users.AnyAsync(u => u.Username.ToLower() == username.Trim().ToLower());
 
+        public async Task<List<UserListItem>> ListUsersAsync() =>
+            await _db.Users.AsNoTracking()
+                .OrderBy(u => u.CreatedAt)
+                .Select(u => new UserListItem
+                {
+                    Email = u.Email,
+                    UserName = u.Username,
+                    CreatedAt = u.CreatedAt,
+                    County = u.County,
+                })
+                .ToListAsync();
+
         private async Task<AuthTokenResponse> IssueTokensAsync(AppUser user, string? deviceLabel)
         {
             var access = _jwt.CreateAccessToken(user);
@@ -272,5 +284,13 @@ namespace FitnessBackend.Services
         public string Email { get; set; } = "";
         public string Username { get; set; } = "";
         public string NewPassword { get; set; } = "";
+    }
+
+    public class UserListItem
+    {
+        public string Email { get; set; } = "";
+        public string UserName { get; set; } = "";
+        public DateTime CreatedAt { get; set; }
+        public string County { get; set; } = "";
     }
 }
