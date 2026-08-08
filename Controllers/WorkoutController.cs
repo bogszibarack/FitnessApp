@@ -55,6 +55,42 @@ namespace FitnessBackend.Controllers
             }
         }
 
+        /// <summary>
+        /// One-time: move ALL workouts/plans to <paramref name="ownerUserName"/>.
+        /// Fixes Phase-2 fallback that wrongly attached shared JSON to the first registered user.
+        /// </summary>
+        public static void ConsolidateAllToOwnerOnce(string ownerUserName)
+        {
+            if (string.IsNullOrWhiteSpace(ownerUserName)) return;
+
+            var dataDir = Environment.GetEnvironmentVariable("DATA_DIR");
+            if (string.IsNullOrWhiteSpace(dataDir))
+                dataDir = Path.Combine(Directory.GetCurrentDirectory(), "data");
+            Directory.CreateDirectory(dataDir);
+            var marker = Path.Combine(dataDir, ".legacy_consolidated_v1");
+            if (System.IO.File.Exists(marker)) return;
+
+            foreach (var w in workoutHistory)
+                w.UserName = ownerUserName;
+
+            var actives = ActiveByUser.Values.ToList();
+            ActiveByUser.Clear();
+            foreach (var session in actives)
+            {
+                session.UserName = ownerUserName;
+                ActiveByUser[ownerUserName] = session;
+            }
+
+            foreach (var p in PlanStore.SavedPlans)
+                p.CreatorName = ownerUserName;
+
+            DataStore.SaveHistory(workoutHistory);
+            DataStore.SaveActiveMap(ActiveByUser);
+            DataStore.SavePlans();
+            System.IO.File.WriteAllText(marker, $"{DateTime.UtcNow:O}|{ownerUserName}");
+            Console.WriteLine($"[Workout] Consolidated ALL workouts/plans → {ownerUserName}");
+        }
+
         private static int NextHistoryId() => workoutHistory.Count == 0 ? 1 : workoutHistory.Max(w => w.Id) + 1;
 
         private List<WorkoutSession> HistoryFor(string user) =>
@@ -550,6 +586,32 @@ namespace FitnessBackend.Controllers
             return Ok(HistoryFor(user));
         }
 
+        /// <summary>Delete this user's workout history, active session, and saved plans.</summary>
+        [HttpPost("clear-mine")]
+        public ActionResult<object> ClearMine()
+        {
+            var auth = CurrentUser.RequireUser(this, out var user);
+            if (auth != null) return auth;
+
+            var removedHistory = workoutHistory.RemoveAll(w =>
+                w.UserName.Equals(user, StringComparison.OrdinalIgnoreCase));
+            SetActive(user, null);
+            var removedPlans = PlanStore.SavedPlans.RemoveAll(p =>
+                p.CreatorName.Equals(user, StringComparison.OrdinalIgnoreCase));
+
+            DataStore.SaveHistory(workoutHistory);
+            DataStore.SavePlans();
+
+            return Ok(new
+            {
+                success = true,
+                user,
+                removedHistory,
+                removedPlans,
+                message = "A fiókod edzései és rutinjai törölve.",
+            });
+        }
+
         [HttpPut("history/{workout_id:int}")]
         public ActionResult<WorkoutSession> UpdateHistoryWorkout(int workout_id, [FromBody] WorkoutSession updated)
         {
@@ -627,7 +689,20 @@ namespace FitnessBackend.Controllers
         [HttpGet("diagnosztika")]
         public ActionResult<object> Diagnostics()
         {
-            return Ok(DataStore.Diagnostics(workoutHistory.Count, ActiveByUser.Count > 0));
+            var byUser = workoutHistory
+                .GroupBy(w => string.IsNullOrWhiteSpace(w.UserName) ? "(ures)" : w.UserName)
+                .ToDictionary(g => g.Key, g => g.Count(), StringComparer.OrdinalIgnoreCase);
+            var plansByUser = PlanStore.SavedPlans
+                .GroupBy(p => string.IsNullOrWhiteSpace(p.CreatorName) ? "(ures)" : p.CreatorName)
+                .ToDictionary(g => g.Key, g => g.Count(), StringComparer.OrdinalIgnoreCase);
+
+            return Ok(new
+            {
+                baseDiag = DataStore.Diagnostics(workoutHistory.Count, ActiveByUser.Count > 0),
+                edzesTulajdonosonkent = byUser,
+                rutinTulajdonosonkent = plansByUser,
+                aktivUserek = ActiveByUser.Keys.ToList(),
+            });
         }
 
         [HttpPost("kovetkezo-het/elonezet")]

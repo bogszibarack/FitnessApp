@@ -131,21 +131,24 @@ using (var scope = app.Services.CreateScope())
         logger.LogInformation("[DB] Provider={Provider}", provider);
         await JsonAccountMigrator.MigrateAsync(db, logger);
 
-        // Assign pre–Phase 2 workouts/plans (no owner) to the primary account.
+        // Legacy JSON data → only an explicit owner (never "first registered user").
         var legacyOwner =
-            await db.Users
-                .Where(u => u.Username.ToLower() == "bogszibarack_dev")
-                .Select(u => u.Username)
-                .FirstOrDefaultAsync()
+            Environment.GetEnvironmentVariable("LEGACY_DATA_OWNER")
             ?? await db.Users
-                .OrderBy(u => u.CreatedAt)
+                .Where(u => u.Username.ToLower() == "bogszibarack_dev")
                 .Select(u => u.Username)
                 .FirstOrDefaultAsync();
 
         if (!string.IsNullOrWhiteSpace(legacyOwner))
         {
             FitnessBackend.Controllers.WorkoutController.AssignLegacyOwner(legacyOwner);
-            logger.LogInformation("[Workout] Legacy data owner candidate: {User}", legacyOwner);
+            // One-time fix: earlier fallback may have attached shared data to the wrong account.
+            FitnessBackend.Controllers.WorkoutController.ConsolidateAllToOwnerOnce(legacyOwner);
+            logger.LogInformation("[Workout] Legacy data owner: {User}", legacyOwner);
+        }
+        else
+        {
+            logger.LogWarning("[Workout] No LEGACY_DATA_OWNER / bogszibarack_dev — unowned JSON left unassigned.");
         }
     }
     catch (Exception ex)
