@@ -64,6 +64,7 @@ builder.Services.Configure<JwtOptions>(opts =>
 });
 builder.Services.AddSingleton<JwtTokenService>();
 builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<CommunityDbService>();
 
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -129,6 +130,7 @@ using (var scope = app.Services.CreateScope())
     {
         await db.Database.EnsureCreatedAsync();
         logger.LogInformation("[DB] Provider={Provider}", provider);
+        await CommunitySchemaBootstrap.EnsureAsync(db, logger);
         await JsonAccountMigrator.MigrateAsync(db, logger);
         if (provider == "postgres")
             await PostgresUserRepairMigrator.MigrateAsync(db, connectionString, logger);

@@ -18,8 +18,13 @@ class WorkoutSummaryScreen extends StatefulWidget {
   /// A befejezett edzés adatai.
   final WorkoutSessionModel edzes;
 
-  /// Callback: visszaadja az edzés nevét és a progresszió %-ot, majd bezárja a screent.
-  final Future<void> Function(String cim, bool mentRutin, double progresszioSzazalek) onMentes;
+  /// Callback: visszaadja az edzés nevét, rutin/megosztás flaget és a progresszió %-ot.
+  final Future<void> Function(
+    String cim,
+    bool mentRutin,
+    double progresszioSzazalek,
+    bool megoszt,
+  ) onMentes;
 
   @override
   State<WorkoutSummaryScreen> createState() => _WorkoutSummaryScreenState();
@@ -28,6 +33,7 @@ class WorkoutSummaryScreen extends StatefulWidget {
 class _WorkoutSummaryScreenState extends State<WorkoutSummaryScreen> with SingleTickerProviderStateMixin {
   late final TextEditingController _cimCtrl;
   bool _mentRutin = false;
+  bool _megoszt = true;
   double _progress = 5.0;
   bool _mentes = false;
   late AnimationController _animCtrl;
@@ -217,6 +223,51 @@ class _WorkoutSummaryScreenState extends State<WorkoutSummaryScreen> with Single
                       color: _mentRutin ? const Color(0xFF34C759) : Colors.white.withValues(alpha: 0.7),
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          InkWell(
+            onTap: () => setState(() => _megoszt = !_megoszt),
+            borderRadius: BorderRadius.circular(10),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: _megoszt
+                    ? const Color(0xFF1E88E5).withValues(alpha: 0.15)
+                    : Colors.white.withValues(alpha: 0.06),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: _megoszt
+                      ? const Color(0xFF1E88E5).withValues(alpha: 0.4)
+                      : Colors.transparent,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    _megoszt
+                        ? Icons.check_box_rounded
+                        : Icons.check_box_outline_blank_rounded,
+                    color: _megoszt
+                        ? const Color(0xFF1E88E5)
+                        : Colors.white.withValues(alpha: 0.4),
+                    size: 20,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Megosztás a közösségben',
+                      style: TextStyle(
+                        color: _megoszt
+                            ? const Color(0xFF1E88E5)
+                            : Colors.white.withValues(alpha: 0.7),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
                 ],
@@ -429,7 +480,7 @@ class _WorkoutSummaryScreenState extends State<WorkoutSummaryScreen> with Single
     await _saveProgresszio();
     try {
       final cim = _cimCtrl.text.trim().isEmpty ? widget.edzes.title : _cimCtrl.text.trim();
-      await widget.onMentes(cim, _mentRutin, _progress);
+      await widget.onMentes(cim, _mentRutin, _progress, _megoszt);
     } catch (e) {
       if (mounted) {
         setState(() => _mentes = false);

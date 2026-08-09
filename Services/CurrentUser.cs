@@ -31,5 +31,14 @@ namespace FitnessBackend.Services
                 return ctrl.Unauthorized(new { error = "Bejelentkezés szükséges." });
             return null;
         }
+
+        public static ActionResult? RequireUserId(ControllerBase ctrl, out Guid userId)
+        {
+            userId = Guid.Empty;
+            var raw = UserId(ctrl.User);
+            if (string.IsNullOrWhiteSpace(raw) || !Guid.TryParse(raw, out userId))
+                return ctrl.Unauthorized(new { error = "Bejelentkezés szükséges." });
+            return null;
+        }
     }
 }

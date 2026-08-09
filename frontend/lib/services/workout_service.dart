@@ -58,6 +58,43 @@ class WorkoutService {
     return WorkoutSessionModel.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
   }
 
+  /// Finish active workout and create a community post (county from JWT user).
+  Future<WorkoutSessionModel> finishAndShareWorkout({
+    String? county,
+    String? selfieUrl,
+  }) async {
+    final response = await ApiHttp.post(
+      Uri.parse('$_base/api/workout/aktiv/befejezes-es-megosztas'),
+      body: jsonEncode({
+        if (county != null && county.isNotEmpty) 'county': county,
+        if (selfieUrl != null && selfieUrl.isNotEmpty) 'selfieUrl': selfieUrl,
+      }),
+    );
+    _check(response);
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    final workout = data['workout'] ?? data['edzes'];
+    if (workout is Map<String, dynamic>) {
+      return WorkoutSessionModel.fromJson(workout);
+    }
+    // Fallback if API shape changes
+    return WorkoutSessionModel.fromJson(data);
+  }
+
+  Future<void> shareHistoryWorkout(
+    int workoutId, {
+    String? county,
+    String? selfieUrl,
+  }) async {
+    final response = await ApiHttp.post(
+      Uri.parse('$_base/api/workout/history/$workoutId/megosztas'),
+      body: jsonEncode({
+        if (county != null && county.isNotEmpty) 'county': county,
+        if (selfieUrl != null && selfieUrl.isNotEmpty) 'selfieUrl': selfieUrl,
+      }),
+    );
+    _check(response);
+  }
+
   Future<void> discardWorkout() async {
     final response = await ApiHttp.delete(Uri.parse('$_base/api/workout/aktiv'));
     _check(response);

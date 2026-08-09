@@ -80,11 +80,13 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
         fullscreenDialog: true,
         builder: (_) => WorkoutSummaryScreen(
           edzes: _edzes!,
-          onMentes: (cim, mentRutin, progresszioSzazalek) async {
+          onMentes: (cim, mentRutin, progresszioSzazalek, megoszt) async {
             if (cim.isNotEmpty) {
               await _service.updateWorkoutTitle(cim);
             }
-            final befejezett = await _service.finishWorkout();
+            final befejezett = megoszt
+                ? await _service.finishAndShareWorkout()
+                : await _service.finishWorkout();
             if (mentRutin) {
               await PlanService.instance.saveFromWorkout(session: befejezett, title: cim);
             }
