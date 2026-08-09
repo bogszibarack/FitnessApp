@@ -222,6 +222,40 @@ namespace FitnessBackend.Services
             return (true, null, 200, okMsg);
         }
 
+        /// <summary>
+        /// Completes forgot-password: verify emailed temporary password, set the user's chosen password.
+        /// </summary>
+        public async Task<(bool Ok, string? Error, int Status, string? Message)> ConfirmForgotPasswordAsync(
+            ConfirmForgotPasswordRequest req)
+        {
+            if (string.IsNullOrWhiteSpace(req.Email) || !EmailRegex.IsMatch(req.Email.Trim()))
+                return (false, "Érvénytelen e-mail formátum.", 400, null);
+
+            if (string.IsNullOrWhiteSpace(req.TemporaryPassword))
+                return (false, "Az e-mailben kapott ideiglenes jelszó megadása kötelező.", 400, null);
+
+            if (string.IsNullOrWhiteSpace(req.NewPassword) || req.NewPassword.Length < 6)
+                return (false, "Az új jelszó legalább 6 karakter legyen.", 400, null);
+
+            if (!string.Equals(req.NewPassword, req.ConfirmPassword, StringComparison.Ordinal))
+                return (false, "A két új jelszó nem egyezik.", 400, null);
+
+            if (string.Equals(req.TemporaryPassword, req.NewPassword, StringComparison.Ordinal))
+                return (false, "Az új jelszó ne egyezzen az ideiglenessel.", 400, null);
+
+            var email = req.Email.ToLowerInvariant().Trim();
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == email);
+            if (user == null || !VerifyPassword(user, req.TemporaryPassword))
+                return (false, "Hibás e-mail vagy ideiglenes jelszó.", 401, null);
+
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.NewPassword);
+            user.PasswordIsLegacyBase64 = false;
+            await RevokeAllRefreshTokensAsync(user.Id);
+            await _db.SaveChangesAsync();
+
+            return (true, null, 200, "Jelszó sikeresen beállítva. Most már bejelentkezhetsz az új jelszóval.");
+        }
+
         public async Task<bool> EmailTakenAsync(string email) =>
             await _db.Users.AnyAsync(u => u.Email == email.ToLowerInvariant().Trim());
 
@@ -399,6 +433,14 @@ namespace FitnessBackend.Services
     public class ForgotPasswordRequest
     {
         public string Email { get; set; } = "";
+    }
+
+    public class ConfirmForgotPasswordRequest
+    {
+        public string Email { get; set; } = "";
+        public string TemporaryPassword { get; set; } = "";
+        public string NewPassword { get; set; } = "";
+        public string ConfirmPassword { get; set; } = "";
     }
 
     public class UserListItem

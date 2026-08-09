@@ -107,6 +107,26 @@ namespace FitnessBackend.Controllers
             return Ok(new { success = true, message });
         }
 
+        /// <summary>
+        /// After forgot-password email: verify temporary password and set a new one.
+        /// </summary>
+        [HttpPost("confirm-forgot-password")]
+        [AllowAnonymous]
+        public async Task<ActionResult<object>> ConfirmForgotPassword([FromBody] ConfirmForgotPasswordRequest req)
+        {
+            var (ok, err, status, message) = await _auth.ConfirmForgotPasswordAsync(req);
+            if (!ok)
+            {
+                return status switch
+                {
+                    401 => Unauthorized(new { error = err }),
+                    _ => BadRequest(new { error = err }),
+                };
+            }
+
+            return Ok(new { success = true, message });
+        }
+
         [HttpGet("check-email")]
         [AllowAnonymous]
         public async Task<ActionResult<object>> CheckEmail([FromQuery] string email)

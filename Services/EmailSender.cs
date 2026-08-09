@@ -109,8 +109,9 @@ namespace FitnessBackend.Services
                 "A biztonság miatt a régi jelszó nem állítható vissza (titkosítva tároljuk),\n" +
                 "ezért új ideiglenes jelszót generáltunk:\n\n" +
                 $"  {tempPassword}\n\n" +
-                "Jelentkezz be ezzel, majd a Beállításokban azonnal cseréld le saját jelszóra.\n" +
-                "Ha nem te kérted, jelentkezz be és változtasd meg a jelszót.\n\n" +
+                "Nyisd meg a Flexio appot, írd be ezt az ideiglenes jelszót,\n" +
+                "majd állíts be egy új, saját jelszót (kétszer megadva).\n\n" +
+                "Ha nem te kérted, hagyd figyelmen kívül ezt az e-mailt.\n\n" +
                 "A Flexio csapat";
 
             var html =
@@ -122,7 +123,8 @@ namespace FitnessBackend.Services
                 $"<p style=\"font-size:20px;font-weight:700;letter-spacing:1px;" +
                 $"background:#F5F7FA;padding:12px 16px;border-radius:8px;display:inline-block\">" +
                 $"{System.Net.WebUtility.HtmlEncode(tempPassword)}</p>" +
-                "<p>Jelentkezz be ezzel, majd a Beállításokban cseréld le saját jelszóra.</p>" +
+                "<p>Nyisd meg a <strong>Flexio</strong> appot, írd be ezt az ideiglenes jelszót, " +
+                "majd állíts be egy új, saját jelszót.</p>" +
                 "<p>A Flexio csapat</p>" +
                 "</div>";
 

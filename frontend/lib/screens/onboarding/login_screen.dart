@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../services/auth_service.dart';
 import '../../services/local_store.dart';
 import '../main_shell.dart';
+import 'reset_password_screen.dart';
 
 const _kBlue = Color(0xFF2979FF);
 const _kTextLight = Color(0xFF888888);
@@ -174,6 +175,17 @@ class _LoginScreenState extends State<LoginScreen>
       _sikerUzenet(msg);
       if (_emailCtrl.text.trim().isEmpty) {
         _emailCtrl.text = email;
+      }
+      final beallitottEmail = await Navigator.of(context).push<String>(
+        MaterialPageRoute(
+          builder: (_) => ResetPasswordScreen(email: email),
+        ),
+      );
+      if (!mounted) return;
+      if (beallitottEmail != null && beallitottEmail.isNotEmpty) {
+        _emailCtrl.text = beallitottEmail;
+        _passCtrl.clear();
+        setState(() {});
       }
     } on AuthException catch (e) {
       if (!mounted) return;

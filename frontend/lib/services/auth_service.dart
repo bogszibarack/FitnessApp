@@ -74,6 +74,31 @@ class AuthService {
         'Ha van fiók ezzel az e-mail címmel, elküldtük az új ideiglenes jelszót.';
   }
 
+  /// Completes forgot-password: temp password from email + new chosen password.
+  Future<String> confirmForgotPassword({
+    required String email,
+    required String temporaryPassword,
+    required String newPassword,
+    required String confirmPassword,
+  }) async {
+    final response = await http
+        .post(
+          Uri.parse('$_base/api/auth/confirm-forgot-password'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'email': email.trim(),
+            'temporaryPassword': temporaryPassword,
+            'newPassword': newPassword,
+            'confirmPassword': confirmPassword,
+          }),
+        )
+        .timeout(const Duration(seconds: 15));
+    _check(response);
+    final json = jsonDecode(response.body) as Map<String, dynamic>;
+    return json['message'] as String? ??
+        'Jelszó sikeresen beállítva. Most már bejelentkezhetsz az új jelszóval.';
+  }
+
   Future<AuthSession> register({
     required String email,
     required String password,
