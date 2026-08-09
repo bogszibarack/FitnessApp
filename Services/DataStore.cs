@@ -239,31 +239,6 @@ namespace FitnessBackend.Services
             }
         }
 
-        /// <summary>Legacy single-session API — prefer SaveActiveMap.</summary>
-        public static void ClearActive()
-        {
-            try
-            {
-                if (File.Exists(ActiveWorkoutFile)) File.Delete(ActiveWorkoutFile);
-            }
-            catch { }
-        }
-
-        public static void SaveActive(WorkoutSession? active)
-        {
-            if (active == null)
-            {
-                ClearActive();
-                return;
-            }
-
-            var key = string.IsNullOrWhiteSpace(active.UserName) ? "_legacy" : active.UserName;
-            SaveActiveMap(new Dictionary<string, WorkoutSession>(StringComparer.OrdinalIgnoreCase)
-            {
-                [key] = active
-            });
-        }
-
         public static void SavePlans()
         {
             try
@@ -337,24 +312,6 @@ namespace FitnessBackend.Services
             catch (Exception ex)
             {
                 Console.WriteLine($"[DataStore] Accounts load error: {ex.Message}");
-            }
-        }
-
-        public static void SaveAccounts()
-        {
-            try
-            {
-                var package = new AccountExport
-                {
-                    Users = AccountStore.Users.ToList()
-                };
-                var json = JsonSerializer.Serialize(package, Opts);
-                SafeWrite(AccountsFile, json);
-            }
-            catch (Exception ex)
-            {
-                LastError = $"Accounts save: {ex.Message}";
-                Console.WriteLine($"[DataStore] Accounts save error: {ex.Message}");
             }
         }
 

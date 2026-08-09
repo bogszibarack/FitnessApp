@@ -114,11 +114,6 @@ FitnessBackend.Services.FatSecretConfig.ClientSecret =
     ?? Environment.GetEnvironmentVariable("FATSECRET_CLIENT_SECRET")
     ?? "";
 
-FitnessBackend.Services.SpoonacularConfig.ApiKey =
-    builder.Configuration["Spoonacular:ApiKey"]
-    ?? Environment.GetEnvironmentVariable("SPOONACULAR_API_KEY")
-    ?? "";
-
 // Load JSON stores (workouts etc.) then ensure DB schema + migrate accounts
 FitnessBackend.Controllers.WorkoutController.LoadOnStartup();
 

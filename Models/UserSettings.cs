@@ -318,9 +318,8 @@ namespace FitnessBackend.Models
                 Plans = PlanStore.SavedPlans
                     .Where(r => r.CreatorName.Equals(userName, StringComparison.OrdinalIgnoreCase))
                     .ToList(),
-                CommunityPosts = CommunityStore.Posts
-                    .Where(p => p.UserName.Equals(userName, StringComparison.OrdinalIgnoreCase))
-                    .ToList(),
+                // Community posts are Postgres-backed; export keeps empty list for package shape.
+                CommunityPosts = [],
                 Progress = PlanStore.Progress
             };
         }

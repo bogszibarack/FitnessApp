@@ -39,7 +39,7 @@ namespace FitnessBackend.Controllers
             var dir = Path.Combine(_env.WebRootPath ?? "", "uploads", "selfies");
             Directory.CreateDirectory(dir);
 
-            var safeName = $"{CommunityService.SanitizeFileName(userName)}_{Guid.NewGuid():N}{ext.ToLowerInvariant()}";
+            var safeName = $"{CommunityDbService.SanitizeFileName(userName)}_{Guid.NewGuid():N}{ext.ToLowerInvariant()}";
             var path = Path.Combine(dir, safeName);
 
             await using (var stream = new FileStream(path, FileMode.Create))

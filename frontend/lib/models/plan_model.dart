@@ -96,15 +96,3 @@ class PlanModel {
     );
   }
 }
-
-class PlanGroup {
-  PlanGroup({
-    required this.cim,
-    required this.plans,
-    this.alapSablon = false,
-  });
-
-  final String cim;
-  final List<PlanModel> plans;
-  final bool alapSablon;
-}

@@ -83,19 +83,14 @@ namespace FitnessBackend.Services
             return list;
         }
 
-        public async Task<CommunityPost?> GetPostAsync(string postId)
-        {
-            if (!Guid.TryParse(postId.Replace("post_", "", StringComparison.OrdinalIgnoreCase), out var id) &&
-                !Guid.TryParse(postId, out id))
-            {
-                // Also try looking up by string prefix storage — we store Guid Id; clients may send guid
-                return null;
-            }
-
-            return await MapPostAsync(id);
-        }
-
         public async Task<CommunityPost?> GetPostByGuidAsync(Guid id) => await MapPostAsync(id);
+
+        public static string SanitizeFileName(string name)
+        {
+            var chars = name.Where(c => char.IsLetterOrDigit(c) || c == '-' || c == '_').ToArray();
+            var clean = new string(chars);
+            return string.IsNullOrWhiteSpace(clean) ? "user" : clean.ToLowerInvariant();
+        }
 
         public async Task<(CommunityPost? Post, string? Error)> LikeAsync(Guid postId, AppUser user)
         {

@@ -227,31 +227,3 @@ class CommunityProfileModel {
     );
   }
 }
-
-/// Legacy search model kept for older callers.
-class CommunityUserModel {
-  const CommunityUserModel({
-    required this.userName,
-    required this.postCount,
-    required this.totalLikes,
-    required this.lastWorkoutTitle,
-    required this.lastWorkout,
-  });
-
-  final String userName;
-  final int postCount;
-  final int totalLikes;
-  final String lastWorkoutTitle;
-  final DateTime lastWorkout;
-
-  factory CommunityUserModel.fromJson(Map<String, dynamic> json) {
-    return CommunityUserModel(
-      userName: json['userName'] as String? ?? '',
-      postCount: _jsonInt(json, 'postCount', 'posztSzam') ?? 0,
-      totalLikes: _jsonInt(json, 'totalLikes', 'osszLike') ?? 0,
-      lastWorkoutTitle:
-          _jsonString(json, 'lastWorkoutTitle', 'legutobbiEdzesCim') ?? '',
-      lastWorkout: _jsonDateTime(json, 'lastWorkout', 'utolsoEdzes'),
-    );
-  }
-}
