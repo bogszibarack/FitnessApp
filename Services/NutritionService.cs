@@ -10,7 +10,8 @@ namespace FitnessBackend.Services
         private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(30);
 
         private const string OffApiBase = "https://world.openfoodfacts.org";
-        private const string OffUserAgent = "FitnessBackend/1.0 (fitness@local.dev)";
+        private const string OffSearchApi = "https://search.openfoodfacts.org/search";
+        private const string OffUserAgent = "FitnessBackend/1.0 (flexio; food-search)";
 
         private static readonly List<FoodItem> OfflineDb = new()
         {
@@ -95,6 +96,43 @@ namespace FitnessBackend.Services
             new() { Id="off_kreatin",    Name="Kreatin",         Calories=0,   Protein=0,   Carbs=0,   Fat=0 },
             new() { Id="off_rizstejes",  Name="Rizs+tejszín",    Calories=190, Protein=3.5, Carbs=37,  Fat=4 },
             new() { Id="off_rizzspud",   Name="Rizspuding",      Calories=110, Protein=3.2, Carbs=21,  Fat=1.5 },
+            // Frequent HU home-cooked / menu items (per 100 g)
+            new() { Id="off_rantott_hus", Name="Rántott hús", Calories=280, Protein=18, Carbs=14, Fat=17 },
+            new() { Id="off_becsi", Name="Bécsi szelet", Calories=297, Protein=19, Carbs=15, Fat=18 },
+            new() { Id="off_rantott_csirk", Name="Rántott csirkemell", Calories=220, Protein=24, Carbs=10, Fat=9 },
+            new() { Id="off_rantott_sajt", Name="Rántott sajt", Calories=310, Protein=14, Carbs=18, Fat=20 },
+            new() { Id="off_fasirt", Name="Fasírt", Calories=240, Protein=16, Carbs=8, Fat=16 },
+            new() { Id="off_porkolt_mar", Name="Marhapörkölt", Calories=180, Protein=18, Carbs=4, Fat=10 },
+            new() { Id="off_porkolt_ser", Name="Sertéspörkölt", Calories=195, Protein=17, Carbs=4, Fat=12 },
+            new() { Id="off_csirkepapr", Name="Csirkepaprikás", Calories=160, Protein=16, Carbs=5, Fat=8 },
+            new() { Id="off_gulyaslev", Name="Gulyásleves", Calories=75, Protein=6, Carbs=6, Fat=3 },
+            new() { Id="off_halaszle", Name="Halászlé", Calories=70, Protein=8, Carbs=3, Fat=2.5 },
+            new() { Id="off_toltottpap", Name="Töltött paprika", Calories=120, Protein=8, Carbs=10, Fat=5 },
+            new() { Id="off_rakottkru", Name="Rakott krumpli", Calories=150, Protein=8, Carbs=14, Fat=7 },
+            new() { Id="off_lecso", Name="Lecsó", Calories=55, Protein=1.5, Carbs=7, Fat=2.5 },
+            new() { Id="off_nokedli", Name="Nokedli / galuska", Calories=145, Protein=4.5, Carbs=28, Fat=2 },
+            new() { Id="off_husleves", Name="Húsleves", Calories=40, Protein=4, Carbs=3, Fat=1.2 },
+            new() { Id="off_frankfurti", Name="Frankfurti leves", Calories=55, Protein=3, Carbs=5, Fat=2.5 },
+            new() { Id="off_borsoleves", Name="Borsóleves", Calories=55, Protein=3, Carbs=8, Fat=1.5 },
+            new() { Id="off_krumplifo", Name="Krumplifőzelék", Calories=80, Protein=2, Carbs=14, Fat=2 },
+            new() { Id="off_tokefo", Name="Tökfőzelék", Calories=70, Protein=2, Carbs=10, Fat=2.5 },
+            new() { Id="off_spenotfo", Name="Spenótfőzelék", Calories=75, Protein=3.5, Carbs=8, Fat=3.5 },
+            new() { Id="off_sultkrum", Name="Sült krumpli / hasáb", Calories=280, Protein=3.5, Carbs=36, Fat=14 },
+            new() { Id="off_pizza_sze", Name="Pizza (szelet)", Calories=266, Protein=11, Carbs=33, Fat=10 },
+            new() { Id="off_hamburger", Name="Hamburger", Calories=250, Protein=13, Carbs=25, Fat=11 },
+            new() { Id="off_hotdog", Name="Hot dog", Calories=290, Protein=11, Carbs=25, Fat=16 },
+            new() { Id="off_szendvics", Name="Szendvics (sonkás)", Calories=230, Protein=12, Carbs=25, Fat=9 },
+            new() { Id="off_granola", Name="Granola / müzli", Calories=420, Protein=10, Carbs=65, Fat=14 },
+            new() { Id="off_smoothie", Name="Gyümölcssmoothie", Calories=60, Protein=1, Carbs=13, Fat=0.5 },
+            new() { Id="off_kave_tej", Name="Tejeskávé", Calories=45, Protein=2, Carbs=5, Fat=1.5 },
+            new() { Id="off_narancsle", Name="Narancslé", Calories=45, Protein=0.7, Carbs=10, Fat=0.2 },
+            new() { Id="off_coca", Name="Üdítő (cola)", Calories=42, Protein=0, Carbs=10.6, Fat=0 },
+            new() { Id="off_sor", Name="Sör", Calories=43, Protein=0.5, Carbs=3.6, Fat=0 },
+            new() { Id="off_bor_voros", Name="Vörösbor", Calories=85, Protein=0.1, Carbs=2.6, Fat=0 },
+            new() { Id="off_langos", Name="Lángos", Calories=310, Protein=6, Carbs=40, Fat=14 },
+            new() { Id="off_kurtos", Name="Kürtőskalács", Calories=360, Protein=6, Carbs=55, Fat=13 },
+            new() { Id="off_kremes", Name="Krémes", Calories=280, Protein=4, Carbs=35, Fat=14 },
+            new() { Id="off_somloi", Name="Somlói galuska", Calories=290, Protein=5, Carbs=40, Fat=12 },
         };
 
         private static List<FoodItem> SearchOffline(string query)
@@ -103,26 +141,32 @@ namespace FitnessBackend.Services
             if (norm.Length < 2) return [];
 
             var tokens = norm.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            string english = StripAccents(SearchQueryTranslator.ToEnglish(query).ToLowerInvariant());
+            var engTokens = english.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
             return OfflineDb
                 .Select(f =>
                 {
                     string nameNorm = StripAccents(f.Name.ToLowerInvariant());
                     int score = 0;
-                    if (nameNorm == norm) score = 100;
-                    else if (nameNorm.StartsWith(norm, StringComparison.Ordinal)) score = 80;
-                    else if (nameNorm.Contains(norm, StringComparison.Ordinal)) score = 60;
+                    if (nameNorm == norm || nameNorm == english) score = 100;
+                    else if (nameNorm.StartsWith(norm, StringComparison.Ordinal) ||
+                             nameNorm.StartsWith(english, StringComparison.Ordinal)) score = 80;
+                    else if (nameNorm.Contains(norm, StringComparison.Ordinal) ||
+                             (english.Length >= 3 && nameNorm.Contains(english, StringComparison.Ordinal))) score = 60;
                     else if (tokens.Length > 0 && tokens.All(t => nameNorm.Contains(t, StringComparison.Ordinal)))
-                        score = 40;
-                    else if (tokens.Length > 0 && tokens.Any(t => t.Length >= 3 && nameNorm.Contains(t, StringComparison.Ordinal)))
-                        score = 20;
+                        score = 50;
+                    else if (engTokens.Length > 0 &&
+                             engTokens.All(t => t.Length < 3 || nameNorm.Contains(t, StringComparison.Ordinal)) &&
+                             engTokens.Any(t => t.Length >= 3))
+                        score = 45;
                     return (Food: f, Score: score);
                 })
-                .Where(x => x.Score >= 40) // drop weak reverse/substring noise
+                .Where(x => x.Score >= 40)
                 .OrderByDescending(x => x.Score)
                 .ThenBy(x => x.Food.Name.Length)
                 .Select(x => x.Food)
-                .Take(8)
+                .Take(10)
                 .ToList();
         }
 
@@ -185,8 +229,8 @@ namespace FitnessBackend.Services
             // Re-rank merged list by token overlap with the user query.
             results = RankFoodResults(query, results).Take(20).ToList();
 
-            // Don't cache thin lists — OFF often 503s once; a later retry should enrich.
-            if (results.Count >= 4)
+            // Cache even small curated hits (e.g. single offline "Rántott hús").
+            if (results.Count > 0)
                 _searchCache[key] = (DateTime.UtcNow, results);
 
             return results;
@@ -195,10 +239,15 @@ namespace FitnessBackend.Services
         private static List<FoodItem> RankFoodResults(string query, List<FoodItem> items)
         {
             string norm = StripAccents(query.Trim().ToLowerInvariant());
-            var tokens = norm.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var tokens = norm.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                .Where(t => t.Length >= 2)
+                .ToArray();
             string english = StripAccents(SearchQueryTranslator.ToEnglish(query).ToLowerInvariant());
+            var engTokens = english.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                .Where(t => t.Length >= 2)
+                .ToArray();
 
-            return items
+            var ranked = items
                 .Select(item =>
                 {
                     string name = StripAccents(item.Name.ToLowerInvariant());
@@ -207,83 +256,92 @@ namespace FitnessBackend.Services
                     if (name.StartsWith(norm, StringComparison.Ordinal) ||
                         name.StartsWith(english, StringComparison.Ordinal)) score += 50;
                     if (name.Contains(norm, StringComparison.Ordinal) ||
-                        name.Contains(english, StringComparison.Ordinal)) score += 25;
-                    score += tokens.Count(t => t.Length >= 2 && name.Contains(t, StringComparison.Ordinal)) * 10;
-                    if (item.Id.StartsWith("off_", StringComparison.Ordinal)) score += 5; // prefer curated offline
-                    return (Item: item, Score: score);
+                        (english.Length >= 3 && name.Contains(english, StringComparison.Ordinal))) score += 25;
+                    int huHits = tokens.Count(t => name.Contains(t, StringComparison.Ordinal));
+                    int enHits = engTokens.Count(t => name.Contains(t, StringComparison.Ordinal));
+                    score += Math.Max(huHits, enHits) * 12;
+                    if (item.Id.StartsWith("off_", StringComparison.Ordinal)) score += 8; // curated offline
+                    return (Item: item, Score: score, Hits: Math.Max(huHits, enHits));
                 })
+                .Where(x => x.Score > 0)
+                // Drop OFF noise with zero token overlap when we have better matches
+                .Where(x => x.Hits > 0 || x.Item.Id.StartsWith("off_", StringComparison.Ordinal) || x.Score >= 25)
                 .OrderByDescending(x => x.Score)
                 .Select(x => x.Item)
                 .ToList();
+
+            return ranked;
         }
 
         private static async Task<List<FoodItem>> SearchOpenFoodFactsAsync(string query, int max)
         {
             using var client = new HttpClient();
             client.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", OffUserAgent);
-            client.Timeout = TimeSpan.FromSeconds(15);
+            client.Timeout = TimeSpan.FromSeconds(12);
 
             var results = new List<FoodItem>();
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-            async Task Fetch(string term, string? cc)
+            void AddProduct(JsonElement product)
             {
                 if (results.Count >= max) return;
-                // Note: cgi/search.pl rejects/ignores `fields` and may 503 under load — retry once.
-                var qs = new List<string>
-                {
-                    $"search_terms={Uri.EscapeDataString(term)}",
-                    "search_simple=1",
-                    "action=process",
-                    "json=1",
-                    $"page_size={Math.Min(max, 15)}",
-                };
-                if (!string.IsNullOrWhiteSpace(cc))
-                    qs.Add($"cc={Uri.EscapeDataString(cc)}");
+                var food = FromOffProduct(product);
+                if (food == null || food.Calories <= 0) return;
+                if (!seen.Add(food.Id)) return;
+                results.Add(food);
+            }
 
-                string url = $"{OffApiBase}/cgi/search.pl?{string.Join("&", qs)}";
-                string? raw = null;
-                for (int attempt = 0; attempt < 2 && raw == null; attempt++)
+            // 1) search-a-licious (more reliable than cgi/search.pl from cloud IPs)
+            foreach (string term in SearchQueryTranslator.SearchExpressions(query).Take(4))
+            {
+                if (results.Count >= max) break;
+                try
                 {
-                    try
-                    {
-                        using var resp = await client.GetAsync(url);
-                        if ((int)resp.StatusCode == 503)
-                        {
-                            await Task.Delay(400 * (attempt + 1));
-                            continue;
-                        }
-                        resp.EnsureSuccessStatusCode();
-                        raw = await resp.Content.ReadAsStringAsync();
-                    }
-                    catch
-                    {
-                        if (attempt == 0) await Task.Delay(400);
-                    }
+                    string url =
+                        $"{OffSearchApi}?q={Uri.EscapeDataString(term)}&page_size={Math.Min(max, 12)}&langs=hu";
+                    using var resp = await client.GetAsync(url);
+                    if (!resp.IsSuccessStatusCode) continue;
+                    string raw = await resp.Content.ReadAsStringAsync();
+                    using var doc = JsonDocument.Parse(raw);
+                    if (!doc.RootElement.TryGetProperty("hits", out var hits) ||
+                        hits.ValueKind != JsonValueKind.Array)
+                        continue;
+                    foreach (var hit in hits.EnumerateArray())
+                        AddProduct(hit);
                 }
-                if (string.IsNullOrWhiteSpace(raw)) return;
-
-                using var doc = JsonDocument.Parse(raw);
-                if (!doc.RootElement.TryGetProperty("products", out var products) ||
-                    products.ValueKind != JsonValueKind.Array)
-                    return;
-
-                foreach (var product in products.EnumerateArray())
+                catch (Exception ex)
                 {
-                    var food = FromOffProduct(product);
-                    if (food == null || food.Calories <= 0) continue;
-                    if (!seen.Add(food.Id)) continue;
-                    results.Add(food);
-                    if (results.Count >= max) break;
+                    Console.WriteLine($"[Nutrition] OFF search-a-licious '{term}' failed: {ex.Message}");
                 }
             }
 
-            await Fetch(query.Trim(), "hu");
-            if (results.Count < max)
+            // 2) Legacy cgi/search.pl fallback if still thin
+            if (results.Count < 4)
             {
-                string english = SearchQueryTranslator.ToEnglish(query);
-                if (!string.Equals(english, query.Trim(), StringComparison.OrdinalIgnoreCase))
-                    await Fetch(english, null);
+                foreach (string term in SearchQueryTranslator.SearchExpressions(query).Take(3))
+                {
+                    if (results.Count >= max) break;
+                    try
+                    {
+                        string url =
+                            $"{OffApiBase}/cgi/search.pl?search_terms={Uri.EscapeDataString(term)}" +
+                            "&search_simple=1&action=process&json=1" +
+                            $"&page_size={Math.Min(max, 12)}";
+                        using var resp = await client.GetAsync(url);
+                        if (!resp.IsSuccessStatusCode) continue;
+                        string raw = await resp.Content.ReadAsStringAsync();
+                        using var doc = JsonDocument.Parse(raw);
+                        if (!doc.RootElement.TryGetProperty("products", out var products) ||
+                            products.ValueKind != JsonValueKind.Array)
+                            continue;
+                        foreach (var product in products.EnumerateArray())
+                            AddProduct(product);
+                    }
+                    catch
+                    {
+                        // ignore — search-a-licious is primary
+                    }
+                }
             }
 
             return results;
@@ -399,7 +457,15 @@ namespace FitnessBackend.Services
             string brand = product.TryGetProperty("brands", out var m) ? m.GetString() ?? "" : "";
             string fullName = string.IsNullOrWhiteSpace(brand) ? name : $"[{brand}] {name}";
             string id = product.TryGetProperty("code", out var c) ? c.GetString() ?? "0" : "0";
-            string image = product.TryGetProperty("image_front_thumb_url", out var k) ? k.GetString() ?? "" : "";
+            string image = "";
+            foreach (var imgField in new[] { "image_front_thumb_url", "image_front_small_url", "image_thumb_url" })
+            {
+                if (product.TryGetProperty(imgField, out var k) && k.ValueKind == JsonValueKind.String)
+                {
+                    image = k.GetString() ?? "";
+                    if (!string.IsNullOrWhiteSpace(image)) break;
+                }
+            }
 
             double kcal = 0, protein = 0, carbs = 0, fat = 0;
 

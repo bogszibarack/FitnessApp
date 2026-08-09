@@ -92,15 +92,8 @@ namespace FitnessBackend.Services
             }
         }
 
-        private static IEnumerable<string> SearchExpressions(string query)
-        {
-            string raw = query.Trim();
-            string english = SearchQueryTranslator.ToEnglish(query);
-            // FatSecret is English-first — try translated query before raw HU.
-            if (!string.Equals(english, raw, StringComparison.OrdinalIgnoreCase))
-                yield return english;
-            yield return raw;
-        }
+        private static IEnumerable<string> SearchExpressions(string query) =>
+            SearchQueryTranslator.SearchExpressions(query);
 
         private static async Task<List<FoodItem>> FoodsSearchAsync(string expression, int max)
         {
