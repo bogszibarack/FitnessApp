@@ -26,7 +26,7 @@ namespace FitnessBackend.Services
             // Compounds (HU often writes these as one word)
             ["csirkemell"] = "chicken breast", ["csirkecomb"] = "chicken thigh", ["pulykamell"] = "turkey breast",
             ["marhahús"] = "beef", ["sertéshús"] = "pork", ["rizspehely"] = "rice cakes",
-            ["túró"] = "cottage cheese", ["görögjoghurt"] = "greek yogurt", ["fehérjepor"] = "protein powder",
+            ["görögjoghurt"] = "greek yogurt", ["fehérjepor"] = "protein powder",
             ["étcsokoládé"] = "dark chocolate", ["tejcsokoládé"] = "milk chocolate",
             ["édesburgonya"] = "sweet potato", ["vöröshagyma"] = "onion", ["olívaolaj"] = "olive oil",
             ["napraforgóolaj"] = "sunflower oil", ["mogyoróvaj"] = "peanut butter",
