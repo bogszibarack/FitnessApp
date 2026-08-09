@@ -21,6 +21,7 @@ namespace FitnessBackend.Services
         private static readonly ConcurrentDictionary<string, (DateTime ido, List<RecipeListItem> lista)> ListCache = new();
         private static readonly ConcurrentDictionary<string, (DateTime ido, RecipeDetail? recept)> DetailCache = new();
         private static readonly TimeSpan CacheTtl = TimeSpan.FromHours(6);
+        private static readonly TimeSpan SearchCacheTtl = TimeSpan.FromMinutes(45);
 
         static NosaltyApi()
         {
@@ -46,34 +47,61 @@ namespace FitnessBackend.Services
 
         public static async Task<List<RecipeListItem>> SearchAsync(string keresoszó, int darab = 20)
         {
-            string kulcs = $"search_{Normalize(keresoszó)}_{darab}";
+            // v2: Nosalty path search (/kereses/recept/{slug}) — ?q= returns unrelated cards.
+            string kulcs = $"search_v2_{Normalize(keresoszó)}_{darab}";
             if (TryGetCachedList(kulcs, out var cached)) return cached!;
 
-            var osszes = new List<RecipeListItem>();
+            var scored = new List<(RecipeListItem Item, int Score)>();
             var latva = new HashSet<string>();
 
-            foreach (var elem in await DirectSlugSearchAsync(keresoszó))
+            foreach (string slug in SearchPathCandidates(keresoszó))
             {
-                if (latva.Add(elem.Id))
-                    osszes.Add(elem);
-            }
-
-            string q = Uri.EscapeDataString(keresoszó.Trim());
-            for (int oldal = 1; oldal <= 8 && osszes.Count < darab; oldal++)
-            {
-                string url = $"{BaseUrl}/kereses/recept?q={q}&rendezes=relevancia&page={oldal}";
-                string html = await FetchPageAsync(url);
-                foreach (var elem in ParseListFromHtml(html, darab * 2, csakKeresesiEredmeny: true))
+                bool gotPage = false;
+                for (int oldal = 1; oldal <= 5 && scored.Count < darab * 2; oldal++)
                 {
-                    if (!MatchesQuery(keresoszó, elem)) continue;
-                    if (latva.Add(elem.Id))
-                        osszes.Add(elem);
+                    string url = oldal == 1
+                        ? $"{BaseUrl}/kereses/recept/{slug}"
+                        : $"{BaseUrl}/kereses/recept/{slug}?rendezes=relevancia&page={oldal}";
+
+                    string html;
+                    try
+                    {
+                        html = await FetchPageAsync(url);
+                    }
+                    catch
+                    {
+                        // 404 / network — try next slug candidate.
+                        break;
+                    }
+
+                    if (!TryGetSearchScope(html, out _))
+                        break; // fail closed: don't scrape nav / popular widgets
+
+                    var pageItems = ParseListFromHtml(html, darab * 2, csakKeresesiEredmeny: true);
+                    if (pageItems.Count == 0) break;
+                    gotPage = true;
+
+                    foreach (var elem in pageItems)
+                    {
+                        int score = RelevanceScore(keresoszó, elem);
+                        if (score <= 0) continue;
+                        if (!latva.Add(elem.Id)) continue;
+                        scored.Add((elem, score));
+                    }
+
+                    if (!HasNextSearchPage(html, oldal)) break;
                 }
 
-                if (!HasNextSearchPage(html, oldal)) break;
+                // First slug that yields relevant hits is enough (Nosalty order is relevance).
+                if (gotPage && scored.Count >= Math.Min(8, darab)) break;
             }
 
-            var lista = osszes.Take(darab).ToList();
+            var lista = scored
+                .OrderByDescending(x => x.Score)
+                .ThenBy(x => x.Item.Name.Length)
+                .Select(x => x.Item)
+                .Take(darab)
+                .ToList();
             lista = await EnrichListAsync(lista);
             SetCachedList(kulcs, lista);
             return lista;
@@ -288,11 +316,21 @@ namespace FitnessBackend.Services
         private static string SearchScope(string html, bool csakKeresesiEredmeny)
         {
             if (!csakKeresesiEredmeny) return html;
+            return TryGetSearchScope(html, out var scope) ? scope : "";
+        }
 
+        private static bool TryGetSearchScope(string html, out string scope)
+        {
             var scopeMatch = Regex.Match(html,
                 @"id=""recipe-search-result""[\s\S]*?(?=id=""recipe-search-filter|<footer|</body>)",
                 RegexOptions.IgnoreCase);
-            return scopeMatch.Success ? scopeMatch.Value : html;
+            if (!scopeMatch.Success)
+            {
+                scope = "";
+                return false;
+            }
+            scope = scopeMatch.Value;
+            return true;
         }
 
         private static List<RecipeListItem> ParseCards(string html, int max)
@@ -315,77 +353,63 @@ namespace FitnessBackend.Services
             return lista;
         }
 
-        private static async Task<List<RecipeListItem>> DirectSlugSearchAsync(string keresoszó)
+        /// <summary>
+        /// Nosalty serves real results at /kereses/recept/{slug}.
+        /// Multi-word queries may need hyphenated, concatenated, or reversed slugs.
+        /// </summary>
+        private static IEnumerable<string> SearchPathCandidates(string keresoszó)
         {
-            var lista = new List<RecipeListItem>();
-            foreach (string slug in SlugCandidates(keresoszó))
+            var latva = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            string hyphen = SlugFromText(keresoszó);
+            string concat = hyphen.Replace("-", "", StringComparison.Ordinal);
+
+            if (hyphen.Length >= 3 && latva.Add(hyphen)) yield return hyphen;
+            if (concat.Length >= 3 && latva.Add(concat)) yield return concat;
+
+            var words = Normalize(keresoszó)
+                .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Where(s => s.Length >= 2)
+                .ToList();
+            if (words.Count == 2)
             {
-                try
-                {
-                    var elem = await ItemFromSlugAsync(slug);
-                    if (elem != null) lista.Add(elem);
-                }
-                catch
-                {
-                    // A slug nem létezik — következő jelölt.
-                }
-            }
-
-            return lista;
-        }
-
-        private static IEnumerable<string> SlugCandidates(string keresoszó)
-        {
-            var latva = new HashSet<string>();
-            string alap = SlugFromText(keresoszó);
-            if (alap.Length >= 3 && latva.Add(alap)) yield return alap;
-
-            foreach (string szo in NormalizedWords(keresoszó).Where(s => s.Length >= 4))
-            {
-                if (latva.Add(szo)) yield return szo;
+                string reversed = $"{words[1]}-{words[0]}";
+                if (latva.Add(reversed)) yield return reversed;
+                string reversedConcat = $"{words[1]}{words[0]}";
+                if (latva.Add(reversedConcat)) yield return reversedConcat;
             }
         }
 
-        private static async Task<RecipeListItem?> ItemFromSlugAsync(string slug)
+        private static int RelevanceScore(string keresoszó, RecipeListItem elem)
         {
-            string html = await FetchPageAsync($"{BaseUrl}/recept/{slug}");
-            if (!html.Contains("\"@type\": \"Recipe\"", StringComparison.Ordinal) &&
-                !html.Contains("\"@type\":\"Recipe\"", StringComparison.Ordinal))
-                return null;
-
-            using var doc = JsonDocument.Parse(ExtractRecipeJsonLd(html));
-            var root = doc.RootElement;
-            string nev = JsonString(root, "name");
-            if (string.IsNullOrWhiteSpace(nev)) return null;
-
-            int adag = Math.Max(1, JsonInt(root, "recipeYield", 1));
-            var (kcal, _, _, _) = NutritionPerServing(root, adag);
-
-            return new RecipeListItem
-            {
-                Id = IdFromSlug(slug),
-                Name = nev,
-                ImageUrl = ImageFromJson(root),
-                EstimatedCalories = kcal,
-                Tags = kcal > 0 ? TagsFromCalories(kcal) : new List<string>(),
-            };
-        }
-
-        private static bool MatchesQuery(string keresoszó, RecipeListItem elem)
-        {
-            var tokenek = NormalizedWords(keresoszó);
-            if (tokenek.Count == 0) return true;
+            var tokenek = Normalize(keresoszó)
+                .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Where(s => s.Length >= 2)
+                .Distinct()
+                .ToList();
+            if (tokenek.Count == 0) return 1;
 
             string nev = Normalize(elem.Name);
             string slug = Normalize(ExtractSlug(elem.Id).Replace('-', ' '));
-            return tokenek.All(t => nev.Contains(t) || slug.Contains(t));
+            string hay = $"{nev} {slug}";
+
+            int hit = tokenek.Count(t => hay.Contains(t, StringComparison.Ordinal));
+            if (hit == 0) return 0;
+
+            int score = hit * 10;
+            if (hit == tokenek.Count) score += 20;
+            // Prefer titles that start with / equal the query.
+            string qn = string.Join(' ', tokenek);
+            if (nev == qn || nev.Replace(" ", "") == qn.Replace(" ", "")) score += 30;
+            else if (nev.StartsWith(qn, StringComparison.Ordinal)) score += 15;
+            else if (nev.Contains(qn, StringComparison.Ordinal)) score += 8;
+            return score;
         }
 
         private static bool HasNextSearchPage(string html, int oldal)
         {
-            string kovetkezo = $"/kereses/recept?q=";
-            return html.Contains($"{kovetkezo}", StringComparison.OrdinalIgnoreCase) &&
-                   html.Contains($"page={oldal + 1}", StringComparison.OrdinalIgnoreCase);
+            // Path-style: /kereses/recept/gulyas?page=2  or legacy ?q= links
+            return html.Contains($"page={oldal + 1}", StringComparison.OrdinalIgnoreCase) &&
+                   html.Contains("/kereses/recept", StringComparison.OrdinalIgnoreCase);
         }
 
         private static string SlugFromText(string szoveg)
@@ -776,7 +800,10 @@ namespace FitnessBackend.Services
 
         private static bool TryGetCachedList(string kulcs, out List<RecipeListItem>? lista)
         {
-            if (ListCache.TryGetValue(kulcs, out var c) && DateTime.UtcNow - c.ido < CacheTtl)
+            var ttl = kulcs.StartsWith("search_", StringComparison.Ordinal)
+                ? SearchCacheTtl
+                : CacheTtl;
+            if (ListCache.TryGetValue(kulcs, out var c) && DateTime.UtcNow - c.ido < ttl)
             {
                 lista = c.lista;
                 return true;

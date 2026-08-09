@@ -34,7 +34,6 @@ class _FoodAddScreenState extends State<FoodAddScreen> {
   @override
   void initState() {
     super.initState();
-    _kereses('alma');
   }
 
   @override
@@ -162,7 +161,15 @@ class _FoodAddScreenState extends State<FoodAddScreen> {
     if (_hiba != null) {
       return Center(child: Padding(padding: const EdgeInsets.all(20), child: Text(_hiba!, textAlign: TextAlign.center)));
     }
-    if (_talalatok.isEmpty) return const Center(child: Text('Írj be egy ételt a kereséshez'));
+    if (_talalatok.isEmpty) {
+      final q = _keresoController.text.trim();
+      return Center(
+        child: Text(
+          q.isEmpty ? 'Írj be egy ételt a kereséshez' : 'Nincs találat erre: $q',
+          textAlign: TextAlign.center,
+        ),
+      );
+    }
 
     return ListView.separated(
       itemCount: _talalatok.length,

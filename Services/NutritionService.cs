@@ -99,14 +99,29 @@ namespace FitnessBackend.Services
 
         private static List<FoodItem> SearchOffline(string query)
         {
-            string norm = StripAccents(query.ToLowerInvariant());
+            string norm = StripAccents(query.Trim().ToLowerInvariant());
+            if (norm.Length < 2) return [];
+
+            var tokens = norm.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
             return OfflineDb
-                .Where(f =>
+                .Select(f =>
                 {
                     string nameNorm = StripAccents(f.Name.ToLowerInvariant());
-                    return nameNorm.Contains(norm) || norm.Contains(nameNorm.Split(' ')[0]);
+                    int score = 0;
+                    if (nameNorm == norm) score = 100;
+                    else if (nameNorm.StartsWith(norm, StringComparison.Ordinal)) score = 80;
+                    else if (nameNorm.Contains(norm, StringComparison.Ordinal)) score = 60;
+                    else if (tokens.Length > 0 && tokens.All(t => nameNorm.Contains(t, StringComparison.Ordinal)))
+                        score = 40;
+                    else if (tokens.Length > 0 && tokens.Any(t => t.Length >= 3 && nameNorm.Contains(t, StringComparison.Ordinal)))
+                        score = 20;
+                    return (Food: f, Score: score);
                 })
+                .Where(x => x.Score >= 40) // drop weak reverse/substring noise
+                .OrderByDescending(x => x.Score)
+                .ThenBy(x => x.Food.Name.Length)
+                .Select(x => x.Food)
                 .Take(8)
                 .ToList();
         }
@@ -119,23 +134,156 @@ namespace FitnessBackend.Services
         public static async Task<List<FoodItem>> SearchFoodAsync(string query)
         {
             string key = query.Trim().ToLowerInvariant();
+            if (key.Length < 2) return [];
 
             if (_searchCache.TryGetValue(key, out var cached) &&
                 DateTime.UtcNow - cached.At < CacheTtl &&
                 cached.Items.Count > 0)
                 return cached.Items;
 
-            var results = SearchOffline(query);
+            var results = new List<FoodItem>();
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            void AddRange(IEnumerable<FoodItem> items)
+            {
+                foreach (var item in items)
+                {
+                    if (string.IsNullOrWhiteSpace(item.Id) || !seen.Add(item.Id)) continue;
+                    results.Add(item);
+                }
+            }
+
+            AddRange(SearchOffline(query));
 
             if (FatSecretConfig.HasCredentials)
             {
-                var fs = await FatSecretApi.SearchAsync(query, 15);
-                foreach (var item in fs)
-                    if (!results.Any(e => e.Id == item.Id)) results.Add(item);
+                try
+                {
+                    AddRange(await FatSecretApi.SearchAsync(query, 15));
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[Nutrition] FatSecret search failed: {ex.Message}");
+                }
             }
+
+            // FatSecret creds are often missing/invalid on Render — OFF fills the gap.
+            if (results.Count < 12)
+            {
+                try
+                {
+                    var off = await SearchOpenFoodFactsAsync(query, 12);
+                    Console.WriteLine($"[Nutrition] OFF '{query}' → {off.Count} hits (before merge had {results.Count})");
+                    AddRange(off);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[Nutrition] OpenFoodFacts search failed: {ex.Message}");
+                }
+            }
+
+            // Re-rank merged list by token overlap with the user query.
+            results = RankFoodResults(query, results).Take(20).ToList();
 
             if (results.Count > 0)
                 _searchCache[key] = (DateTime.UtcNow, results);
+
+            return results;
+        }
+
+        private static List<FoodItem> RankFoodResults(string query, List<FoodItem> items)
+        {
+            string norm = StripAccents(query.Trim().ToLowerInvariant());
+            var tokens = norm.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            string english = StripAccents(SearchQueryTranslator.ToEnglish(query).ToLowerInvariant());
+
+            return items
+                .Select(item =>
+                {
+                    string name = StripAccents(item.Name.ToLowerInvariant());
+                    int score = 0;
+                    if (name == norm || name == english) score += 100;
+                    if (name.StartsWith(norm, StringComparison.Ordinal) ||
+                        name.StartsWith(english, StringComparison.Ordinal)) score += 50;
+                    if (name.Contains(norm, StringComparison.Ordinal) ||
+                        name.Contains(english, StringComparison.Ordinal)) score += 25;
+                    score += tokens.Count(t => t.Length >= 2 && name.Contains(t, StringComparison.Ordinal)) * 10;
+                    if (item.Id.StartsWith("off_", StringComparison.Ordinal)) score += 5; // prefer curated offline
+                    return (Item: item, Score: score);
+                })
+                .OrderByDescending(x => x.Score)
+                .Select(x => x.Item)
+                .ToList();
+        }
+
+        private static async Task<List<FoodItem>> SearchOpenFoodFactsAsync(string query, int max)
+        {
+            using var client = new HttpClient();
+            client.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", OffUserAgent);
+            client.Timeout = TimeSpan.FromSeconds(15);
+
+            var results = new List<FoodItem>();
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            async Task Fetch(string term, string? cc)
+            {
+                if (results.Count >= max) return;
+                // Note: cgi/search.pl rejects/ignores `fields` and may 503 under load — retry once.
+                var qs = new List<string>
+                {
+                    $"search_terms={Uri.EscapeDataString(term)}",
+                    "search_simple=1",
+                    "action=process",
+                    "json=1",
+                    $"page_size={Math.Min(max, 15)}",
+                };
+                if (!string.IsNullOrWhiteSpace(cc))
+                    qs.Add($"cc={Uri.EscapeDataString(cc)}");
+
+                string url = $"{OffApiBase}/cgi/search.pl?{string.Join("&", qs)}";
+                string? raw = null;
+                for (int attempt = 0; attempt < 2 && raw == null; attempt++)
+                {
+                    try
+                    {
+                        using var resp = await client.GetAsync(url);
+                        if ((int)resp.StatusCode == 503)
+                        {
+                            await Task.Delay(400 * (attempt + 1));
+                            continue;
+                        }
+                        resp.EnsureSuccessStatusCode();
+                        raw = await resp.Content.ReadAsStringAsync();
+                    }
+                    catch
+                    {
+                        if (attempt == 0) await Task.Delay(400);
+                    }
+                }
+                if (string.IsNullOrWhiteSpace(raw)) return;
+
+                using var doc = JsonDocument.Parse(raw);
+                if (!doc.RootElement.TryGetProperty("products", out var products) ||
+                    products.ValueKind != JsonValueKind.Array)
+                    return;
+
+                foreach (var product in products.EnumerateArray())
+                {
+                    var food = FromOffProduct(product);
+                    if (food == null || food.Calories <= 0) continue;
+                    if (!seen.Add(food.Id)) continue;
+                    results.Add(food);
+                    if (results.Count >= max) break;
+                }
+            }
+
+            await Fetch(query.Trim(), "hu");
+            if (results.Count < max)
+            {
+                string english = SearchQueryTranslator.ToEnglish(query);
+                if (!string.Equals(english, query.Trim(), StringComparison.OrdinalIgnoreCase))
+                    await Fetch(english, null);
+            }
 
             return results;
         }

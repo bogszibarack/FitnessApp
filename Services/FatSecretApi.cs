@@ -25,8 +25,9 @@ namespace FitnessBackend.Services
     public static class FatSecretApi
     {
         private static readonly HttpClient Http = new();
-        private static readonly ConcurrentDictionary<string, List<FoodItem>> SearchCache = new();
+        private static readonly ConcurrentDictionary<string, (DateTime At, List<FoodItem> Items)> SearchCache = new();
         private static readonly ConcurrentDictionary<string, FoodItem> BarcodeCache = new();
+        private static readonly TimeSpan SearchCacheTtl = TimeSpan.FromMinutes(30);
 
         private static string? _accessToken;
         private static DateTime _tokenExpiresAt = DateTime.MinValue;
@@ -42,8 +43,10 @@ namespace FitnessBackend.Services
                 return [];
 
             string key = query.Trim().ToLowerInvariant();
-            if (SearchCache.TryGetValue(key, out var cached))
-                return cached;
+            if (SearchCache.TryGetValue(key, out var cached) &&
+                DateTime.UtcNow - cached.At < SearchCacheTtl &&
+                cached.Items.Count > 0)
+                return cached.Items;
 
             var results = new List<FoodItem>();
 
@@ -59,7 +62,7 @@ namespace FitnessBackend.Services
             }
 
             if (results.Count > 0)
-                SearchCache[key] = results;
+                SearchCache[key] = (DateTime.UtcNow, results);
 
             return results;
         }
@@ -91,10 +94,12 @@ namespace FitnessBackend.Services
 
         private static IEnumerable<string> SearchExpressions(string query)
         {
-            yield return query.Trim();
+            string raw = query.Trim();
             string english = SearchQueryTranslator.ToEnglish(query);
-            if (!string.Equals(english, query.Trim(), StringComparison.OrdinalIgnoreCase))
+            // FatSecret is English-first — try translated query before raw HU.
+            if (!string.Equals(english, raw, StringComparison.OrdinalIgnoreCase))
                 yield return english;
+            yield return raw;
         }
 
         private static async Task<List<FoodItem>> FoodsSearchAsync(string expression, int max)
@@ -109,9 +114,21 @@ namespace FitnessBackend.Services
 
             if (json == null) return [];
 
-            if (!json.Value.TryGetProperty("foods_search", out var search) ||
-                !search.TryGetProperty("results", out var results))
+            // Prefer foods_search.results; fall back to legacy foods.food.
+            JsonElement results;
+            if (json.Value.TryGetProperty("foods_search", out var search) &&
+                search.TryGetProperty("results", out results))
+            {
+                // ok
+            }
+            else if (json.Value.TryGetProperty("foods", out var foods))
+            {
+                results = foods;
+            }
+            else
+            {
                 return [];
+            }
 
             var list = new List<FoodItem>();
             foreach (var food in FoodElements(results))

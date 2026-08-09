@@ -11,10 +11,14 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 
+var wwwRoot = Path.Combine(AppContext.BaseDirectory, "wwwroot");
+Directory.CreateDirectory(wwwRoot);
+
 var builder = WebApplication.CreateEmptyBuilder(new WebApplicationOptions
 {
     Args = args,
     ContentRootPath = AppContext.BaseDirectory,
+    WebRootPath = wwwRoot,
 });
 
 builder.Configuration
@@ -32,8 +36,6 @@ builder.Logging.AddConfiguration(builder.Configuration.GetSection("Logging"));
 builder.Logging.AddConsole();
 
 builder.WebHost.UseKestrel();
-builder.WebHost.UseContentRoot(AppContext.BaseDirectory);
-builder.WebHost.UseWebRoot(Path.Combine(AppContext.BaseDirectory, "wwwroot"));
 
 // --- Database (Render DATABASE_URL → Postgres; local → SQLite) ---
 var rawDb =

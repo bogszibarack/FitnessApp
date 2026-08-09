@@ -10,7 +10,7 @@ namespace FitnessBackend.Services
             ["lazac"] = "salmon", ["tonhal"] = "tuna", ["pulyka"] = "turkey", ["sonka"] = "ham",
             ["tojás"] = "egg", ["rizs"] = "rice", ["tészta"] = "pasta", ["kenyér"] = "bread",
             ["sajt"] = "cheese", ["túró"] = "cottage cheese", ["joghurt"] = "yogurt", ["tej"] = "milk",
-            ["zab"] = "oats", ["zabkása"] = "oatmeal", ["müzli"] = "granola", ["palacsinta"] = "pancake",
+            ["zab"] = "oats", ["zabkása"] = "oatmeal", ["zabpehely"] = "oats", ["müzli"] = "granola", ["palacsinta"] = "pancake",
             ["saláta"] = "salad", ["leves"] = "soup", ["pizza"] = "pizza", ["szendvics"] = "sandwich",
             ["brokkoli"] = "broccoli", ["paradicsom"] = "tomato", ["uborka"] = "cucumber", ["sárgarépa"] = "carrot",
             ["krumpli"] = "potato", ["burgonya"] = "potato", ["avokádó"] = "avocado", ["spenót"] = "spinach",
@@ -23,21 +23,44 @@ namespace FitnessBackend.Services
             ["curry"] = "curry", ["chili"] = "chili", ["burger"] = "burger", ["taco"] = "taco",
             ["bárány"] = "lamb", ["kecske"] = "goat", ["tengeri"] = "seafood", ["garnéla"] = "prawn",
             ["répa"] = "carrot", ["cékla"] = "beetroot", ["édeskömény"] = "fennel", ["padlizsán"] = "aubergine",
+            // Compounds (HU often writes these as one word)
+            ["csirkemell"] = "chicken breast", ["csirkecomb"] = "chicken thigh", ["pulykamell"] = "turkey breast",
+            ["marhahús"] = "beef", ["sertéshús"] = "pork", ["rizspehely"] = "rice cakes",
+            ["túró"] = "cottage cheese", ["görögjoghurt"] = "greek yogurt", ["fehérjepor"] = "protein powder",
+            ["étcsokoládé"] = "dark chocolate", ["tejcsokoládé"] = "milk chocolate",
+            ["édesburgonya"] = "sweet potato", ["vöröshagyma"] = "onion", ["olívaolaj"] = "olive oil",
+            ["napraforgóolaj"] = "sunflower oil", ["mogyoróvaj"] = "peanut butter",
+            ["rizspuding"] = "rice pudding", ["kukoricapehely"] = "corn flakes",
         };
 
         public static string ToEnglish(string hungarian)
         {
             if (string.IsNullOrWhiteSpace(hungarian)) return hungarian;
 
-            var words = hungarian.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            // Prefer longest multi-word / compound dictionary hits first.
+            string remaining = hungarian.Trim();
+            string normFull = StripAccents(remaining);
+            foreach (var pair in Dictionary.OrderByDescending(p => p.Key.Length))
+            {
+                if (remaining.Equals(pair.Key, StringComparison.OrdinalIgnoreCase) ||
+                    normFull.Equals(StripAccents(pair.Key), StringComparison.OrdinalIgnoreCase))
+                    return pair.Value;
+            }
+
+            var words = remaining.Split(' ', StringSplitOptions.RemoveEmptyEntries);
             var result = words.Select(word =>
             {
                 if (Dictionary.TryGetValue(word, out var a1)) return a1;
                 string norm = StripAccents(word);
                 if (Dictionary.TryGetValue(norm, out var a2)) return a2;
-                foreach (var pair in Dictionary)
+                foreach (var pair in Dictionary.OrderByDescending(p => p.Key.Length))
                 {
-                    if (StripAccents(pair.Key).Equals(norm, StringComparison.OrdinalIgnoreCase))
+                    string keyNorm = StripAccents(pair.Key);
+                    if (keyNorm.Equals(norm, StringComparison.OrdinalIgnoreCase))
+                        return pair.Value;
+                    // Prefix compound: "csirkemellel" ≈ chicken breast
+                    if (norm.Length >= 5 && keyNorm.Length >= 5 &&
+                        norm.StartsWith(keyNorm, StringComparison.OrdinalIgnoreCase))
                         return pair.Value;
                 }
                 return word;
