@@ -12,11 +12,19 @@ namespace FitnessBackend.Services
 
         private readonly AppDbContext _db;
         private readonly JwtTokenService _jwt;
+        private readonly IEmailSender _email;
+        private readonly ILogger<AuthService> _logger;
 
-        public AuthService(AppDbContext db, JwtTokenService jwt)
+        public AuthService(
+            AppDbContext db,
+            JwtTokenService jwt,
+            IEmailSender email,
+            ILogger<AuthService> logger)
         {
             _db = db;
             _jwt = jwt;
+            _email = email;
+            _logger = logger;
         }
 
         public string? ValidateRegister(RegisterRequest req)
@@ -66,6 +74,7 @@ namespace FitnessBackend.Services
             await _db.SaveChangesAsync();
 
             SeedSettingsProfile(user);
+            await TrySendWelcomeEmailAsync(user);
 
             var tokens = await IssueTokensAsync(user, deviceLabel);
             return (tokens, null, 200);
@@ -162,8 +171,55 @@ namespace FitnessBackend.Services
 
             user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.NewPassword);
             user.PasswordIsLegacyBase64 = false;
+            await RevokeAllRefreshTokensAsync(user.Id);
             await _db.SaveChangesAsync();
             return (true, null, 200);
+        }
+
+        /// <summary>
+        /// Email-based password reminder: generates a temporary password and emails it.
+        /// The original password cannot be recovered (bcrypt hash).
+        /// </summary>
+        public async Task<(bool Ok, string? Error, int Status, string? Message)> ForgotPasswordAsync(string emailRaw)
+        {
+            if (string.IsNullOrWhiteSpace(emailRaw) || !EmailRegex.IsMatch(emailRaw.Trim()))
+                return (false, "Érvénytelen e-mail formátum.", 400, null);
+
+            if (!_email.IsConfigured)
+                return (false,
+                    "Az e-mail küldés jelenleg nincs beállítva a szerveren. Próbáld később, vagy írj a támogatónak.",
+                    503, null);
+
+            var email = emailRaw.ToLowerInvariant().Trim();
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == email);
+
+            // Same success message whether or not the account exists (avoid email enumeration).
+            const string okMsg =
+                "Ha van fiók ezzel az e-mail címmel, elküldtük az új ideiglenes jelszót.";
+
+            if (user == null)
+                return (true, null, 200, okMsg);
+
+            var tempPassword = GenerateTemporaryPassword();
+            var (subject, text, html) = AuthEmailTemplates.TemporaryPassword(user.Username, tempPassword);
+
+            // Send first — only rotate the hash if the email went out.
+            try
+            {
+                await _email.SendAsync(user.Email, subject, text, html);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[Email] Forgot-password send failed for {Email}", user.Email);
+                return (false, "Nem sikerült elküldeni az e-mailt. Próbáld újra később.", 502, null);
+            }
+
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(tempPassword);
+            user.PasswordIsLegacyBase64 = false;
+            await RevokeAllRefreshTokensAsync(user.Id);
+            await _db.SaveChangesAsync();
+
+            return (true, null, 200, okMsg);
         }
 
         public async Task<bool> EmailTakenAsync(string email) =>
@@ -267,6 +323,47 @@ namespace FitnessBackend.Services
             profile.Account.Email = user.Email;
             UserSettingsStore.Save(profile);
         }
+
+        private async Task TrySendWelcomeEmailAsync(AppUser user)
+        {
+            if (!_email.IsConfigured)
+            {
+                _logger.LogWarning("[Email] Welcome skipped — SMTP not configured ({Email})", user.Email);
+                return;
+            }
+
+            try
+            {
+                var (subject, text, html) = AuthEmailTemplates.Welcome(user.Username);
+                await _email.SendAsync(user.Email, subject, text, html);
+            }
+            catch (Exception ex)
+            {
+                // Registration must succeed even if mail fails.
+                _logger.LogError(ex, "[Email] Welcome send failed for {Email}", user.Email);
+            }
+        }
+
+        private async Task RevokeAllRefreshTokensAsync(Guid userId)
+        {
+            var tokens = await _db.RefreshTokens
+                .Where(t => t.UserId == userId && t.RevokedAt == null)
+                .ToListAsync();
+            var now = DateTime.UtcNow;
+            foreach (var t in tokens)
+                t.RevokedAt = now;
+        }
+
+        private static string GenerateTemporaryPassword()
+        {
+            const string alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+            var bytes = new byte[10];
+            System.Security.Cryptography.RandomNumberGenerator.Fill(bytes);
+            var chars = new char[10];
+            for (var i = 0; i < chars.Length; i++)
+                chars[i] = alphabet[bytes[i] % alphabet.Length];
+            return $"Fx-{new string(chars)}";
+        }
     }
 
     public class AuthTokenResponse
@@ -297,6 +394,11 @@ namespace FitnessBackend.Services
         public string Email { get; set; } = "";
         public string Username { get; set; } = "";
         public string NewPassword { get; set; } = "";
+    }
+
+    public class ForgotPasswordRequest
+    {
+        public string Email { get; set; } = "";
     }
 
     public class UserListItem

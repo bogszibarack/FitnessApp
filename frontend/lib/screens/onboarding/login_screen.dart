@@ -105,6 +105,87 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
+  void _sikerUzenet(String uzenet) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(uzenet),
+        backgroundColor: const Color(0xFF2E7D32),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+  }
+
+  Future<void> _jelszoEmlekezteto() async {
+    final emailCtrl = TextEditingController(text: _emailCtrl.text.trim());
+    final email = await showDialog<String>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Jelszó emlékeztető'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Add meg a regisztrált e-mail címed. Új ideiglenes jelszót küldünk rá — a régi jelszó biztonsági okból nem állítható vissza.',
+                style: TextStyle(fontSize: 13, height: 1.35),
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: emailCtrl,
+                keyboardType: TextInputType.emailAddress,
+                autofocus: true,
+                decoration: InputDecoration(
+                  labelText: 'E-mail',
+                  hintText: 'pelda@gmail.com',
+                  filled: true,
+                  fillColor: const Color(0xFFF7F7F7),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Mégse'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, emailCtrl.text.trim()),
+              style: FilledButton.styleFrom(backgroundColor: _kBlue),
+              child: const Text('Küldés'),
+            ),
+          ],
+        );
+      },
+    );
+    emailCtrl.dispose();
+    if (email == null || email.isEmpty || !mounted) return;
+
+    setState(() => _loading = true);
+    try {
+      final msg = await AuthService.instance.forgotPassword(email);
+      if (!mounted) return;
+      _sikerUzenet(msg);
+      if (_emailCtrl.text.trim().isEmpty) {
+        _emailCtrl.text = email;
+      }
+    } on AuthException catch (e) {
+      if (!mounted) return;
+      _hibaUzenet(e.errorMessage ?? 'Nem sikerült elküldeni az e-mailt.');
+    } catch (_) {
+      if (!mounted) return;
+      _hibaUzenet('A szerver nem elérhető. Próbáld újra később.');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -207,7 +288,21 @@ class _LoginScreenState extends State<LoginScreen>
                             ),
                             onChanged: (_) => setState(() {}),
                           ),
-                          const SizedBox(height: 28),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton(
+                              onPressed: _loading ? null : _jelszoEmlekezteto,
+                              child: const Text(
+                                'Elfelejtett jelszó?',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: _kBlue,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
                           SizedBox(
                             width: double.infinity,
                             height: 54,

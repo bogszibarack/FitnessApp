@@ -63,6 +63,24 @@ builder.Services.Configure<JwtOptions>(opts =>
     opts.RefreshTokenDays = jwt.RefreshTokenDays;
 });
 builder.Services.AddSingleton<JwtTokenService>();
+builder.Services.Configure<EmailOptions>(opts =>
+{
+    var section = builder.Configuration.GetSection(EmailOptions.SectionName);
+    section.Bind(opts);
+    opts.Host = Environment.GetEnvironmentVariable("SMTP_HOST") ?? opts.Host;
+    if (int.TryParse(Environment.GetEnvironmentVariable("SMTP_PORT"), out var port))
+        opts.Port = port;
+    opts.User = Environment.GetEnvironmentVariable("SMTP_USER") ?? opts.User;
+    opts.Password = Environment.GetEnvironmentVariable("SMTP_PASS")
+        ?? Environment.GetEnvironmentVariable("SMTP_PASSWORD")
+        ?? opts.Password;
+    opts.From = Environment.GetEnvironmentVariable("SMTP_FROM") ?? opts.From;
+    opts.FromName = Environment.GetEnvironmentVariable("SMTP_FROM_NAME") ?? opts.FromName;
+    var sslEnv = Environment.GetEnvironmentVariable("SMTP_USE_SSL");
+    if (!string.IsNullOrWhiteSpace(sslEnv) && bool.TryParse(sslEnv, out var useSsl))
+        opts.UseSsl = useSsl;
+});
+builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
 builder.Services.AddScoped<AuthService>();
 
 builder.Services

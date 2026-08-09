@@ -86,6 +86,27 @@ namespace FitnessBackend.Controllers
             return Ok(new { success = true, message = "Jelszó frissítve. Jelentkezz be az új jelszóval." });
         }
 
+        /// <summary>
+        /// Password reminder: emails a new temporary password to the account email.
+        /// </summary>
+        [HttpPost("forgot-password")]
+        [AllowAnonymous]
+        public async Task<ActionResult<object>> ForgotPassword([FromBody] ForgotPasswordRequest req)
+        {
+            var (ok, err, status, message) = await _auth.ForgotPasswordAsync(req.Email);
+            if (!ok)
+            {
+                return status switch
+                {
+                    503 => StatusCode(503, new { error = err }),
+                    502 => StatusCode(502, new { error = err }),
+                    _ => BadRequest(new { error = err }),
+                };
+            }
+
+            return Ok(new { success = true, message });
+        }
+
         [HttpGet("check-email")]
         [AllowAnonymous]
         public async Task<ActionResult<object>> CheckEmail([FromQuery] string email)

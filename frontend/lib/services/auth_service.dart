@@ -59,6 +59,21 @@ class AuthService {
     return session;
   }
 
+  /// Requests a temporary password emailed to [email].
+  Future<String> forgotPassword(String email) async {
+    final response = await http
+        .post(
+          Uri.parse('$_base/api/auth/forgot-password'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'email': email.trim()}),
+        )
+        .timeout(const Duration(seconds: 15));
+    _check(response);
+    final json = jsonDecode(response.body) as Map<String, dynamic>;
+    return json['message'] as String? ??
+        'Ha van fiók ezzel az e-mail címmel, elküldtük az új ideiglenes jelszót.';
+  }
+
   Future<AuthSession> register({
     required String email,
     required String password,
