@@ -1,182 +1,42 @@
-# Flexio (FitnessApp)
+# 🏋️‍♂️ FitnessApp - Hevy & Yazio Kombinálása (Folyamatos fejlesztés alatt)
 
-Flutter mobilapp + ASP.NET Core API: edzésnapló, táplálkozás, közösség és JWT-s fiókkezelés egy rendszerben.
+Egy könnyen indítható, modern és intelligens webalkalmazás/API háttér, ami egyetlen közös rendszerbe fésüli össze az edzésnaplózást (Hevy logika) és a kalóriaszámlálást (Yazio logika). 
 
-Éles API: `https://fitnessapp-fnfv.onrender.com`
-
----
-
-## Tech stack
-
-| Réteg | Technológia |
-| :--- | :--- |
-| Backend | .NET 8 Web API (`FitnessBackend`) |
-| Frontend | Flutter / Dart (`frontend/`) |
-| Auth | JWT (access + refresh), bcrypt jelszóhash |
-| Adatbázis | **PostgreSQL** (Render Free) felhasználókhoz / közösséghez; edzések/tervek/napló továbbra is JSON fájlokban (`DATA_DIR`) |
-| Lokális DB fallback | SQLite, ha nincs `DATABASE_URL` |
-| Hosting | Docker → Render.com |
-| E-mail | SMTP (MailKit) – üdvözlő + jelszó-emlékeztető |
-
-### Külső integrációk
-
-- **FatSecret** – ételkeresés / vonalkód
-- **Open Food Facts** – élelmiszer adatok (képproxy)
-- **Nosalty.hu** – receptböngészés (HTML / schema.org)
-- **Exercise DB** – gyakorlatkatalógus
+A fejlesztés során a legnagyobb kihívást az interneten található, sokszor hiányos vagy eltérő struktúrájú külső API-k (GitHub edzésadatbázisok, jóga források, Open Food Facts) egységesítése és lekezelése jelentette.
 
 ---
 
-## Főbb funkciók (aktuális)
+## 🛠 Tech Stack
 
-### Fiók & biztonság
-- Regisztráció / bejelentkezés JWT-vel (access + refresh, automatikus frissítés a Flutter `ApiHttp`-ban)
-- Jelszavak **bcrypt** hash-ként (a régi jelszó nem állítható vissza)
-- Regisztráció után **üdvözlő e-mail** (ha SMTP be van állítva)
-- **Elfelejtett jelszó:** ideiglenes jelszó e-mailben → appban új jelszó + megerősítés
-  - `POST /api/auth/forgot-password`
-  - `POST /api/auth/confirm-forgot-password`
+| Réteg | Technológia / Keretrendszer | Leírás |
+| :--- | :--- | :--- |
+| **Backend** | ⚡ .NET 8 Web API | Kontroller-alapú, JWT auth + EF Core |
+| **Frontend** | 💙 Flutter / Dart | Cross-platform mobilalkalmazás (iOS & Android) |
+| **Adatbázis** | 🐘 PostgreSQL (+ JSON / SQLite fallback) | Felhasználók, refresh tokenek és közösség (barátok, posztok) Postgresben; edzések / rutinok / napló JSON fájlokban (`DATA_DIR`). Lokálisan Postgres nélkül SQLite. |
+| **Auth / E-mail** | 🔐 JWT + SMTP | Bcrypt jelszóhash, access/refresh token; üdvözlő mail és elfelejtett jelszó (ideiglenes kód → új jelszó az appban) |
+| **Környezet** | 🐳 Docker | Konténerizált produkciós futtatás |
+| **Hosting** | ☁️ Render.com | Automatikus felhő alapú hosting (`DATABASE_URL`, disk `/var/data`) |
 
-### Edzés
-- Aktív edzés, előzmény, rutinok, AI tervgenerálás
-- Edzés befejezése után opcionális **megosztás a közösségben**
-
-### Közösség (Postgres)
-- Feed (poszt / like / komment) – **adatbázisban**, restart után is megmarad
-- **Kit ismerhetek** – regisztrált felhasználók listája
-- Barátkérés (pending → accept / reject), barátok, pending badge
-- Profil: profilkép, barátstátusz, **teljes edzéselőzmény** (teszt mód: publikus), megosztott posztok
-
-### Táplálkozás
-- Napló, FatSecret keresés, receptek (Nosalty), streak
+### 🌐 Külső Integrációk
+* **FatSecret API:** Ételkeresés és vonalkódos termékadatok.
+* **Open Food Facts API:** 3M+ élelmiszer és tápanyagadat lekezelése (képproxy).
+* **Nosalty.hu:** Magyar receptböngészés (HTML / schema.org).
+* **GitHub Free Exercise DB:** Központi edzésadatbázis alapok.
 
 ---
 
-## Adatbázis & perzisztencia
-
-### PostgreSQL (`AppUser` + community)
-
-`DATABASE_URL` (Render Postgres) → EF Core / Npgsql.
-
-Táblák (részlet):
-- `Users`, `RefreshTokens`
-- `FriendRequests`, `CommunityPosts`, `PostLikes`, `PostComments`
-
-Startup:
-1. `EnsureCreated`
-2. `CommunitySchemaBootstrap` – új táblák meglévő DB-hez (`CREATE TABLE IF NOT EXISTS`)
-3. `JsonAccountMigrator` – régi `felhasznalok.json` → Users
-4. `PostgresUserRepairMigrator` – ha a `DATABASE_URL` véletlenül duplán volt beillesztve (rossz DB név), userek átmásolása a tiszta `flexio_db`-be
-
-### JSON fájlok (`DATA_DIR`, Render disken pl. `/var/data`)
-
-Edzéstörténet, aktív edzés, rutinok, nutrition, streak, settings – felhasználónév szerint szétválasztva (JWT).
-
-Lokálisan, ha nincs Postgres: SQLite fájl a `DATA_DIR` alatt.
-
----
-
-## Környezeti változók (Render)
-
-| Változó | Cél |
-| :--- | :--- |
-| `DATABASE_URL` | Render Postgres connection string (**egyszer** illeszd be) |
-| `DATA_DIR` | Persistens kötet, pl. `/var/data` |
-| `Jwt__Key` | Legalább 32 karakteres titkos kulcs |
-| `FATSECRET_CLIENT_ID` / `FATSECRET_CLIENT_SECRET` | Étel API |
-| `SMTP_HOST` | pl. `smtp.gmail.com` |
-| `SMTP_PORT` | pl. `587` |
-| `SMTP_USER` / `SMTP_PASS` | SMTP auth (Gmail: app jelszó) |
-| `SMTP_FROM` / `SMTP_FROM_NAME` | Feladó |
-| `SMTP_USE_SSL` | `true` (STARTTLS 587-en) |
-| `LEGACY_DATA_OWNER` | Opcionális: régi JSON edzések tulajdonosa |
-
-SMTP nélkül: regisztráció működik (üdvözlő e-mail kimarad + log); forgot-password `503`.
-
----
-
-## Projektstruktúra
+## 📁 Projekt Struktúra
 
 ```text
 FitnessApp/
-├── frontend/                 # Flutter app
-│   └── lib/
-│       ├── config/           # api_config.dart (production URL)
-│       ├── services/         # ApiHttp, Auth, Community, Workout…
-│       └── screens/          # home, workout, nutrition, community, settings
-├── Controllers/              # Auth, Workout, Community, Nutrition…
-├── Data/                     # AppDbContext, AppUser, community entitások
-├── Services/                 # Auth, Email, CommunityDb, FatSecret, Nosalty…
-├── Models/                   # DTO-k, JSON store-ok
-├── Program.cs
-├── Dockerfile
-└── appsettings.json
+├── frontend/               # A Flutter mobilalkalmazás forráskódja
+│   ├── lib/
+│   │   └── config/         # api_config.dart (API végpontok)
+│   └── pubspec.yaml        # Flutter csomagkezelő
+├── Controllers/            # .NET API Kontrollerek (Auth, Edzés, Közösség, Beállítások…)
+├── Data/                   # EF Core (AppUser, community entitások) + JSON seed fájlok
+├── Services/               # Auth, Email, CommunityDb, FatSecret, Nosalty…
+├── Program.cs              # .NET Alkalmazás belépési pont és inicializáció
+├── FitnessBackend.csproj   # .NET Projektfájl
+└── Dockerfile              # Produkciós Docker konfiguráció Render-hez
 ```
-
----
-
-## Lokális futtatás
-
-### Backend
-
-```bash
-# .NET 8 SDK
-dotnet restore
-dotnet run --urls http://localhost:5150
-```
-
-Postgres nélkül SQLite-ot használ. SMTP-hez állítsd az `Email` szekciót az `appsettings.json`-ban vagy az `SMTP_*` env változókat.
-
-### Flutter (Mac)
-
-```bash
-cd frontend
-flutter pub get
-flutter run
-```
-
-- Debug **web**: `http://localhost:5150`
-- Telefon / release: `https://fitnessapp-fnfv.onrender.com` (`ApiConfig`)
-
-Git pull előtt, ha lokális csproj/lock ütközik:
-
-```bash
-git restore FitnessBackend.csproj frontend/pubspec.lock   # ha kell
-git pull
-```
-
----
-
-## Fontos API-k (rövid)
-
-| Metódus | Útvonal | Megjegyzés |
-| :--- | :--- | :--- |
-| POST | `/api/auth/register-onboarding` | Regisztráció + token + üdvözlő mail |
-| POST | `/api/auth/login` | Bejelentkezés |
-| POST | `/api/auth/forgot-password` | Ideiglenes jelszó e-mailben |
-| POST | `/api/auth/confirm-forgot-password` | Ideiglenes → új jelszó |
-| GET | `/api/auth/users` | Closed-beta: fióklista + DB info |
-| GET | `/api/community/feed` | Közösségi feed |
-| GET | `/api/community/people` | Kit ismerhetek (JWT) |
-| POST | `/api/community/friends/request/{username}` | Barátkérés |
-| GET | `/api/community/profile/{username}` | Profil + edzéstörténet |
-| POST | `/api/workout/aktiv/befejezes-es-megosztas` | Befejezés + megosztás |
-
----
-
-## Deploy (Render)
-
-1. Docker build a repo gyökeréből (`Dockerfile`, net8.0)
-2. Disk mount: `/var/data` → `DATA_DIR`
-3. Free Postgres → `DATABASE_URL` (egyszer!)
-4. SMTP env a levelekhez
-5. Deploy után ellenőrizd: `GET /api/auth/users` → `db.database` legyen a várt DB név (pl. `flexio_db`)
-
----
-
-## Fejlesztési megjegyzések
-
-- Community write-ok JWT `AppUser`-ből mennek, ne kliens `userName` query-re hagyatkozzanak
-- Profil edzéselőzmény most **publikus** (teszt); privacy később
-- MealDB / Spoonacular kivezetve – receptek: Nosalty
-- Jelszó soha nincs plaintextben tárolva / visszaküldve
