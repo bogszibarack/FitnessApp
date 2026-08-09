@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using FitnessBackend.Data;
 using FitnessBackend.Models;
 using FitnessBackend.Services;
 
@@ -9,8 +11,13 @@ namespace FitnessBackend.Controllers
     public class SettingsController : ControllerBase
     {
         private readonly IWebHostEnvironment _env;
+        private readonly AppDbContext _db;
 
-        public SettingsController(IWebHostEnvironment env) => _env = env;
+        public SettingsController(IWebHostEnvironment env, AppDbContext db)
+        {
+            _env = env;
+            _db = db;
+        }
 
         [HttpPost("register")]
         public ActionResult<UserSettings> Register([FromBody] SettingsRegisterRequest request)
@@ -37,12 +44,32 @@ namespace FitnessBackend.Controllers
             Ok(SettingsService.SaveAll(userName, settings));
 
         [HttpGet("{userName}/profile")]
-        public ActionResult<ProfileSettings> GetProfile(string userName) =>
-            Ok(SettingsService.GetProfile(userName));
+        public async Task<ActionResult<ProfileSettings>> GetProfile(string userName)
+        {
+            // Prefer DB-backed avatar URL if JSON settings were wiped on deploy.
+            var profile = SettingsService.GetProfile(userName);
+            if (string.IsNullOrWhiteSpace(profile.ImageUrl))
+            {
+                var dbUser = await _db.Users.AsNoTracking().FirstOrDefaultAsync(u =>
+                    u.Username.ToLower() == userName.Trim().ToLower());
+                if (dbUser?.ProfileImageBytes != null && dbUser.ProfileImageBytes.Length > 0)
+                {
+                    profile.ImageUrl = string.IsNullOrWhiteSpace(dbUser.ProfileImageUrl)
+                        ? $"/api/settings/{Uri.EscapeDataString(userName.Trim())}/avatar"
+                        : dbUser.ProfileImageUrl;
+                    SettingsService.SaveProfile(userName, profile);
+                }
+            }
+            return Ok(profile);
+        }
 
         [HttpPut("{userName}/profile")]
-        public ActionResult<ProfileSettings> SaveProfile(string userName, [FromBody] ProfileSettings profile) =>
-            Ok(SettingsService.SaveProfile(userName, profile));
+        public async Task<ActionResult<ProfileSettings>> SaveProfile(
+            string userName, [FromBody] ProfileSettings profile)
+        {
+            await SettingsService.SaveProfileAsync(userName, profile, _db);
+            return Ok(SettingsService.GetProfile(userName));
+        }
 
         [HttpPost("{userName}/profile/photo")]
         [RequestSizeLimit(5 * 1024 * 1024)]
@@ -50,9 +77,19 @@ namespace FitnessBackend.Controllers
             string userName, IFormFile? file, IFormFile? kep)
         {
             var (result, err) = await SettingsService.UploadProfilePhotoAsync(
-                userName, file ?? kep, _env.WebRootPath ?? "", _env.ContentRootPath);
+                userName, file ?? kep, _db);
             if (err != null) return BadRequest(err);
             return Ok(result);
+        }
+
+        /// <summary>Serve avatar bytes from Postgres (deploy-safe).</summary>
+        [HttpGet("{userName}/avatar")]
+        public async Task<IActionResult> GetAvatar(string userName)
+        {
+            var avatar = await SettingsService.GetAvatarAsync(userName, _db);
+            if (avatar == null) return NotFound();
+            Response.Headers.CacheControl = "public, max-age=3600";
+            return File(avatar.Value.Bytes, avatar.Value.ContentType);
         }
 
         [HttpGet("{userName}/account")]
@@ -224,10 +261,12 @@ namespace FitnessBackend.Controllers
             Register(keres);
 
         [HttpGet("{userName}/profil")]
-        public ActionResult<ProfileSettings> GetProfileLegacy(string userName) => GetProfile(userName);
+        public Task<ActionResult<ProfileSettings>> GetProfileLegacy(string userName) =>
+            GetProfile(userName);
 
         [HttpPut("{userName}/profil")]
-        public ActionResult<ProfileSettings> SaveProfileLegacy(string userName, [FromBody] ProfileSettings profil) =>
+        public Task<ActionResult<ProfileSettings>> SaveProfileLegacy(
+            string userName, [FromBody] ProfileSettings profil) =>
             SaveProfile(userName, profil);
 
         [HttpPost("{userName}/profil/kep-feltoltes")]

@@ -148,6 +148,7 @@ using (var scope = app.Services.CreateScope())
         await JsonAccountMigrator.MigrateAsync(db, logger);
         if (provider == "postgres")
             await PostgresUserRepairMigrator.MigrateAsync(db, connectionString, logger);
+        await FitnessBackend.Services.SettingsService.SyncAvatarsFromDbAsync(db, logger);
 
         // Legacy JSON data → only an explicit owner (never "first registered user").
         var legacyOwner =

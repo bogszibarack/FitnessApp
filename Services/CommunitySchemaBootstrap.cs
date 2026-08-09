@@ -75,6 +75,14 @@ namespace FitnessBackend.Services
                 );
                 CREATE INDEX IF NOT EXISTS "IX_PostComments_PostId" ON "PostComments" ("PostId");
                 """);
+
+            // EnsureCreated won't add columns to an existing Users table.
+            await db.Database.ExecuteSqlRawAsync(
+                """
+                ALTER TABLE "Users" ADD COLUMN IF NOT EXISTS "ProfileImageUrl" character varying(512) NOT NULL DEFAULT '';
+                ALTER TABLE "Users" ADD COLUMN IF NOT EXISTS "ProfileImageBytes" bytea NULL;
+                ALTER TABLE "Users" ADD COLUMN IF NOT EXISTS "ProfileImageContentType" character varying(64) NOT NULL DEFAULT '';
+                """);
         }
 
         private static async Task EnsureSqliteAsync(AppDbContext db)
@@ -132,6 +140,28 @@ namespace FitnessBackend.Services
                 );
                 CREATE INDEX IF NOT EXISTS "IX_PostComments_PostId" ON "PostComments" ("PostId");
                 """);
+
+            // SQLite: ADD COLUMN IF NOT EXISTS (3.35+). Ignore if already present.
+            try
+            {
+                await db.Database.ExecuteSqlRawAsync(
+                    """ALTER TABLE "Users" ADD COLUMN "ProfileImageUrl" TEXT NOT NULL DEFAULT '';""");
+            }
+            catch { /* column exists */ }
+
+            try
+            {
+                await db.Database.ExecuteSqlRawAsync(
+                    """ALTER TABLE "Users" ADD COLUMN "ProfileImageBytes" BLOB NULL;""");
+            }
+            catch { /* column exists */ }
+
+            try
+            {
+                await db.Database.ExecuteSqlRawAsync(
+                    """ALTER TABLE "Users" ADD COLUMN "ProfileImageContentType" TEXT NOT NULL DEFAULT '';""");
+            }
+            catch { /* column exists */ }
         }
     }
 }

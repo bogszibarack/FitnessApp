@@ -1,4 +1,7 @@
+using FitnessBackend.Data;
 using FitnessBackend.Models;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace FitnessBackend.Services
 {
@@ -29,13 +32,29 @@ namespace FitnessBackend.Services
         public static ProfileSettings SaveProfile(string userName, ProfileSettings profile)
         {
             var user = GetAll(userName);
+            // Never wipe a stored avatar if the client omits imageUrl.
+            if (string.IsNullOrWhiteSpace(profile.ImageUrl) &&
+                !string.IsNullOrWhiteSpace(user.Profile.ImageUrl))
+            {
+                profile.ImageUrl = user.Profile.ImageUrl;
+            }
             user.Profile = profile;
             UserSettingsStore.Save(user);
             return user.Profile;
         }
 
+        public static async Task SaveProfileAsync(string userName, ProfileSettings profile, AppDbContext db)
+        {
+            SaveProfile(userName, profile);
+            await SyncProfileImageUrlToDbAsync(userName, GetProfile(userName).ImageUrl, db);
+        }
+
+        /// <summary>
+        /// Store avatar bytes in Postgres (survives deploys) and mirror to DATA_DIR disk.
+        /// Public URL is a stable API route, not an ephemeral /uploads path.
+        /// </summary>
         public static async Task<(object? Result, string? Error)> UploadProfilePhotoAsync(
-            string userName, IFormFile? file, string webRoot, string contentRoot)
+            string userName, IFormFile? file, AppDbContext db)
         {
             if (file == null || file.Length == 0)
                 return (null, "Kep fajl kotelezo.");
@@ -46,23 +65,53 @@ namespace FitnessBackend.Services
             };
 
             var ext = Path.GetExtension(file.FileName);
+            if (string.IsNullOrWhiteSpace(ext))
+                ext = ".jpg";
             if (!allowed.Contains(ext))
                 return (null, "Csak jpg, jpeg, png vagy webp formatum engedelyezett.");
 
-            // Persist on DATA_DIR disk (Render) — wwwroot is ephemeral across deploys.
-            var folder = DataStore.ProfilesUploadDir;
-            Directory.CreateDirectory(folder);
+            await using var ms = new MemoryStream();
+            await file.CopyToAsync(ms);
+            var bytes = ms.ToArray();
+            if (bytes.Length == 0)
+                return (null, "Kep fajl kotelezo.");
 
-            var safeName = $"{SanitizeFileName(userName)}_{Guid.NewGuid():N}{ext.ToLowerInvariant()}";
-            var fullPath = Path.Combine(folder, safeName);
-
-            await using (var stream = new FileStream(fullPath, FileMode.Create))
+            var contentType = ext.ToLowerInvariant() switch
             {
-                await file.CopyToAsync(stream);
+                ".png" => "image/png",
+                ".webp" => "image/webp",
+                ".jpg" or ".jpeg" => "image/jpeg",
+                _ => "image/jpeg",
+            };
+
+            // Best-effort disk cache (optional — DB is source of truth).
+            try
+            {
+                var folder = DataStore.ProfilesUploadDir;
+                Directory.CreateDirectory(folder);
+                var safeName = $"{SanitizeFileName(userName)}_{Guid.NewGuid():N}{ext.ToLowerInvariant()}";
+                await File.WriteAllBytesAsync(Path.Combine(folder, safeName), bytes);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Settings] Disk avatar cache failed: {ex.Message}");
+            }
+
+            var version = Guid.NewGuid().ToString("N")[..12];
+            var imageUrl = $"/api/settings/{Uri.EscapeDataString(userName.Trim())}/avatar?v={version}";
+
+            var dbUser = await db.Users.FirstOrDefaultAsync(u =>
+                u.Username.ToLower() == userName.Trim().ToLower());
+            if (dbUser != null)
+            {
+                dbUser.ProfileImageBytes = bytes;
+                dbUser.ProfileImageContentType = contentType;
+                dbUser.ProfileImageUrl = imageUrl;
+                await db.SaveChangesAsync();
             }
 
             var user = GetAll(userName);
-            user.Profile.ImageUrl = $"/uploads/profiles/{safeName}";
+            user.Profile.ImageUrl = imageUrl;
             UserSettingsStore.Save(user);
 
             return (new
@@ -72,6 +121,56 @@ namespace FitnessBackend.Services
                 profile = user.Profile,
                 profil = user.Profile
             }, null);
+        }
+
+        public static async Task<(byte[] Bytes, string ContentType)?> GetAvatarAsync(
+            string userName, AppDbContext db)
+        {
+            var dbUser = await db.Users.AsNoTracking().FirstOrDefaultAsync(u =>
+                u.Username.ToLower() == userName.Trim().ToLower());
+            if (dbUser?.ProfileImageBytes == null || dbUser.ProfileImageBytes.Length == 0)
+                return null;
+
+            var ct = string.IsNullOrWhiteSpace(dbUser.ProfileImageContentType)
+                ? "image/jpeg"
+                : dbUser.ProfileImageContentType;
+            return (dbUser.ProfileImageBytes, ct);
+        }
+
+        /// <summary>Hydrate in-memory settings image URLs from Postgres after deploy.</summary>
+        public static async Task SyncAvatarsFromDbAsync(AppDbContext db, ILogger? logger = null)
+        {
+            var rows = await db.Users.AsNoTracking()
+                .Where(u => u.ProfileImageBytes != null && u.ProfileImageBytes.Length > 0)
+                .Select(u => new { u.Username, u.ProfileImageUrl })
+                .ToListAsync();
+
+            foreach (var row in rows)
+            {
+                var settings = UserSettingsStore.GetOrCreate(row.Username);
+                var url = string.IsNullOrWhiteSpace(row.ProfileImageUrl)
+                    ? $"/api/settings/{Uri.EscapeDataString(row.Username)}/avatar"
+                    : row.ProfileImageUrl;
+                if (!string.Equals(settings.Profile.ImageUrl, url, StringComparison.Ordinal))
+                {
+                    settings.Profile.ImageUrl = url;
+                    UserSettingsStore.Save(settings);
+                }
+            }
+
+            logger?.LogInformation("[Settings] Synced {Count} avatars from DB into settings", rows.Count);
+        }
+
+        private static async Task SyncProfileImageUrlToDbAsync(
+            string userName, string imageUrl, AppDbContext db)
+        {
+            if (string.IsNullOrWhiteSpace(imageUrl)) return;
+            var dbUser = await db.Users.FirstOrDefaultAsync(u =>
+                u.Username.ToLower() == userName.Trim().ToLower());
+            if (dbUser == null) return;
+            if (string.Equals(dbUser.ProfileImageUrl, imageUrl, StringComparison.Ordinal)) return;
+            dbUser.ProfileImageUrl = imageUrl;
+            await db.SaveChangesAsync();
         }
 
         public static object GetAccount(string userName)

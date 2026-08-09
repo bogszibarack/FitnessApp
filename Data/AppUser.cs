@@ -35,6 +35,16 @@ namespace FitnessBackend.Data
         [MaxLength(64)]
         public string Source { get; set; } = "";
 
+        /// <summary>Public avatar URL (DB-backed endpoint), survives deploys.</summary>
+        [MaxLength(512)]
+        public string ProfileImageUrl { get; set; } = "";
+
+        /// <summary>Raw avatar bytes — source of truth when disk uploads are wiped.</summary>
+        public byte[]? ProfileImageBytes { get; set; }
+
+        [MaxLength(64)]
+        public string ProfileImageContentType { get; set; } = "";
+
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         public List<RefreshToken> RefreshTokens { get; set; } = new();

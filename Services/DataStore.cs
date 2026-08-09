@@ -402,7 +402,9 @@ namespace FitnessBackend.Services
                     progresszio = FileInfo(ProgressFile),
                     nutrition = FileInfo(NutritionFile),
                     felhasznalok = FileInfo(AccountsFile),
-                    streak = FileInfo(StreakFile)
+                    streak = FileInfo(StreakFile),
+                    userSettings = FileInfo(UserSettingsFile),
+                    uploadsRoot = FileInfo(UploadsRoot)
                 }
             };
         }
