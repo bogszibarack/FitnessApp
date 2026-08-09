@@ -185,7 +185,8 @@ namespace FitnessBackend.Services
             // Re-rank merged list by token overlap with the user query.
             results = RankFoodResults(query, results).Take(20).ToList();
 
-            if (results.Count > 0)
+            // Don't cache thin lists — OFF often 503s once; a later retry should enrich.
+            if (results.Count >= 4)
                 _searchCache[key] = (DateTime.UtcNow, results);
 
             return results;
