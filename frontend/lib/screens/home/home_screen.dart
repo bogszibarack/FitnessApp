@@ -464,7 +464,11 @@ class _HomeFeedKartya extends StatelessWidget {
         children: [
           Row(
             children: [
-              AvatarKor(nev: poszt.userName, meret: 36),
+              AvatarKor(
+                nev: poszt.userName,
+                meret: 36,
+                kepUrl: poszt.profileImageUrl,
+              ),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(

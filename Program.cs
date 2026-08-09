@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
@@ -175,9 +176,8 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-string baseRoot = app.Environment.WebRootPath ?? AppContext.BaseDirectory;
-Directory.CreateDirectory(Path.Combine(baseRoot, "uploads", "selfies"));
-Directory.CreateDirectory(Path.Combine(baseRoot, "uploads", "profiles"));
+Directory.CreateDirectory(DataStore.ProfilesUploadDir);
+Directory.CreateDirectory(DataStore.SelfiesUploadDir);
 
 if (app.Environment.IsDevelopment())
 {
@@ -189,6 +189,12 @@ app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseStaticFiles();
+// Serve uploaded profile/selfie images from persistent DATA_DIR
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(DataStore.UploadsRoot),
+    RequestPath = "/uploads",
+});
 app.MapControllers();
 
 app.Run();

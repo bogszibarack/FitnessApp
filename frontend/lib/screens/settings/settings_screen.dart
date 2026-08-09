@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../config/api_config.dart';
 import '../../models/beallitas_models.dart';
 import '../../services/apple_health_service.dart';
 import '../../services/auth_service.dart';
@@ -26,6 +27,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String? _hiba;
   int _streak = 0;
   String _nev = '';
+  String _kepUrl = '';
   bool _healthEnabled = false;
   bool _healthBetolt = false;
 
@@ -42,9 +44,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final szekciok = await _service.menuLekerdezes();
       final streak = await StreakService.fetch();
       String nev = '';
+      String kepUrl = '';
       try {
         final profil = await _service.getSzekcio('/api/settings/${_service.userName}/profile');
-        nev = profil['nev'] as String? ?? '';
+        nev = profil['name'] as String? ?? profil['nev'] as String? ?? '';
+        kepUrl = profil['imageUrl'] as String? ?? profil['kepUrl'] as String? ?? '';
       } catch (_) {}
       final healthEnabled = await LocalStore.instance.getHealthEnabled();
       if (!mounted) return;
@@ -52,6 +56,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _szekciok = szekciok;
         _streak = streak;
         _nev = nev.isNotEmpty ? nev : _service.userName;
+        _kepUrl = kepUrl;
         _betolt = false;
         _healthEnabled = healthEnabled;
       });
@@ -142,10 +147,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Widget _buildProfilFejlec() {
     final initials = _nev.isNotEmpty ? _nev[0].toUpperCase() : 'F';
+    final kep = _kepUrl.isNotEmpty ? ApiConfig.mediaUrl(_kepUrl) : '';
     return GestureDetector(
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => ProfilScreen(service: _service)),
-      ),
+      onTap: () async {
+        await Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => ProfilScreen(service: _service)),
+        );
+        if (mounted) await _init();
+      },
       child: Container(
         margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
         padding: const EdgeInsets.all(20),
@@ -161,7 +170,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 CircleAvatar(
                   radius: 32,
                   backgroundColor: const Color(0xFF1E88E5),
-                  child: Text(initials, style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w700)),
+                  backgroundImage: kep.isNotEmpty ? NetworkImage(kep) : null,
+                  onBackgroundImageError: kep.isNotEmpty ? (_, __) {} : null,
+                  child: kep.isEmpty
+                      ? Text(initials,
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 26,
+                              fontWeight: FontWeight.w700))
+                      : null,
                 ),
                 Positioned(
                   right: 0,

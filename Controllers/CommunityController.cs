@@ -36,7 +36,7 @@ namespace FitnessBackend.Controllers
             if (!allowed.Contains(ext))
                 return BadRequest("Csak jpg, jpeg, png vagy webp formatum engedelyezett.");
 
-            var dir = Path.Combine(_env.WebRootPath ?? "", "uploads", "selfies");
+            var dir = DataStore.SelfiesUploadDir;
             Directory.CreateDirectory(dir);
 
             var safeName = $"{CommunityDbService.SanitizeFileName(userName)}_{Guid.NewGuid():N}{ext.ToLowerInvariant()}";

@@ -1,3 +1,5 @@
+using FitnessBackend.Services;
+
 namespace FitnessBackend.Models
 {
     public class UserSettings
@@ -236,7 +238,27 @@ namespace FitnessBackend.Models
         {
             user.UpdatedAt = DateTime.Now;
             Users[user.UserName] = user;
+            try
+            {
+                DataStore.SaveUserSettings();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[UserSettingsStore] Persist failed: {ex.Message}");
+            }
         }
+
+        public static void ReplaceAll(IEnumerable<UserSettings> items)
+        {
+            Users.Clear();
+            foreach (var u in items)
+            {
+                if (string.IsNullOrWhiteSpace(u.UserName)) continue;
+                Users[u.UserName.Trim()] = u;
+            }
+        }
+
+        public static List<UserSettings> Snapshot() => Users.Values.ToList();
 
         public static (bool Ok, string? Error) Rename(string oldName, string newName)
         {

@@ -49,7 +49,8 @@ namespace FitnessBackend.Services
             if (!allowed.Contains(ext))
                 return (null, "Csak jpg, jpeg, png vagy webp formatum engedelyezett.");
 
-            var folder = Path.Combine(string.IsNullOrWhiteSpace(webRoot) ? contentRoot : webRoot, "uploads", "profiles");
+            // Persist on DATA_DIR disk (Render) — wwwroot is ephemeral across deploys.
+            var folder = DataStore.ProfilesUploadDir;
             Directory.CreateDirectory(folder);
 
             var safeName = $"{SanitizeFileName(userName)}_{Guid.NewGuid():N}{ext.ToLowerInvariant()}";

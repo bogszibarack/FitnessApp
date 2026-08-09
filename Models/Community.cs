@@ -7,6 +7,7 @@ namespace FitnessBackend.Models
         public string County { get; set; } = "";
         public string Region { get; set; } = "";
         public string SelfieUrl { get; set; } = "";
+        public string ProfileImageUrl { get; set; } = "";
         public DateTime SharedAt { get; set; }
         public WorkoutSession Workout { get; set; } = new();
         public int LikeCount { get; set; }
@@ -19,6 +20,7 @@ namespace FitnessBackend.Models
         public string Id { get; set; } = "";
         public string UserName { get; set; } = "";
         public string Text { get; set; } = "";
+        public string ProfileImageUrl { get; set; } = "";
         public DateTime CreatedAt { get; set; }
     }
 

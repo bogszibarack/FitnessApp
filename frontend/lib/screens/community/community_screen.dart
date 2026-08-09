@@ -601,7 +601,11 @@ class PosztKartya extends StatelessWidget {
               children: [
                 GestureDetector(
                   onTap: () => onFelhasznaloTap(poszt.userName),
-                  child: AvatarKor(nev: poszt.userName, meret: 40),
+                  child: AvatarKor(
+                    nev: poszt.userName,
+                    meret: 40,
+                    kepUrl: poszt.profileImageUrl,
+                  ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -905,7 +909,11 @@ class _KommentSheetState extends State<KommentSheet> {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        AvatarKor(nev: k.userName, meret: 32),
+                        AvatarKor(
+                          nev: k.userName,
+                          meret: 32,
+                          kepUrl: k.profileImageUrl,
+                        ),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Column(

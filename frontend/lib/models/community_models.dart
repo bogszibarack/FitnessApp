@@ -19,6 +19,7 @@ class CommunityPostModel {
     required this.county,
     required this.region,
     required this.selfieUrl,
+    required this.profileImageUrl,
     required this.sharedAt,
     required this.workout,
     required this.likeCount,
@@ -31,6 +32,7 @@ class CommunityPostModel {
   final String county;
   final String region;
   final String selfieUrl;
+  final String profileImageUrl;
   final DateTime sharedAt;
   final WorkoutSessionModel workout;
   final int likeCount;
@@ -60,6 +62,7 @@ class CommunityPostModel {
       county: county,
       region: region,
       selfieUrl: selfieUrl,
+      profileImageUrl: profileImageUrl,
       sharedAt: sharedAt,
       workout: workout,
       likeCount: likeCount ?? this.likeCount,
@@ -76,6 +79,7 @@ class CommunityPostModel {
       county: _jsonString(json, 'county', 'megye') ?? '',
       region: _jsonString(json, 'region', 'regio') ?? '',
       selfieUrl: json['selfieUrl'] as String? ?? '',
+      profileImageUrl: json['profileImageUrl'] as String? ?? '',
       sharedAt: _jsonDateTime(json, 'sharedAt', 'megosztva'),
       workout: workoutJson != null
           ? WorkoutSessionModel.fromJson(workoutJson as Map<String, dynamic>)
@@ -106,12 +110,14 @@ class CommunityCommentModel {
     required this.userName,
     required this.text,
     required this.createdAt,
+    this.profileImageUrl = '',
   });
 
   final String id;
   final String userName;
   final String text;
   final DateTime createdAt;
+  final String profileImageUrl;
 
   String get idoSzoveg {
     final kulonbseg = DateTime.now().difference(createdAt);
@@ -126,6 +132,7 @@ class CommunityCommentModel {
       userName: json['userName'] as String? ?? '',
       text: _jsonString(json, 'text', 'szoveg') ?? '',
       createdAt: _jsonDateTime(json, 'createdAt', 'idobelyeg'),
+      profileImageUrl: json['profileImageUrl'] as String? ?? '',
     );
   }
 }

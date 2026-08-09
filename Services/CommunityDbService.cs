@@ -152,6 +152,7 @@ namespace FitnessBackend.Services
                 UserName = entity.UserName,
                 Text = entity.Text,
                 CreatedAt = entity.CreatedAt,
+                ProfileImageUrl = ProfileImageFor(entity.UserName),
             }, null);
         }
 
@@ -160,17 +161,19 @@ namespace FitnessBackend.Services
             if (!await _db.CommunityPosts.AnyAsync(p => p.Id == postId))
                 return null;
 
-            return await _db.PostComments.AsNoTracking()
+            var rows = await _db.PostComments.AsNoTracking()
                 .Where(c => c.PostId == postId)
                 .OrderByDescending(c => c.CreatedAt)
-                .Select(c => new CommunityComment
-                {
-                    Id = c.Id.ToString("N"),
-                    UserName = c.UserName,
-                    Text = c.Text,
-                    CreatedAt = c.CreatedAt,
-                })
                 .ToListAsync();
+
+            return rows.Select(c => new CommunityComment
+            {
+                Id = c.Id.ToString("N"),
+                UserName = c.UserName,
+                Text = c.Text,
+                CreatedAt = c.CreatedAt,
+                ProfileImageUrl = ProfileImageFor(c.UserName),
+            }).ToList();
         }
 
         public async Task<List<PeopleListItem>> ListPeopleAsync(AppUser me, string? q)
@@ -443,17 +446,19 @@ namespace FitnessBackend.Services
                 .Select(l => l.UserName)
                 .ToListAsync();
 
-            var comments = await _db.PostComments.AsNoTracking()
+            var commentRows = await _db.PostComments.AsNoTracking()
                 .Where(c => c.PostId == id)
                 .OrderByDescending(c => c.CreatedAt)
-                .Select(c => new CommunityComment
-                {
-                    Id = c.Id.ToString("N"),
-                    UserName = c.UserName,
-                    Text = c.Text,
-                    CreatedAt = c.CreatedAt,
-                })
                 .ToListAsync();
+
+            var comments = commentRows.Select(c => new CommunityComment
+            {
+                Id = c.Id.ToString("N"),
+                UserName = c.UserName,
+                Text = c.Text,
+                CreatedAt = c.CreatedAt,
+                ProfileImageUrl = ProfileImageFor(c.UserName),
+            }).ToList();
 
             WorkoutSession workout;
             try
@@ -473,12 +478,19 @@ namespace FitnessBackend.Services
                 County = p.County,
                 Region = p.Region,
                 SelfieUrl = p.SelfieUrl,
+                ProfileImageUrl = ProfileImageFor(p.UserName),
                 SharedAt = p.SharedAt,
                 Workout = workout,
                 LikeCount = likes.Count,
                 LikedBy = likes,
                 Comments = comments,
             };
+        }
+
+        private static string ProfileImageFor(string userName)
+        {
+            if (string.IsNullOrWhiteSpace(userName)) return "";
+            return UserSettingsStore.GetOrCreate(userName).Profile.ImageUrl ?? "";
         }
 
         public static bool TryParsePostId(string postId, out Guid id)

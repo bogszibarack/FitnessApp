@@ -15,6 +15,12 @@ namespace FitnessBackend.Services
         private static readonly string AccountsFile = Path.Combine(DataDir, "felhasznalok.json");
         private static readonly string ProgressFile = Path.Combine(DataDir, "progresszio.json");
         private static readonly string StreakFile = Path.Combine(DataDir, "naplo_streak.json");
+        private static readonly string UserSettingsFile = Path.Combine(DataDir, "user_settings.json");
+
+        /// <summary>Persistent uploads root (Render disk): {DATA_DIR}/uploads</summary>
+        public static string UploadsRoot => Path.Combine(DataDir, "uploads");
+        public static string ProfilesUploadDir => Path.Combine(UploadsRoot, "profiles");
+        public static string SelfiesUploadDir => Path.Combine(UploadsRoot, "selfies");
 
         public static string LastError { get; private set; } = "";
 
@@ -147,11 +153,46 @@ namespace FitnessBackend.Services
                 }
 
                 LoadAccounts();
+                LoadUserSettings();
             }
             catch (Exception ex)
             {
                 LastError = $"Betöltés: {ex.Message}";
                 Console.WriteLine($"[DataStore] Betöltési hiba: {ex.Message}");
+            }
+        }
+
+        public static void LoadUserSettings()
+        {
+            try
+            {
+                var path = ReadableFile(UserSettingsFile);
+                if (path == null) return;
+
+                var json = MigrateJson(File.ReadAllText(path));
+                var list = JsonSerializer.Deserialize<List<UserSettings>>(json, Opts);
+                if (list == null) return;
+                UserSettingsStore.ReplaceAll(list);
+                Console.WriteLine($"[DataStore] Loaded {list.Count} user settings");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[DataStore] User settings load error: {ex.Message}");
+            }
+        }
+
+        public static void SaveUserSettings()
+        {
+            try
+            {
+                var list = UserSettingsStore.Snapshot();
+                var json = JsonSerializer.Serialize(list, Opts);
+                SafeWrite(UserSettingsFile, json);
+            }
+            catch (Exception ex)
+            {
+                LastError = $"User settings mentés: {ex.Message}";
+                Console.WriteLine($"[DataStore] User settings save error: {ex.Message}");
             }
         }
 
