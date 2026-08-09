@@ -10,8 +10,6 @@ namespace FitnessBackend.Controllers
 
         private static readonly string[] AllowedHosts =
         {
-            "img.spoonacular.com",
-            "spoonacular.com",
             "images.openfoodfacts.org",
             "world.openfoodfacts.org",
             "static.openfoodfacts.org",

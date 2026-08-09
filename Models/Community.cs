@@ -36,11 +36,6 @@ namespace FitnessBackend.Models
         public string Text { get; set; } = "";
     }
 
-    public class LikeRequest
-    {
-        public string UserName { get; set; } = "";
-    }
-
     public class CountyInfo
     {
         public string Id { get; set; } = "";
@@ -48,21 +43,9 @@ namespace FitnessBackend.Models
         public string Region { get; set; } = "";
     }
 
-    public class FollowInfo
-    {
-        public string Follower { get; set; } = "";
-        public string Following { get; set; } = "";
-        public DateTime Since { get; set; }
-    }
-
+    /// <summary>County metadata (feed filters / share validation). Posts live in Postgres.</summary>
     public static class CommunityStore
     {
-        public static List<CommunityPost> Posts { get; } = new();
-        public static List<FollowInfo> Follows { get; } = new();
-
-        public static bool IsFollowing(string follower, string following) =>
-            Follows.Any(f => f.Follower == follower && f.Following == following);
-
         public static readonly List<CountyInfo> Counties =
         [
             new() { Id = "budapest", Name = "Budapest", Region = "Kozep-Magyarorszag" },
@@ -91,38 +74,5 @@ namespace FitnessBackend.Models
             Counties.FirstOrDefault(c =>
                 c.Id.Equals(idOrName, StringComparison.OrdinalIgnoreCase) ||
                 c.Name.Equals(idOrName, StringComparison.OrdinalIgnoreCase));
-
-        public static CommunityPost? FindPost(string postId) =>
-            Posts.FirstOrDefault(p => p.Id.Equals(postId, StringComparison.OrdinalIgnoreCase));
-
-        public static (CommunityPost? post, string? err) CreatePost(ShareRequest req)
-        {
-            if (string.IsNullOrWhiteSpace(req.UserName))
-                return (null, "UserName kotelezo.");
-
-            if (string.IsNullOrWhiteSpace(req.County))
-                return (null, "Megye kotelezo.");
-
-            var county = FindCounty(req.County);
-            if (county == null)
-                return (null, "Ismeretlen megye. Hasznald: GET /api/community/counties");
-
-            if (req.Workout == null || req.Workout.Exercises.Count == 0)
-                return (null, "Az edzes adatok kotelezoek (legalabb 1 gyakorlat).");
-
-            var post = new CommunityPost
-            {
-                Id = $"post_{Guid.NewGuid().ToString("N")[..8]}",
-                UserName = req.UserName,
-                County = county.Name,
-                Region = county.Region,
-                SelfieUrl = req.SelfieUrl,
-                SharedAt = DateTime.Now,
-                Workout = req.Workout
-            };
-
-            Posts.Insert(0, post);
-            return (post, null);
-        }
     }
 }

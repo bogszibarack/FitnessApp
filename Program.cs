@@ -82,6 +82,7 @@ builder.Services.Configure<EmailOptions>(opts =>
 });
 builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
 builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<CommunityDbService>();
 
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -131,11 +132,6 @@ FitnessBackend.Services.FatSecretConfig.ClientSecret =
     ?? Environment.GetEnvironmentVariable("FATSECRET_CLIENT_SECRET")
     ?? "";
 
-FitnessBackend.Services.SpoonacularConfig.ApiKey =
-    builder.Configuration["Spoonacular:ApiKey"]
-    ?? Environment.GetEnvironmentVariable("SPOONACULAR_API_KEY")
-    ?? "";
-
 // Load JSON stores (workouts etc.) then ensure DB schema + migrate accounts
 FitnessBackend.Controllers.WorkoutController.LoadOnStartup();
 
@@ -147,6 +143,7 @@ using (var scope = app.Services.CreateScope())
     {
         await db.Database.EnsureCreatedAsync();
         logger.LogInformation("[DB] Provider={Provider}", provider);
+        await CommunitySchemaBootstrap.EnsureAsync(db, logger);
         await JsonAccountMigrator.MigrateAsync(db, logger);
         if (provider == "postgres")
             await PostgresUserRepairMigrator.MigrateAsync(db, connectionString, logger);

@@ -23,4 +23,12 @@ class ApiConfig {
     if (url.startsWith(baseUrl)) return url;
     return '$baseUrl/api/image?url=${Uri.encodeComponent(url)}';
   }
+
+  /// Absolute URL for uploaded media (`/uploads/...`) or pass-through http(s).
+  static String mediaUrl(String path) {
+    if (path.isEmpty) return '';
+    if (path.startsWith('http://') || path.startsWith('https://')) return path;
+    if (path.startsWith('/')) return '$baseUrl$path';
+    return '$baseUrl/$path';
+  }
 }

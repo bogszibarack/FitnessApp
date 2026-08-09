@@ -58,12 +58,8 @@ namespace FitnessBackend.Models
         public string Name { get; set; } = "";
         public string Icon { get; set; } = "";
 
-        // Spoonacular complexSearch query-fragment, e.g. "diet=vegan&maxCarbs=25"
-        public string SpoonacularQuery { get; set; } = "";
-
         public string Nev { set => Name = value; }
         public string Ikon { set => Icon = value; }
-        public string SpoonParam { set => SpoonacularQuery = value; }
     }
 
     public class CalorieRange
@@ -101,10 +97,5 @@ namespace FitnessBackend.Models
         public double? FeherjeAdagonkent { set => ProteinPerServing = value; }
         public double? SzenhidratAdagonkent { set => CarbsPerServing = value; }
         public double? ZsirAdagonkent { set => FatPerServing = value; }
-    }
-
-    [Obsolete("Use AddRecipeRequest")]
-    public class ReceptNaplobaKeres : AddRecipeRequest
-    {
     }
 }

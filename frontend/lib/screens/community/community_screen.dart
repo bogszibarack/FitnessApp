@@ -23,8 +23,10 @@ class _CommunityScreenState extends State<CommunityScreen>
 
   late TabController _tabCtrl;
   List<CommunityPostModel> _feed = [];
-  List<CommunityUserModel> _felhasznalok = [];
+  List<PeopleListItemModel> _emberek = [];
+  List<PeopleListItemModel> _pending = [];
   bool _betolt = true;
+  bool _emberekBetolt = false;
   String? _hiba;
   final Set<String> _mentettPosztIds = {};
 
@@ -38,6 +40,7 @@ class _CommunityScreenState extends State<CommunityScreen>
     _tabCtrl = TabController(length: 2, vsync: this);
     _tabCtrl.addListener(_tabValtozas);
     _betoltes();
+    _felhasznalokBetoltes();
   }
 
   @override
@@ -50,7 +53,7 @@ class _CommunityScreenState extends State<CommunityScreen>
 
   void _tabValtozas() {
     if (!_tabCtrl.indexIsChanging) return;
-    if (_tabCtrl.index == 1 && _felhasznalok.isEmpty) {
+    if (_tabCtrl.index == 1 && !_emberekBetolt) {
       _felhasznalokBetoltes();
     }
   }
@@ -78,10 +81,23 @@ class _CommunityScreenState extends State<CommunityScreen>
 
   Future<void> _felhasznalokBetoltes([String? kereses]) async {
     try {
-      final lista = await _service.searchUsers(kereses);
+      final results = await Future.wait([
+        _service.people(kereses),
+        _service.pendingFriends(),
+      ]);
       if (!mounted) return;
-      setState(() => _felhasznalok = lista);
-    } catch (_) {}
+      setState(() {
+        _emberek = results[0];
+        _pending = results[1];
+        _emberekBetolt = true;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _emberekBetolt = true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Felhasználók: $e')),
+      );
+    }
   }
 
   void _keresValtozas(String ertek) {
@@ -101,7 +117,7 @@ class _CommunityScreenState extends State<CommunityScreen>
       if (idx == -1) return;
       final ujLikedBy = List<String>.from(poszt.likedBy);
       if (likeolt) {
-        ujLikedBy.remove(_sajtNev);
+        ujLikedBy.removeWhere((u) => u.toLowerCase() == _sajtNev.toLowerCase());
       } else {
         ujLikedBy.add(_sajtNev);
       }
@@ -133,8 +149,30 @@ class _CommunityScreenState extends State<CommunityScreen>
             pinned: true,
             title: Text(
               'Közösség',
-              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 22, color: AppColors.szoveg),
+              style: TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 22,
+                  color: AppColors.szoveg),
             ),
+            actions: [
+              if (_pending.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: Center(
+                    child: Badge(
+                      label: Text('${_pending.length}'),
+                      child: IconButton(
+                        tooltip: 'Barátkérelmek',
+                        onPressed: () {
+                          _tabCtrl.animateTo(1);
+                          _felhasznalokBetoltes(_keresCtrl.text);
+                        },
+                        icon: const Icon(Icons.person_add_alt_1_outlined),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
             bottom: PreferredSize(
               preferredSize: const Size.fromHeight(96),
               child: Column(
@@ -162,16 +200,42 @@ class _CommunityScreenState extends State<CommunityScreen>
                   ),
                   TabBar(
                     controller: _tabCtrl,
-                    labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
-                    unselectedLabelStyle:
-                        const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+                    labelStyle: const TextStyle(
+                        fontWeight: FontWeight.w700, fontSize: 14),
+                    unselectedLabelStyle: const TextStyle(
+                        fontWeight: FontWeight.w500, fontSize: 14),
                     labelColor: const Color(0xFF1E88E5),
                     unselectedLabelColor: Colors.grey.shade600,
                     indicatorColor: const Color(0xFF1E88E5),
                     indicatorWeight: 3,
-                    tabs: const [
-                      Tab(text: 'Feed'),
-                      Tab(text: 'Felhasználók'),
+                    tabs: [
+                      const Tab(text: 'Feed'),
+                      Tab(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text('Felhasználók'),
+                            if (_pending.isNotEmpty) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF1E88E5),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  '${_pending.length}',
+                                  style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
                     ],
                   ),
                 ],
@@ -201,7 +265,8 @@ class _CommunityScreenState extends State<CommunityScreen>
           children: [
             Icon(Icons.cloud_off, size: 48, color: Colors.grey.shade400),
             const SizedBox(height: 12),
-            const Text('Nem sikerült betölteni', style: TextStyle(fontWeight: FontWeight.w600)),
+            const Text('Nem sikerült betölteni',
+                style: TextStyle(fontWeight: FontWeight.w600)),
             const SizedBox(height: 12),
             FilledButton(onPressed: _betoltes, child: const Text('Újra')),
           ],
@@ -213,8 +278,12 @@ class _CommunityScreenState extends State<CommunityScreen>
         ? _feed
         : _feed
             .where((p) =>
-                p.userName.contains(_keresKifejezes.toLowerCase()) ||
-                p.workout.title.toLowerCase().contains(_keresKifejezes.toLowerCase()) ||
+                p.userName
+                    .toLowerCase()
+                    .contains(_keresKifejezes.toLowerCase()) ||
+                p.workout.title
+                    .toLowerCase()
+                    .contains(_keresKifejezes.toLowerCase()) ||
                 p.county.toLowerCase().contains(_keresKifejezes.toLowerCase()))
             .toList();
 
@@ -223,7 +292,7 @@ class _CommunityScreenState extends State<CommunityScreen>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('🏋️', style: TextStyle(fontSize: 48)),
+            Icon(Icons.fitness_center, size: 48, color: Colors.grey.shade400),
             const SizedBox(height: 12),
             const Text('Még nincs megosztott edzés',
                 style: TextStyle(fontWeight: FontWeight.w600)),
@@ -246,9 +315,9 @@ class _CommunityScreenState extends State<CommunityScreen>
           poszt: szurt[i],
           sajtNev: _sajtNev,
           onLike: () => _toggleLike(szurt[i]),
-          onFelhasznaloTap: (nev) => _profilMegnyitas(nev),
-          onMentesRutinkent: (id) => _mentesRutinkent(id),
-          onKomment: (id) => _kommentSheet(id),
+          onFelhasznaloTap: _profilMegnyitas,
+          onMentesRutinkent: _mentesRutinkent,
+          onKomment: _kommentSheet,
           mentett: _mentettPosztIds.contains(szurt[i].id),
         ),
       ),
@@ -256,7 +325,7 @@ class _CommunityScreenState extends State<CommunityScreen>
   }
 
   Widget _buildFelhasznalok() {
-    if (_felhasznalok.isEmpty) {
+    if (!_emberekBetolt && _emberek.isEmpty) {
       return Center(
         child: ElevatedButton(
           onPressed: () => _felhasznalokBetoltes(),
@@ -265,35 +334,190 @@ class _CommunityScreenState extends State<CommunityScreen>
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.only(top: 12, bottom: 32),
-      itemCount: _felhasznalok.length,
-      itemBuilder: (ctx, i) {
-        final f = _felhasznalok[i];
-        return ListTile(
-          onTap: () => _profilMegnyitas(f.userName),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-          leading: AvatarKor(nev: f.userName, meret: 44),
-          title: Text(
-            f.userName,
-            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
-          ),
-          subtitle: Text(
-            '${f.postCount} edzés · ${f.totalLikes} like · ${f.lastWorkoutTitle}',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-          ),
-          trailing: const Icon(Icons.chevron_right),
-        );
-      },
+    final ismerhetek = _emberek
+        .where((e) => e.friendStatus == 'none' || e.friendStatus == 'outgoing')
+        .toList();
+    final baratok =
+        _emberek.where((e) => e.friendStatus == 'friends').toList();
+
+    return RefreshIndicator(
+      onRefresh: () => _felhasznalokBetoltes(_keresCtrl.text),
+      child: ListView(
+        padding: const EdgeInsets.only(top: 8, bottom: 32),
+        children: [
+          if (_pending.isNotEmpty) ...[
+            _szekcioCim('Barátkérelmek', _pending.length),
+            ..._pending.map(_pendingTile),
+            const SizedBox(height: 8),
+          ],
+          _szekcioCim('Kit ismerhetek', ismerhetek.length),
+          if (ismerhetek.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+              child: Text(
+                'Nincs megjeleníthető felhasználó.',
+                style: TextStyle(color: Colors.grey.shade600),
+              ),
+            )
+          else
+            ...ismerhetek.map(_emberTile),
+          if (baratok.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            _szekcioCim('Barátok', baratok.length),
+            ...baratok.map(_emberTile),
+          ],
+        ],
+      ),
     );
   }
 
-  void _profilMegnyitas(String nev) {
-    Navigator.of(context).push(
+  Widget _szekcioCim(String cim, int darab) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
+      child: Row(
+        children: [
+          Text(cim,
+              style:
+                  const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+          const SizedBox(width: 8),
+          Text('$darab',
+              style: TextStyle(color: Colors.grey.shade500, fontSize: 13)),
+        ],
+      ),
+    );
+  }
+
+  Widget _pendingTile(PeopleListItemModel f) {
+    final requestId = f.requestId;
+    return ListTile(
+      onTap: () => _profilMegnyitas(f.userName),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      leading: AvatarKor(
+          nev: f.displayName.isNotEmpty ? f.displayName : f.userName,
+          meret: 44,
+          kepUrl: f.profileImageUrl),
+      title: Text(f.displayName.isNotEmpty ? f.displayName : f.userName,
+          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+      subtitle: Text(
+        f.county.isEmpty ? f.userName : '${f.userName} · ${f.county}',
+        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+      ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            tooltip: 'Elfogadás',
+            onPressed: requestId == null
+                ? null
+                : () async {
+                    try {
+                      await _service.acceptFriend(requestId);
+                      await _felhasznalokBetoltes(_keresCtrl.text);
+                    } catch (e) {
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context)
+                          .showSnackBar(SnackBar(content: Text('$e')));
+                    }
+                  },
+            icon: const Icon(Icons.check_circle, color: Color(0xFF43A047)),
+          ),
+          IconButton(
+            tooltip: 'Elutasítás',
+            onPressed: requestId == null
+                ? null
+                : () async {
+                    try {
+                      await _service.rejectFriend(requestId);
+                      await _felhasznalokBetoltes(_keresCtrl.text);
+                    } catch (e) {
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context)
+                          .showSnackBar(SnackBar(content: Text('$e')));
+                    }
+                  },
+            icon: Icon(Icons.cancel, color: Colors.grey.shade500),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _emberTile(PeopleListItemModel f) {
+    return ListTile(
+      onTap: () => _profilMegnyitas(f.userName),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      leading: AvatarKor(
+          nev: f.displayName.isNotEmpty ? f.displayName : f.userName,
+          meret: 44,
+          kepUrl: f.profileImageUrl),
+      title: Text(
+        f.displayName.isNotEmpty ? f.displayName : f.userName,
+        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+      ),
+      subtitle: Text(
+        [
+          if (f.county.isNotEmpty) f.county,
+          if (f.sameCounty) 'ugyanaz a megye',
+          '${f.postCount} megosztás',
+        ].join(' · '),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+      ),
+      trailing: _friendAction(f),
+    );
+  }
+
+  Widget _friendAction(PeopleListItemModel f) {
+    switch (f.friendStatus) {
+      case 'friends':
+        return TextButton(
+          onPressed: () async {
+            try {
+              await _service.unfriend(f.userName);
+              await _felhasznalokBetoltes(_keresCtrl.text);
+            } catch (e) {
+              if (!mounted) return;
+              ScaffoldMessenger.of(context)
+                  .showSnackBar(SnackBar(content: Text('$e')));
+            }
+          },
+          child: const Text('Barátok'),
+        );
+      case 'outgoing':
+        return Text('Várakozik',
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade600));
+      case 'incoming':
+        return const Icon(Icons.mark_email_unread_outlined,
+            color: Color(0xFF1E88E5));
+      default:
+        return FilledButton(
+          style: FilledButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            minimumSize: const Size(0, 34),
+          ),
+          onPressed: () async {
+            try {
+              await _service.requestFriend(f.userName);
+              await _felhasznalokBetoltes(_keresCtrl.text);
+            } catch (e) {
+              if (!mounted) return;
+              ScaffoldMessenger.of(context)
+                  .showSnackBar(SnackBar(content: Text('$e')));
+            }
+          },
+          child: const Text('Jelölés'),
+        );
+    }
+  }
+
+  Future<void> _profilMegnyitas(String nev) async {
+    await Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => UserProfileScreen(userName: nev)),
     );
+    if (_tabCtrl.index == 1) {
+      await _felhasznalokBetoltes(_keresCtrl.text);
+    }
   }
 
   Future<void> _mentesRutinkent(String posztId) async {
@@ -302,12 +526,14 @@ class _CommunityScreenState extends State<CommunityScreen>
       if (!mounted) return;
       setState(() => _mentettPosztIds.add(posztId));
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Rutin elmentve a saját rutinjaid közé!')),
+        const SnackBar(
+            content: Text('Rutin elmentve a saját rutinjaid közé!')),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Hiba: $e'), backgroundColor: Colors.red.shade700),
+        SnackBar(
+            content: Text('Hiba: $e'), backgroundColor: Colors.red.shade700),
       );
     }
   }
@@ -349,6 +575,9 @@ class PosztKartya extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final likeolt = poszt.likeolt(sajtNev);
+    final selfie = poszt.selfieUrl.isNotEmpty
+        ? ApiConfig.mediaUrl(poszt.selfieUrl)
+        : '';
 
     return Container(
       margin: const EdgeInsets.fromLTRB(12, 0, 12, 14),
@@ -383,17 +612,21 @@ class PosztKartya extends StatelessWidget {
                       children: [
                         Text(
                           poszt.userName,
-                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w700, fontSize: 15),
                         ),
                         Row(
                           children: [
-                            Icon(Icons.location_on, size: 12, color: Colors.grey.shade500),
+                            Icon(Icons.location_on,
+                                size: 12, color: Colors.grey.shade500),
                             const SizedBox(width: 2),
                             Text(poszt.county,
-                                style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+                                style: TextStyle(
+                                    fontSize: 12, color: Colors.grey.shade500)),
                             const SizedBox(width: 8),
                             Text(poszt.idoSzoveg,
-                                style: TextStyle(fontSize: 12, color: Colors.grey.shade400)),
+                                style: TextStyle(
+                                    fontSize: 12, color: Colors.grey.shade400)),
                           ],
                         ),
                       ],
@@ -421,18 +654,35 @@ class PosztKartya extends StatelessWidget {
               ],
             ),
           ),
-
+          if (selfie.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(0, 12, 0, 0),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(0),
+                child: AspectRatio(
+                  aspectRatio: 4 / 3,
+                  child: Image.network(
+                    selfie,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                  ),
+                ),
+              ),
+            ),
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(poszt.workout.title,
-                    style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
+                    style: const TextStyle(
+                        fontSize: 17, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 6),
                 Row(
                   children: [
-                    StatBadge(ikon: Icons.timer_outlined, ertek: poszt.workout.idoSzoveg),
+                    StatBadge(
+                        ikon: Icons.timer_outlined,
+                        ertek: poszt.workout.idoSzoveg),
                     const SizedBox(width: 8),
                     StatBadge(
                         ikon: Icons.fitness_center,
@@ -440,13 +690,13 @@ class PosztKartya extends StatelessWidget {
                     const SizedBox(width: 8),
                     StatBadge(
                         ikon: Icons.monitor_weight_outlined,
-                        ertek: '${poszt.workout.osszTomegKg.toStringAsFixed(0)} kg'),
+                        ertek:
+                            '${poszt.workout.osszTomegKg.toStringAsFixed(0)} kg'),
                   ],
                 ),
               ],
             ),
           ),
-
           if (poszt.workout.exercises.isNotEmpty) ...[
             const Divider(height: 1),
             Padding(
@@ -456,7 +706,9 @@ class PosztKartya extends StatelessWidget {
                   final elvegzett = gy.sets.where((s) => s.isDone).toList();
                   final maxSuly = elvegzett.isEmpty
                       ? 0.0
-                      : elvegzett.map((s) => s.weight).reduce((a, b) => a > b ? a : b);
+                      : elvegzett
+                          .map((s) => s.weight)
+                          .reduce((a, b) => a > b ? a : b);
                   return Padding(
                     padding: const EdgeInsets.symmetric(vertical: 3),
                     child: Row(
@@ -466,15 +718,18 @@ class PosztKartya extends StatelessWidget {
                           height: 4,
                           margin: const EdgeInsets.only(right: 8),
                           decoration: BoxDecoration(
-                              color: Colors.blue.shade400, shape: BoxShape.circle),
+                              color: Colors.blue.shade400,
+                              shape: BoxShape.circle),
                         ),
                         Expanded(
                           child: Text(gy.exerciseName,
-                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                              style: const TextStyle(
+                                  fontSize: 13, fontWeight: FontWeight.w500)),
                         ),
                         Text(
                           '${elvegzett.length} × ${maxSuly > 0 ? "${maxSuly.toStringAsFixed(maxSuly == maxSuly.roundToDouble() ? 0 : 1)} kg" : "–"}',
-                          style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                          style: TextStyle(
+                              fontSize: 12, color: Colors.grey.shade500),
                         ),
                       ],
                     ),
@@ -494,7 +749,6 @@ class PosztKartya extends StatelessWidget {
                 ),
               ),
           ],
-
           const Divider(height: 1),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
@@ -516,13 +770,14 @@ class PosztKartya extends StatelessWidget {
                 AkcioGomb(
                   ikon: mentett ? Icons.bookmark : Icons.bookmark_border,
                   cimke: mentett ? 'Mentve' : 'Mentés',
-                  szin: mentett ? Colors.amber.shade700 : Colors.grey.shade600,
+                  szin: mentett
+                      ? Colors.amber.shade700
+                      : Colors.grey.shade600,
                   onTap: () => onMentesRutinkent(poszt.id),
                 ),
               ],
             ),
           ),
-
           if (poszt.comments.isNotEmpty) ...[
             const Divider(height: 1),
             Padding(
@@ -534,11 +789,13 @@ class PosztKartya extends StatelessWidget {
                     padding: const EdgeInsets.only(bottom: 4),
                     child: RichText(
                       text: TextSpan(
-                        style: TextStyle(color: AppColors.szoveg, fontSize: 13),
+                        style:
+                            TextStyle(color: AppColors.szoveg, fontSize: 13),
                         children: [
                           TextSpan(
                             text: '${k.userName}  ',
-                            style: const TextStyle(fontWeight: FontWeight.w700),
+                            style:
+                                const TextStyle(fontWeight: FontWeight.w700),
                           ),
                           TextSpan(text: k.text),
                         ],
@@ -559,7 +816,10 @@ class PosztKartya extends StatelessWidget {
 
 class KommentSheet extends StatefulWidget {
   const KommentSheet(
-      {super.key, required this.posztId, required this.sajtNev, required this.service});
+      {super.key,
+      required this.posztId,
+      required this.sajtNev,
+      required this.service});
   final String posztId;
   final String sajtNev;
   final CommunityService service;
@@ -635,7 +895,8 @@ class _KommentSheetState extends State<KommentSheet> {
             Expanded(
               child: ListView.builder(
                 controller: ctrl,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 itemCount: _kommentek.length,
                 itemBuilder: (_, i) {
                   final k = _kommentek[i];
@@ -654,11 +915,13 @@ class _KommentSheetState extends State<KommentSheet> {
                                 children: [
                                   Text(k.userName,
                                       style: const TextStyle(
-                                          fontWeight: FontWeight.w700, fontSize: 13)),
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 13)),
                                   const SizedBox(width: 6),
                                   Text(k.idoSzoveg,
                                       style: TextStyle(
-                                          fontSize: 11, color: Colors.grey.shade400)),
+                                          fontSize: 11,
+                                          color: Colors.grey.shade400)),
                                 ],
                               ),
                               const SizedBox(height: 2),
@@ -687,8 +950,8 @@ class _KommentSheetState extends State<KommentSheet> {
                         hintText: 'Írj hozzászólást…',
                         filled: true,
                         fillColor: AppColors.halvanyKitoltes,
-                        contentPadding:
-                            const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 10),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(20),
                           borderSide: BorderSide.none,
@@ -707,7 +970,8 @@ class _KommentSheetState extends State<KommentSheet> {
                             width: 20,
                             height: 20,
                             child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Icon(Icons.send_rounded, color: Color(0xFF1E88E5)),
+                        : const Icon(Icons.send_rounded,
+                            color: Color(0xFF1E88E5)),
                   ),
                 ],
               ),

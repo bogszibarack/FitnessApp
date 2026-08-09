@@ -37,7 +37,8 @@ class CommunityPostModel {
   final List<String> likedBy;
   final List<CommunityCommentModel> comments;
 
-  bool likeolt(String userName) => likedBy.contains(userName);
+  bool likeolt(String userName) =>
+      likedBy.any((u) => u.toLowerCase() == userName.toLowerCase());
 
   String get idoSzoveg {
     final kulonbseg = DateTime.now().difference(sharedAt);
@@ -85,10 +86,14 @@ class CommunityPostModel {
               exercises: [],
             ),
       likeCount: _jsonInt(json, 'likeCount', 'likeSzam') ?? 0,
-      likedBy: (json['likedBy'] as List<dynamic>? ?? json['likeolok'] as List<dynamic>? ?? [])
+      likedBy: (json['likedBy'] as List<dynamic>? ??
+              json['likeolok'] as List<dynamic>? ??
+              [])
           .map((e) => e.toString())
           .toList(),
-      comments: (json['comments'] as List<dynamic>? ?? json['kommentek'] as List<dynamic>? ?? [])
+      comments: (json['comments'] as List<dynamic>? ??
+              json['kommentek'] as List<dynamic>? ??
+              [])
           .map((e) => CommunityCommentModel.fromJson(e as Map<String, dynamic>))
           .toList(),
     );
@@ -125,37 +130,100 @@ class CommunityCommentModel {
   }
 }
 
-class CommunityUserModel {
-  const CommunityUserModel({
+/// Registered user in "Kit ismerhetek" / friends directory.
+class PeopleListItemModel {
+  const PeopleListItemModel({
+    required this.userId,
     required this.userName,
+    required this.county,
+    required this.profileImageUrl,
+    required this.displayName,
+    required this.bio,
     required this.postCount,
-    required this.totalLikes,
-    required this.lastWorkoutTitle,
-    required this.lastWorkout,
+    required this.friendStatus,
+    required this.sameCounty,
+    this.requestId,
   });
 
+  final String userId;
   final String userName;
+  final String county;
+  final String profileImageUrl;
+  final String displayName;
+  final String bio;
   final int postCount;
-  final int totalLikes;
-  final String lastWorkoutTitle;
-  final DateTime lastWorkout;
+  /// none | outgoing | incoming | friends
+  final String friendStatus;
+  final bool sameCounty;
+  final String? requestId;
 
-  String get inicialeK {
-    final reszek = userName.split(RegExp(r'[_.\-]'));
-    if (reszek.length >= 2) {
-      return '${reszek[0][0]}${reszek[1][0]}'.toUpperCase();
-    }
-    return userName.substring(0, userName.length.clamp(0, 2)).toUpperCase();
-  }
-
-  factory CommunityUserModel.fromJson(Map<String, dynamic> json) {
-    return CommunityUserModel(
+  factory PeopleListItemModel.fromJson(Map<String, dynamic> json) {
+    return PeopleListItemModel(
+      userId: json['userId']?.toString() ?? '',
       userName: json['userName'] as String? ?? '',
+      county: json['county'] as String? ?? '',
+      profileImageUrl: json['profileImageUrl'] as String? ?? '',
+      displayName: json['displayName'] as String? ??
+          json['userName'] as String? ??
+          '',
+      bio: json['bio'] as String? ?? '',
       postCount: _jsonInt(json, 'postCount', 'posztSzam') ?? 0,
-      totalLikes: _jsonInt(json, 'totalLikes', 'osszLike') ?? 0,
-      lastWorkoutTitle:
-          _jsonString(json, 'lastWorkoutTitle', 'legutobbiEdzesCim') ?? '',
-      lastWorkout: _jsonDateTime(json, 'lastWorkout', 'utolsoEdzes'),
+      friendStatus: json['friendStatus'] as String? ?? 'none',
+      sameCounty: json['sameCounty'] as bool? ?? false,
+      requestId: json['requestId']?.toString(),
+    );
+  }
+}
+
+class CommunityProfileModel {
+  const CommunityProfileModel({
+    required this.userId,
+    required this.userName,
+    required this.county,
+    required this.displayName,
+    required this.bio,
+    required this.profileImageUrl,
+    required this.friendStatus,
+    required this.friendsCount,
+    required this.postCount,
+    required this.posts,
+    required this.workoutHistory,
+    this.incomingRequestId,
+  });
+
+  final String userId;
+  final String userName;
+  final String county;
+  final String displayName;
+  final String bio;
+  final String profileImageUrl;
+  final String friendStatus;
+  final String? incomingRequestId;
+  final int friendsCount;
+  final int postCount;
+  final List<CommunityPostModel> posts;
+  final List<WorkoutSessionModel> workoutHistory;
+
+  factory CommunityProfileModel.fromJson(Map<String, dynamic> json) {
+    return CommunityProfileModel(
+      userId: json['userId']?.toString() ?? '',
+      userName: json['userName'] as String? ?? '',
+      county: json['county'] as String? ?? '',
+      displayName: json['displayName'] as String? ??
+          json['userName'] as String? ??
+          '',
+      bio: json['bio'] as String? ?? '',
+      profileImageUrl: json['profileImageUrl'] as String? ?? '',
+      friendStatus: json['friendStatus'] as String? ?? 'none',
+      incomingRequestId: json['incomingRequestId']?.toString(),
+      friendsCount: json['friendsCount'] as int? ?? 0,
+      postCount: json['postCount'] as int? ?? 0,
+      posts: (json['posts'] as List<dynamic>? ?? [])
+          .map((e) => CommunityPostModel.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      workoutHistory: (json['workoutHistory'] as List<dynamic>? ?? [])
+          .map((e) => WorkoutSessionModel.fromJson(e as Map<String, dynamic>))
+          .toList(),
     );
   }
 }

@@ -13,10 +13,21 @@ namespace FitnessBackend.Controllers
         private static readonly Dictionary<string, WorkoutSession> ActiveByUser = new(StringComparer.OrdinalIgnoreCase);
         private static List<WorkoutSession> workoutHistory = new();
 
+        private readonly CommunityDbService _community;
+
+        public WorkoutController(CommunityDbService community) => _community = community;
+
         public static void LoadOnStartup()
         {
             DataStore.Load(workoutHistory, ActiveByUser);
         }
+
+        /// <summary>Public read of another user's history (community profiles — test mode).</summary>
+        public static List<WorkoutSession> HistoryForUserPublic(string userName) =>
+            workoutHistory
+                .Where(w => w.UserName.Equals(userName, StringComparison.OrdinalIgnoreCase))
+                .OrderByDescending(w => w.StartTime)
+                .ToList();
 
         public static void AssignLegacyOwner(string ownerUserName)
         {
@@ -501,10 +512,13 @@ namespace FitnessBackend.Controllers
         }
 
         [HttpPost("aktiv/befejezes-es-megosztas")]
-        public ActionResult<object> FinishAndShare([FromBody] ShareRequest shareRequest)
+        public async Task<ActionResult<object>> FinishAndShare([FromBody] ShareRequest shareRequest)
         {
             var auth = CurrentUser.RequireUser(this, out var user);
             if (auth != null) return auth;
+
+            var appUser = await _community.FindUserByNameAsync(user);
+            if (appUser == null) return Unauthorized(new { error = "Bejelentkezés szükséges." });
 
             var activeWorkout = GetActive(user);
             if (activeWorkout == null)
@@ -518,12 +532,14 @@ namespace FitnessBackend.Controllers
 
             shareRequest.UserName = user;
             shareRequest.Workout = activeWorkout;
+            if (string.IsNullOrWhiteSpace(shareRequest.County))
+                shareRequest.County = appUser.County;
             ActiveByUser.Remove(user);
 
             DataStore.SaveActiveMap(ActiveByUser);
             DataStore.SaveHistory(workoutHistory);
 
-            var (post, error) = CommunityStore.CreatePost(shareRequest);
+            var (post, error) = await _community.CreatePostAsync(appUser, shareRequest);
 
             if (error != null)
                 return BadRequest(error);
@@ -537,10 +553,13 @@ namespace FitnessBackend.Controllers
         }
 
         [HttpPost("history/{workout_id:int}/megosztas")]
-        public ActionResult<object> ShareHistoryWorkout(int workout_id, [FromBody] ShareRequest shareRequest)
+        public async Task<ActionResult<object>> ShareHistoryWorkout(int workout_id, [FromBody] ShareRequest shareRequest)
         {
             var auth = CurrentUser.RequireUser(this, out var user);
             if (auth != null) return auth;
+
+            var appUser = await _community.FindUserByNameAsync(user);
+            if (appUser == null) return Unauthorized(new { error = "Bejelentkezés szükséges." });
 
             var workout = workoutHistory.FirstOrDefault(w => w.Id == workout_id);
             if (workout == null)
@@ -551,7 +570,10 @@ namespace FitnessBackend.Controllers
 
             shareRequest.UserName = user;
             shareRequest.Workout = workout;
-            var (post, error) = CommunityStore.CreatePost(shareRequest);
+            if (string.IsNullOrWhiteSpace(shareRequest.County))
+                shareRequest.County = appUser.County;
+
+            var (post, error) = await _community.CreatePostAsync(appUser, shareRequest);
 
             if (error != null)
                 return BadRequest(error);

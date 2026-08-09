@@ -4,13 +4,14 @@ import 'package:http/http.dart' as http;
 
 import '../config/api_config.dart';
 import '../models/community_models.dart';
+import 'api_http.dart';
+import 'local_store.dart';
 
 class CommunityService {
   CommunityService._();
   static final CommunityService instance = CommunityService._();
 
   final String _base = ApiConfig.baseUrl;
-  final String _userName = ApiConfig.defaultUserName;
 
   void check(http.Response r) {
     if (r.statusCode < 200 || r.statusCode >= 300) {
@@ -21,116 +22,198 @@ class CommunityService {
   // ─── Feed ────────────────────────────────────────────────────────────────
 
   Future<List<CommunityPostModel>> feed() async {
-    final r = await http.get(Uri.parse('$_base/api/community/feed'));
+    final r = await ApiHttp.get(Uri.parse('$_base/api/community/feed'));
     check(r);
     final lista = jsonDecode(r.body) as List<dynamic>;
-    return lista.map((e) => CommunityPostModel.fromJson(e as Map<String, dynamic>)).toList();
+    return lista
+        .map((e) => CommunityPostModel.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   Future<List<CommunityPostModel>> feedByCounty(String countyId) async {
-    final r = await http.get(Uri.parse('$_base/api/community/feed/county/$countyId'));
+    final r = await ApiHttp.get(
+        Uri.parse('$_base/api/community/feed/county/$countyId'));
     check(r);
     final lista = jsonDecode(r.body) as List<dynamic>;
-    return lista.map((e) => CommunityPostModel.fromJson(e as Map<String, dynamic>)).toList();
+    return lista
+        .map((e) => CommunityPostModel.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   Future<List<CommunityPostModel>> feedByRegion(String region) async {
-    final r = await http.get(
-      Uri.parse('$_base/api/community/feed/region/${Uri.encodeComponent(region)}'),
+    final r = await ApiHttp.get(
+      Uri.parse(
+          '$_base/api/community/feed/region/${Uri.encodeComponent(region)}'),
     );
     check(r);
     final lista = jsonDecode(r.body) as List<dynamic>;
-    return lista.map((e) => CommunityPostModel.fromJson(e as Map<String, dynamic>)).toList();
+    return lista
+        .map((e) => CommunityPostModel.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   // ─── Like ─────────────────────────────────────────────────────────────────
 
   Future<CommunityPostModel> like(String postId) async {
-    final r = await http.post(
-      Uri.parse('$_base/api/community/$postId/like'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'userName': _userName}),
-    );
+    final r =
+        await ApiHttp.post(Uri.parse('$_base/api/community/$postId/like'));
     check(r);
-    return CommunityPostModel.fromJson(jsonDecode(r.body) as Map<String, dynamic>);
+    return CommunityPostModel.fromJson(
+        jsonDecode(r.body) as Map<String, dynamic>);
   }
 
   Future<CommunityPostModel> unlike(String postId) async {
-    final r = await http.delete(
-      Uri.parse('$_base/api/community/$postId/like?userName=${Uri.encodeComponent(_userName)}'),
-    );
+    final r =
+        await ApiHttp.delete(Uri.parse('$_base/api/community/$postId/like'));
     check(r);
-    return CommunityPostModel.fromJson(jsonDecode(r.body) as Map<String, dynamic>);
+    return CommunityPostModel.fromJson(
+        jsonDecode(r.body) as Map<String, dynamic>);
   }
 
   // ─── Comments ────────────────────────────────────────────────────────────
 
   Future<List<CommunityCommentModel>> comments(String postId) async {
-    final r = await http.get(Uri.parse('$_base/api/community/$postId/comments'));
+    final r =
+        await ApiHttp.get(Uri.parse('$_base/api/community/$postId/comments'));
     check(r);
     final lista = jsonDecode(r.body) as List<dynamic>;
-    return lista.map((e) => CommunityCommentModel.fromJson(e as Map<String, dynamic>)).toList();
+    return lista
+        .map((e) => CommunityCommentModel.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   Future<CommunityCommentModel> addComment(String postId, String text) async {
-    final r = await http.post(
+    final r = await ApiHttp.post(
       Uri.parse('$_base/api/community/$postId/comment'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'userName': _userName, 'text': text}),
+      body: jsonEncode({'text': text}),
     );
     check(r);
-    return CommunityCommentModel.fromJson(jsonDecode(r.body) as Map<String, dynamic>);
+    return CommunityCommentModel.fromJson(
+        jsonDecode(r.body) as Map<String, dynamic>);
   }
 
   // ─── Save as plan ─────────────────────────────────────────────────────────
 
   Future<void> saveAsPlan(String postId) async {
-    final r = await http.post(
-      Uri.parse('$_base/api/community/$postId/save-as-plan?userName=${Uri.encodeComponent(_userName)}'),
+    final r = await ApiHttp.post(
+      Uri.parse('$_base/api/community/$postId/save-as-plan'),
     );
     check(r);
   }
 
-  // ─── User search ──────────────────────────────────────────────────────────
+  // ─── People / friends ──────────────────────────────────────────────────────
 
-  Future<List<CommunityUserModel>> searchUsers([String? query]) async {
+  Future<List<PeopleListItemModel>> people([String? query]) async {
     final url = query != null && query.isNotEmpty
-        ? '$_base/api/community/users?q=${Uri.encodeComponent(query)}'
-        : '$_base/api/community/users';
-    final r = await http.get(Uri.parse(url));
+        ? '$_base/api/community/people?q=${Uri.encodeComponent(query)}'
+        : '$_base/api/community/people';
+    final r = await ApiHttp.get(Uri.parse(url));
     check(r);
     final lista = jsonDecode(r.body) as List<dynamic>;
-    return lista.map((e) => CommunityUserModel.fromJson(e as Map<String, dynamic>)).toList();
+    return lista
+        .map((e) => PeopleListItemModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Backward-compatible alias used by older screens.
+  Future<List<PeopleListItemModel>> searchUsers([String? query]) =>
+      people(query);
+
+  Future<List<PeopleListItemModel>> friends() async {
+    final r = await ApiHttp.get(Uri.parse('$_base/api/community/friends'));
+    check(r);
+    final lista = jsonDecode(r.body) as List<dynamic>;
+    return lista
+        .map((e) => PeopleListItemModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<List<PeopleListItemModel>> pendingFriends() async {
+    final r =
+        await ApiHttp.get(Uri.parse('$_base/api/community/friends/pending'));
+    check(r);
+    final lista = jsonDecode(r.body) as List<dynamic>;
+    return lista
+        .map((e) => PeopleListItemModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<void> requestFriend(String username) async {
+    final r = await ApiHttp.post(Uri.parse(
+        '$_base/api/community/friends/request/${Uri.encodeComponent(username)}'));
+    check(r);
+  }
+
+  Future<void> acceptFriend(String requestId) async {
+    final r = await ApiHttp.post(
+        Uri.parse('$_base/api/community/friends/accept/$requestId'));
+    check(r);
+  }
+
+  Future<void> rejectFriend(String requestId) async {
+    final r = await ApiHttp.post(
+        Uri.parse('$_base/api/community/friends/reject/$requestId'));
+    check(r);
+  }
+
+  Future<void> unfriend(String username) async {
+    final r = await ApiHttp.delete(Uri.parse(
+        '$_base/api/community/friends/${Uri.encodeComponent(username)}'));
+    check(r);
+  }
+
+  Future<CommunityProfileModel> profile(String userName) async {
+    final r = await ApiHttp.get(Uri.parse(
+        '$_base/api/community/profile/${Uri.encodeComponent(userName)}'));
+    check(r);
+    return CommunityProfileModel.fromJson(
+        jsonDecode(r.body) as Map<String, dynamic>);
   }
 
   Future<List<CommunityPostModel>> userPosts(String userName) async {
-    final r = await http.get(Uri.parse('$_base/api/community/user/${Uri.encodeComponent(userName)}'));
+    final r = await ApiHttp.get(Uri.parse(
+        '$_base/api/community/user/${Uri.encodeComponent(userName)}'));
     check(r);
     final lista = jsonDecode(r.body) as List<dynamic>;
-    return lista.map((e) => CommunityPostModel.fromJson(e as Map<String, dynamic>)).toList();
+    return lista
+        .map((e) => CommunityPostModel.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
-  // ─── Follow ──────────────────────────────────────────────────────────────
-
-  Future<void> follow(String target) async {
-    final r = await http.post(
-      Uri.parse('$_base/api/community/follow/${Uri.encodeComponent(target)}?follower=${Uri.encodeComponent(_userName)}'),
+  Future<String> uploadSelfie(List<int> bytes, String filename) async {
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse('$_base/api/community/selfie-upload'),
     );
+    final token = await LocalStore.instance.getAccessToken();
+    if (token != null && token.isNotEmpty) {
+      request.headers['Authorization'] = 'Bearer $token';
+    }
+    request.files.add(
+      http.MultipartFile.fromBytes('file', bytes, filename: filename),
+    );
+    final streamed = await request.send().timeout(const Duration(seconds: 30));
+    final r = await http.Response.fromStream(streamed);
     check(r);
+    final data = jsonDecode(r.body) as Map<String, dynamic>;
+    return data['selfieUrl'] as String? ?? '';
   }
 
-  Future<void> unfollow(String target) async {
-    final r = await http.delete(
-      Uri.parse('$_base/api/community/follow/${Uri.encodeComponent(target)}?follower=${Uri.encodeComponent(_userName)}'),
+  Future<CommunityPostModel> shareWorkout({
+    required Map<String, dynamic> workoutJson,
+    String? county,
+    String? selfieUrl,
+  }) async {
+    final r = await ApiHttp.post(
+      Uri.parse('$_base/api/community/share'),
+      body: jsonEncode({
+        'workout': workoutJson,
+        if (county != null && county.isNotEmpty) 'county': county,
+        if (selfieUrl != null && selfieUrl.isNotEmpty) 'selfieUrl': selfieUrl,
+      }),
     );
     check(r);
-  }
-
-  Future<Map<String, dynamic>> follows() async {
-    final r = await http.get(
-      Uri.parse('$_base/api/community/follows?userName=${Uri.encodeComponent(_userName)}'),
-    );
-    check(r);
-    return jsonDecode(r.body) as Map<String, dynamic>;
+    return CommunityPostModel.fromJson(
+        jsonDecode(r.body) as Map<String, dynamic>);
   }
 }
