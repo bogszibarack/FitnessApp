@@ -372,8 +372,7 @@ namespace FitnessBackend.Services
         public static List<ChoiceOption> Languages() =>
         [
             new() { Id = "hu", Label = "Magyar" },
-            new() { Id = "en", Label = "English" },
-            new() { Id = "de", Label = "Deutsch" }
+            new() { Id = "en", Label = "English" }
         ];
 
         public static object UnitsOptions() => new
@@ -514,7 +513,7 @@ namespace FitnessBackend.Services
             unit.Equals("inch", StringComparison.OrdinalIgnoreCase);
 
         private static bool IsValidLanguage(string language) =>
-            new[] { "hu", "en", "de" }.Any(n => n.Equals(language, StringComparison.OrdinalIgnoreCase));
+            new[] { "hu", "en" }.Any(n => n.Equals(language, StringComparison.OrdinalIgnoreCase));
 
         private static bool IsValidTheme(string mode) =>
             new[] { "vilagos", "sotet", "rendszer" }.Any(t => t.Equals(mode, StringComparison.OrdinalIgnoreCase));
