@@ -340,6 +340,9 @@ namespace FitnessBackend.Controllers
             var auth = CurrentUser.RequireUser(this, out var userName);
             if (auth != null) return auth;
 
+            var user = await _community.FindUserByNameAsync(userName);
+            if (user == null) return Unauthorized(new { error = "Bejelentkezés szükséges." });
+
             if (!CommunityDbService.TryParsePostId(postId, out var id))
                 return NotFound("Nincs ilyen poszt.");
 
