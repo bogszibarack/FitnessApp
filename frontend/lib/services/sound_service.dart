@@ -62,4 +62,13 @@ class SoundService {
   }
 
   Future<void> edzesBefejezesHang() => playWorkoutCompleteSound();
+
+  Future<void> playRestCompleteSound() async {
+    if (!_soundEnabled) return;
+    await HapticFeedback.mediumImpact();
+    await Future<void>.delayed(const Duration(milliseconds: 60));
+    await SystemSound.play(SystemSoundType.click);
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+    await HapticFeedback.lightImpact();
+  }
 }

@@ -144,25 +144,29 @@ class _UserProfileScreenState extends State<UserProfileScreen>
               : Column(
                   children: [
                     _buildProfilFejlec(sajatProfil, p),
-                    TabBar(
-                      controller: _tabCtrl,
-                      labelColor: const Color(0xFF1E88E5),
-                      unselectedLabelColor: Colors.grey.shade600,
-                      indicatorColor: const Color(0xFF1E88E5),
-                      tabs: [
-                        Tab(text: 'Edzések (${p.workoutHistory.length})'),
-                        Tab(text: 'Megosztások (${p.posts.length})'),
-                      ],
-                    ),
-                    Expanded(
-                      child: TabBarView(
+                    if (p.isPrivate)
+                      Expanded(child: _buildPrivatUzenet(p, sajatProfil))
+                    else ...[
+                      TabBar(
                         controller: _tabCtrl,
-                        children: [
-                          _buildHistory(p.workoutHistory),
-                          _buildPosts(p.posts),
+                        labelColor: const Color(0xFF1E88E5),
+                        unselectedLabelColor: Colors.grey.shade600,
+                        indicatorColor: const Color(0xFF1E88E5),
+                        tabs: [
+                          Tab(text: 'Edzések (${p.workoutHistory.length})'),
+                          Tab(text: 'Megosztások (${p.posts.length})'),
                         ],
                       ),
-                    ),
+                      Expanded(
+                        child: TabBarView(
+                          controller: _tabCtrl,
+                          children: [
+                            _buildHistory(p.workoutHistory),
+                            _buildPosts(p.posts),
+                          ],
+                        ),
+                      ),
+                    ],
                   ],
                 ),
     );
@@ -197,11 +201,16 @@ class _UserProfileScreenState extends State<UserProfileScreen>
                     const SizedBox(height: 6),
                     Row(
                       children: [
-                        _ProfilStat(
-                            szam: p.workoutHistory.length, cimke: 'edzés'),
-                        const SizedBox(width: 16),
-                        _ProfilStat(szam: p.postCount, cimke: 'megosztás'),
-                        const SizedBox(width: 16),
+                        if (!p.isPrivate) ...[
+                          _ProfilStat(
+                              szam: p.workoutHistory.length, cimke: 'edzés'),
+                          const SizedBox(width: 16),
+                          _ProfilStat(szam: p.postCount, cimke: 'megosztás'),
+                          const SizedBox(width: 16),
+                        ] else ...[
+                          _ProfilStat(szam: p.postCount, cimke: 'megosztás (rejtett)'),
+                          const SizedBox(width: 16),
+                        ],
                         _ProfilStat(szam: p.friendsCount, cimke: 'barát'),
                       ],
                     ),
@@ -293,6 +302,38 @@ class _UserProfileScreenState extends State<UserProfileScreen>
               ),
           ],
         ],
+      ),
+    );
+  }
+
+  Widget _buildPrivatUzenet(CommunityProfileModel p, bool sajatProfil) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.lock_outline, size: 56, color: Colors.grey.shade400),
+            const SizedBox(height: 16),
+            Text(
+              p.privateMessage ?? 'Ez a profil privát.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 15,
+                color: Colors.grey.shade700,
+                height: 1.4,
+              ),
+            ),
+            if (!sajatProfil && p.friendStatus != 'friends') ...[
+              const SizedBox(height: 20),
+              Text(
+                'Jelöld barátnak, hogy lásd az edzéseit és megosztásait.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }

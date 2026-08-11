@@ -180,7 +180,9 @@ class ExerciseInfoSor extends StatelessWidget {
 
 /// Sorozat fejléc.
 class SorozatFejlec extends StatelessWidget {
-  const SorozatFejlec({super.key});
+  const SorozatFejlec({super.key, this.trackRpe = false});
+
+  final bool trackRpe;
 
   @override
   Widget build(BuildContext context) {
@@ -192,8 +194,187 @@ class SorozatFejlec extends StatelessWidget {
           const Expanded(flex: 2, child: Text('ELŐZŐ', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11))),
           const Expanded(child: Text('KG', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11), textAlign: TextAlign.center)),
           const Expanded(child: Text('ISM', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11), textAlign: TextAlign.center)),
+          if (trackRpe)
+            const SizedBox(width: 36, child: Text('RPE', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11), textAlign: TextAlign.center)),
           const SizedBox(width: 44),
         ],
+      ),
+    );
+  }
+}
+
+/// RPE választó (1–10) — alsó lap vagy sor gomb.
+Future<int?> rpeValasztoMutat(BuildContext context, {int? jelenlegi}) {
+  return showModalBottomSheet<int>(
+    context: context,
+    backgroundColor: AppColors.felulet,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    builder: (ctx) {
+      return SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'RPE — erőfeszítés',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.szoveg),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '1 = nagyon könnyű · 10 = maximális',
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                alignment: WrapAlignment.center,
+                children: List.generate(10, (i) {
+                  final ertek = i + 1;
+                  final kivalasztott = jelenlegi == ertek;
+                  return InkWell(
+                    onTap: () {
+                      Haptics.selection();
+                      Navigator.pop(ctx, ertek);
+                    },
+                    borderRadius: BorderRadius.circular(10),
+                    child: Container(
+                      width: 52,
+                      height: 44,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: kivalasztott
+                            ? const Color(0xFF8E24AA).withValues(alpha: 0.15)
+                            : AppColors.halvanyKitoltes,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: kivalasztott ? const Color(0xFF8E24AA) : AppColors.szegely,
+                          width: kivalasztott ? 1.5 : 1,
+                        ),
+                      ),
+                      child: Text(
+                        '$ertek',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                          color: kivalasztott ? const Color(0xFF8E24AA) : AppColors.szoveg,
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              ),
+              if (jelenlegi != null && jelenlegi > 0) ...[
+                const SizedBox(height: 12),
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, 0),
+                  child: const Text('RPE törlése'),
+                ),
+              ],
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
+
+/// Pihenő időzítő sáv — alsó overlay a képernyőn.
+class PihenoIdozitoBanner extends StatelessWidget {
+  const PihenoIdozitoBanner({
+    super.key,
+    required this.hatralevoMp,
+    required this.osszesMp,
+    required this.onKihagyas,
+  });
+
+  final int hatralevoMp;
+  final int osszesMp;
+  final VoidCallback onKihagyas;
+
+  String get _idoSzoveg {
+    final perc = hatralevoMp ~/ 60;
+    final mp = hatralevoMp % 60;
+    return '${perc.toString().padLeft(2, '0')}:${mp.toString().padLeft(2, '0')}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = osszesMp > 0 ? hatralevoMp / osszesMp : 0.0;
+
+    return Material(
+      elevation: 8,
+      color: Colors.transparent,
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.felulet,
+          border: Border(top: BorderSide(color: AppColors.szegely)),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.arnyek,
+              blurRadius: 12,
+              offset: const Offset(0, -4),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
+        child: SafeArea(
+          top: false,
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF00897B).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.timer_rounded, color: Color(0xFF00897B), size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Pihenő',
+                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.w500),
+                    ),
+                    Text(
+                      _idoSzoveg,
+                      style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Color(0xFF00897B)),
+                    ),
+                    const SizedBox(height: 6),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: progress.clamp(0.0, 1.0),
+                        minHeight: 4,
+                        backgroundColor: AppColors.halvanyKitoltes,
+                        color: const Color(0xFF00897B),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              TextButton(
+                onPressed: () {
+                  Haptics.light();
+                  onKihagyas();
+                },
+                child: const Text('Kihagyás'),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -207,12 +388,19 @@ class SorozatSor extends StatefulWidget {
     required this.onPipa,
     required this.onMent,
     this.onTorles,
+    this.trackRpe = false,
+    this.onRpeMent,
+    this.onSorozatKesz,
   });
 
   final LoggedSetModel sorozat;
-  final Future<void> Function(double suly, int ismetles) onPipa;
-  final Future<void> Function(double suly, int ismetles) onMent;
+  final Future<void> Function(double suly, int ismetles, {int? rpe}) onPipa;
+  final Future<void> Function(double suly, int ismetles, {int? rpe}) onMent;
   final VoidCallback? onTorles;
+  final bool trackRpe;
+  final Future<void> Function(int rpe)? onRpeMent;
+  /// Meghívódik, ha a sorozat most lett készre pipálva (nem visszavonás).
+  final VoidCallback? onSorozatKesz;
 
   @override
   State<SorozatSor> createState() => _SorozatSorState();
@@ -272,9 +460,37 @@ class _SorozatSorState extends State<SorozatSor> {
     if (_mentes) return;
     _mentes = true;
     try {
-      await widget.onMent(_sulyErtek(), _ismErtek());
+      await widget.onMent(_sulyErtek(), _ismErtek(), rpe: widget.sorozat.rpe > 0 ? widget.sorozat.rpe : null);
     } finally {
       _mentes = false;
+    }
+  }
+
+  Future<void> _rpeValasztas() async {
+    if (!widget.trackRpe || widget.onRpeMent == null) return;
+    final valasztott = await rpeValasztoMutat(context, jelenlegi: widget.sorozat.rpe > 0 ? widget.sorozat.rpe : null);
+    if (valasztott == null) return;
+    await widget.onRpeMent!(valasztott);
+  }
+
+  Future<void> _pipaNyomas() async {
+    final suly = _sulyErtek();
+    final prDetek = _prErzekeles(suly);
+    final keszrePipal = !widget.sorozat.isDone;
+    Haptics.light();
+    await _mentesHaKell();
+    await widget.onPipa(
+      suly,
+      _ismErtek(),
+      rpe: widget.sorozat.rpe > 0 ? widget.sorozat.rpe : null,
+    );
+    if (prDetek) await _prCelebracio(suly);
+    if (keszrePipal) {
+      widget.onSorozatKesz?.call();
+      if (widget.trackRpe && widget.sorozat.rpe <= 0 && widget.onRpeMent != null && mounted) {
+        final rpe = await rpeValasztoMutat(context);
+        if (rpe != null && rpe > 0) await widget.onRpeMent!(rpe);
+      }
     }
   }
 
@@ -366,18 +582,31 @@ class _SorozatSorState extends State<SorozatSor> {
                 onSubmitted: (_) => _mentesHaKell(),
               ),
             ),
+            if (widget.trackRpe)
+              SizedBox(
+                width: 36,
+                child: InkWell(
+                  onTap: _rpeValasztas,
+                  borderRadius: BorderRadius.circular(6),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: Text(
+                      s.rpe > 0 ? '${s.rpe}' : '–',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: s.rpe > 0 ? const Color(0xFF8E24AA) : Colors.grey.shade500,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             SizedBox(
               width: 44,
               child: IconButton(
                 padding: EdgeInsets.zero,
-                onPressed: () async {
-                  final suly = _sulyErtek();
-                  final prDetek = _prErzekeles(suly);
-                  Haptics.light();
-                  await _mentesHaKell();
-                  await widget.onPipa(suly, _ismErtek());
-                  if (prDetek) await _prCelebracio(suly);
-                },
+                onPressed: _pipaNyomas,
                 icon: Icon(
                   kesz ? Icons.check_circle : Icons.check_circle_outline,
                   color: kesz ? Colors.green.shade600 : Colors.grey.shade400,
@@ -611,12 +840,16 @@ class InlineGyakorlatPanel extends StatefulWidget {
     required this.exerciseName,
     required this.onFrissult,
     this.csakSorozatok = false,
+    this.trackRpe = false,
+    this.onSorozatKesz,
   });
 
   final String exerciseId;
   final String exerciseName;
   final VoidCallback onFrissult;
   final bool csakSorozatok;
+  final bool trackRpe;
+  final VoidCallback? onSorozatKesz;
 
   @override
   State<InlineGyakorlatPanel> createState() => _InlineGyakorlatPanelState();
@@ -689,17 +922,31 @@ class _InlineGyakorlatPanelState extends State<InlineGyakorlatPanel> {
           ),
           ExerciseInfoSor(meta: _meta!),
         ],
-        const SorozatFejlec(),
+        SorozatFejlec(trackRpe: widget.trackRpe),
         ...gyakorlat.sets.map((s) => SorozatSor(
               key: ValueKey('${s.setNumber}-${s.isDone}'),
               sorozat: s,
-              onMent: (suly, ism) => _workoutService.updateSet(
-                widget.exerciseId,
-                s.setNumber,
-                weight: suly,
-                reps: ism,
-              ),
-              onPipa: (suly, ism) async {
+              trackRpe: widget.trackRpe,
+              onMent: (suly, ism, {rpe}) async {
+                await _workoutService.updateSet(
+                  widget.exerciseId,
+                  s.setNumber,
+                  weight: suly,
+                  reps: ism,
+                  rpe: rpe,
+                );
+              },
+              onRpeMent: (rpe) async {
+                await _workoutService.updateSet(
+                  widget.exerciseId,
+                  s.setNumber,
+                  weight: s.weight,
+                  reps: s.reps,
+                  rpe: rpe,
+                );
+                await _frissit();
+              },
+              onPipa: (suly, ism, {rpe}) async {
                 if (s.isDone) {
                   await _workoutService.uncompleteSet(widget.exerciseId, s.setNumber);
                 } else {
@@ -708,10 +955,12 @@ class _InlineGyakorlatPanelState extends State<InlineGyakorlatPanel> {
                     s.setNumber,
                     weight: suly,
                     reps: ism,
+                    rpe: rpe,
                   );
                 }
                 await _frissit();
               },
+              onSorozatKesz: widget.onSorozatKesz,
               onTorles: () async {
                 await _workoutService.deleteSet(widget.exerciseId, s.setNumber);
                 await _frissit();

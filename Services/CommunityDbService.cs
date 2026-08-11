@@ -50,10 +50,11 @@ namespace FitnessBackend.Services
 
             _db.CommunityPosts.Add(entity);
             await _db.SaveChangesAsync();
-            return (await MapPostAsync(entity.Id), null);
+            return (await MapPostAsync(entity.Id, user), null);
         }
 
-        public async Task<List<CommunityPost>> GetFeedAsync(string? countyId = null, string? region = null)
+        public async Task<List<CommunityPost>> GetFeedAsync(
+            AppUser? viewer = null, string? countyId = null, string? region = null)
         {
             var q = _db.CommunityPosts.AsNoTracking().AsQueryable();
 
@@ -77,13 +78,14 @@ namespace FitnessBackend.Services
             var list = new List<CommunityPost>();
             foreach (var id in ids)
             {
-                var mapped = await MapPostAsync(id);
+                var mapped = await MapPostAsync(id, viewer, hidePrivateFromFeed: true);
                 if (mapped != null) list.Add(mapped);
             }
             return list;
         }
 
-        public async Task<CommunityPost?> GetPostByGuidAsync(Guid id) => await MapPostAsync(id);
+        public async Task<CommunityPost?> GetPostByGuidAsync(Guid id, AppUser? viewer = null) =>
+            await MapPostAsync(id, viewer);
 
         public static string SanitizeFileName(string name)
         {
@@ -109,7 +111,7 @@ namespace FitnessBackend.Services
                 await _db.SaveChangesAsync();
             }
 
-            return (await MapPostAsync(postId), null);
+            return (await MapPostAsync(postId, user), null);
         }
 
         public async Task<(CommunityPost? Post, string? Error)> UnlikeAsync(Guid postId, AppUser user)
@@ -122,7 +124,7 @@ namespace FitnessBackend.Services
                 await _db.SaveChangesAsync();
             }
 
-            var post = await MapPostAsync(postId);
+            var post = await MapPostAsync(postId, user);
             return post == null ? (null, "Nincs ilyen poszt.") : (post, null);
         }
 
@@ -382,9 +384,13 @@ namespace FitnessBackend.Services
             if (user == null) return null;
 
             var settings = UserSettingsStore.GetOrCreate(user.Username);
+            var privacy = settings.Privacy;
+            var isOwner = viewer != null && viewer.Id == user.Id;
             var status = viewer == null
                 ? "none"
                 : await GetFriendStatusAsync(viewer.Id, user.Id);
+            var isFriend = status == "friends";
+            var canSeeFull = CanSeeFullProfile(privacy, isOwner, isFriend);
 
             Guid? incomingRequestId = null;
             if (viewer != null && status == "incoming")
@@ -396,50 +402,112 @@ namespace FitnessBackend.Services
                     .FirstOrDefaultAsync();
             }
 
-            var postIds = await _db.CommunityPosts.AsNoTracking()
-                .Where(p => p.UserId == user.Id)
-                .OrderByDescending(p => p.SharedAt)
-                .Select(p => p.Id)
-                .ToListAsync();
+            var postCount = await _db.CommunityPosts.CountAsync(p => p.UserId == user.Id);
 
             var posts = new List<CommunityPost>();
-            foreach (var id in postIds)
+            if (canSeeFull)
             {
-                var mapped = await MapPostAsync(id);
-                if (mapped != null) posts.Add(mapped);
+                var postIds = await _db.CommunityPosts.AsNoTracking()
+                    .Where(p => p.UserId == user.Id)
+                    .OrderByDescending(p => p.SharedAt)
+                    .Select(p => p.Id)
+                    .ToListAsync();
+
+                foreach (var id in postIds)
+                {
+                    var mapped = await MapPostAsync(id, viewer);
+                    if (mapped != null) posts.Add(mapped);
+                }
             }
 
             var friendsCount = await _db.FriendRequests.CountAsync(f =>
                 f.Status == FriendRequestStatus.Accepted &&
                 (f.FromUserId == user.Id || f.ToUserId == user.Id));
 
-            var history = Controllers.WorkoutController.HistoryForUserPublic(user.Username);
+            var history = canSeeFull
+                ? Controllers.WorkoutController.HistoryForUserPublic(user.Username)
+                : new List<WorkoutSession>();
+
+            var county = ResolveCounty(privacy, user.County, isOwner);
+            var isPrivate = !canSeeFull;
 
             return new
             {
                 userId = user.Id,
                 userName = user.Username,
-                email = user.Email,
-                county = user.County,
+                email = canSeeFull ? user.Email : "",
+                county,
                 displayName = string.IsNullOrWhiteSpace(settings.Profile.Name)
                     ? user.Username
                     : settings.Profile.Name,
-                bio = settings.Profile.Bio ?? "",
+                bio = canSeeFull ? (settings.Profile.Bio ?? "") : "",
                 profileImageUrl = settings.Profile.ImageUrl ?? "",
                 friendStatus = status,
                 incomingRequestId,
                 friendsCount,
-                postCount = posts.Count,
+                postCount,
                 posts,
                 workoutHistory = history,
+                isPrivate,
+                privateMessage = isPrivate
+                    ? "Ez a profil privát. Csak barátok láthatják az edzéselőzményeket és megosztásokat."
+                    : (string?)null,
             };
         }
 
-        private async Task<CommunityPost?> MapPostAsync(Guid id)
+        private static bool CanSeeFullProfile(PrivacySettings privacy, bool isOwner, bool isFriend)
+        {
+            if (isOwner) return true;
+
+            return privacy.ProfileVisibility.ToLowerInvariant() switch
+            {
+                "privat" => isFriend,
+                "kovetok" => isFriend,
+                "mindenki" => true,
+                "kozosseg" => true,
+                _ => isFriend,
+            };
+        }
+
+        private static bool CanSeeSelfie(PrivacySettings privacy, bool isOwner, bool isFriend)
+        {
+            if (isOwner) return true;
+            if (!privacy.SelfieFollowersOnly) return true;
+            return isFriend;
+        }
+
+        private static string ResolveCounty(PrivacySettings privacy, string county, bool isOwner)
+        {
+            if (isOwner || privacy.ShowCounty) return county ?? "";
+            return "";
+        }
+
+        private async Task<(bool IsOwner, bool IsFriend)> ViewerRelationToPostOwnerAsync(
+            AppUser? viewer, string postOwnerUserName, Guid postOwnerUserId)
+        {
+            if (viewer == null) return (false, false);
+            if (viewer.Username.Equals(postOwnerUserName, StringComparison.OrdinalIgnoreCase))
+                return (true, false);
+
+            var isFriend = await GetFriendStatusAsync(viewer.Id, postOwnerUserId) == "friends";
+            return (false, isFriend);
+        }
+
+        private async Task<CommunityPost?> MapPostAsync(
+            Guid id, AppUser? viewer = null, bool hidePrivateFromFeed = false)
         {
             var p = await _db.CommunityPosts.AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == id);
             if (p == null) return null;
+
+            var ownerSettings = UserSettingsStore.GetOrCreate(p.UserName);
+            var (isOwner, isFriend) = await ViewerRelationToPostOwnerAsync(viewer, p.UserName, p.UserId);
+
+            if (hidePrivateFromFeed &&
+                !CanSeeFullProfile(ownerSettings.Privacy, isOwner, isFriend))
+            {
+                return null;
+            }
 
             var likes = await _db.PostLikes.AsNoTracking()
                 .Where(l => l.PostId == id)
@@ -471,13 +539,18 @@ namespace FitnessBackend.Services
                 workout = new WorkoutSession();
             }
 
+            var selfieUrl = CanSeeSelfie(ownerSettings.Privacy, isOwner, isFriend)
+                ? (p.SelfieUrl ?? "")
+                : "";
+            var county = ResolveCounty(ownerSettings.Privacy, p.County, isOwner);
+
             return new CommunityPost
             {
                 Id = p.Id.ToString("N"),
                 UserName = p.UserName,
-                County = p.County,
+                County = county,
                 Region = p.Region,
-                SelfieUrl = p.SelfieUrl,
+                SelfieUrl = selfieUrl,
                 ProfileImageUrl = ProfileImageFor(p.UserName),
                 SharedAt = p.SharedAt,
                 Workout = workout,

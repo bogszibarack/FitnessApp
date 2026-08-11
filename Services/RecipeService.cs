@@ -94,10 +94,14 @@ namespace FitnessBackend.Services
             return ($"Kedvenc torolve: {item.Name}", null);
         }
 
-        public static async Task<(object? Result, string? Error)> AddToLogAsync(string recipeId, AddRecipeRequest request)
+        public static async Task<(object? Result, string? Error)> AddToLogAsync(
+            string userName, string recipeId, AddRecipeRequest request)
         {
+            if (string.IsNullOrWhiteSpace(userName))
+                return (null, "Bejelentkezes szukseges.");
+
             request.RecipeId = recipeId;
-            var (log, entry, err) = await NutritionStore.AddRecipeAsync(request);
+            var (log, entry, err) = await NutritionStore.AddRecipeAsync(userName, request);
             if (err != null)
                 return (null, err);
 

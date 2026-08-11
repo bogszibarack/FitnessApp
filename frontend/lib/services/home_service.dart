@@ -1,6 +1,7 @@
 import '../models/daily_health_data.dart';
 import '../models/nutrition_models.dart';
-import 'apple_health_service.dart';
+import '../utils/platform_utils.dart';
+import 'device_health_service.dart';
 import 'local_store.dart';
 import 'nutrition_service.dart';
 
@@ -33,7 +34,7 @@ class HomeService {
   HomeService._();
   static final HomeService instance = HomeService._();
 
-  final _health = AppleHealthService.instance;
+  final _health = DeviceHealthService.instance;
   final _nutrition = NutritionService.instance;
 
   Future<HomeLoadResult> loadToday() async {
@@ -75,9 +76,7 @@ class HomeService {
     var source = 'backend';
 
     if (_health.isSupported) {
-      // iOS-on a hasPermissions() megbízhatatlan (mindig false-t ad vissza).
-      // Ehelyett a SharedPreferences-ben tárolt health_enabled flagot nézzük.
-      final healthEnabled = await LocalStore.instance.getHealthEnabled();
+      final healthEnabled = await _isDeviceHealthEnabled();
 
       if (healthEnabled) {
         try {
@@ -89,14 +88,14 @@ class HomeService {
           exerciseMin = health.exerciseMinutes;
           standHours = health.standHours;
           source = 'merged';
-          await LocalStore.instance.setHealthEnabled(true);
+          await _recordHealthSync();
         } catch (_) {
           permissionNeeded = true;
-          source = 'apple_health';
+          source = isAppleHealthPlatform ? 'apple_health' : 'health_connect';
         }
       } else {
         permissionNeeded = true;
-        source = 'apple_health';
+        source = isAppleHealthPlatform ? 'apple_health' : 'health_connect';
       }
     }
 
@@ -128,5 +127,25 @@ class HomeService {
       source: source,
       permissionNeeded: permissionNeeded,
     );
+  }
+
+  Future<bool> _isDeviceHealthEnabled() async {
+    if (isAppleHealthPlatform) {
+      return await LocalStore.instance.getHealthEnabled();
+    }
+    if (isHealthConnectPlatform) {
+      return await LocalStore.instance.getGoogleFitEnabled();
+    }
+    return false;
+  }
+
+  Future<void> _recordHealthSync() async {
+    if (isAppleHealthPlatform) {
+      await LocalStore.instance.setAppleHealthLastSync(DateTime.now());
+      await LocalStore.instance.setAppleHealthLastError(null);
+    } else if (isHealthConnectPlatform) {
+      await LocalStore.instance.setGoogleFitLastSync(DateTime.now());
+      await LocalStore.instance.setGoogleFitLastError(null);
+    }
   }
 }

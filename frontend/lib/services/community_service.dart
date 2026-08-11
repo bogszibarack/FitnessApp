@@ -52,6 +52,22 @@ class CommunityService {
         .toList();
   }
 
+  Future<List<CountyInfoModel>> counties() async {
+    final r = await ApiHttp.get(Uri.parse('$_base/api/community/counties'));
+    check(r);
+    final lista = jsonDecode(r.body) as List<dynamic>;
+    return lista
+        .map((e) => CountyInfoModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<List<String>> regions() async {
+    final r = await ApiHttp.get(Uri.parse('$_base/api/community/regions'));
+    check(r);
+    final lista = jsonDecode(r.body) as List<dynamic>;
+    return lista.map((e) => e.toString()).toList();
+  }
+
   // ─── Like ─────────────────────────────────────────────────────────────────
 
   Future<CommunityPostModel> like(String postId) async {

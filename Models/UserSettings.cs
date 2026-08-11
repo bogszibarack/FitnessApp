@@ -103,7 +103,7 @@ namespace FitnessBackend.Models
 
     public class PrivacySettings
     {
-        public string ProfileVisibility { get; set; } = "kozosseg";
+        public string ProfileVisibility { get; set; } = "privat";
         public bool ShareWorkoutsByDefault { get; set; } = true;
         public bool ShowCounty { get; set; } = true;
         public bool SelfieFollowersOnly { get; set; } = false;

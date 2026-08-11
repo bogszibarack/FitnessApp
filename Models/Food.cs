@@ -53,6 +53,7 @@ namespace FitnessBackend.Models
 
     public class DailyNutritionSession
     {
+        public string UserName { get; set; } = "";
         public DateTime Date { get; set; } = DateTime.Today;
         public double TargetCalories { get; set; } = 2000;
         public List<LoggedFood> EatenFoods { get; set; } = new();
@@ -62,5 +63,37 @@ namespace FitnessBackend.Models
         public double TotalCarbs => Math.Round(EatenFoods.Sum(f => f.CalculatedCarbs), 1);
         public double TotalFat => Math.Round(EatenFoods.Sum(f => f.CalculatedFat), 1);
         public double RemainingCalories => Math.Max(0, TargetCalories - TotalCalories);
+    }
+
+    /// <summary>User-created reusable food (per 100 g macros).</summary>
+    public class CustomFood
+    {
+        public string Id { get; set; } = "";
+        public string UserName { get; set; } = "";
+        public string Name { get; set; } = "";
+        public double Calories { get; set; }
+        public double Protein { get; set; }
+        public double Carbs { get; set; }
+        public double Fat { get; set; }
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        public FoodItem ToFoodItem() => new()
+        {
+            Id = Id,
+            Name = Name,
+            Calories = Calories,
+            Protein = Protein,
+            Carbs = Carbs,
+            Fat = Fat,
+        };
+    }
+
+    public class CustomFoodRequest
+    {
+        public string Name { get; set; } = "";
+        public double Calories { get; set; }
+        public double Protein { get; set; }
+        public double Carbs { get; set; }
+        public double Fat { get; set; }
     }
 }

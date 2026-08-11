@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <array name="health_permissions">
+        <item>androidx.health.permission.READ_STEPS</item>
+        <item>androidx.health.permission.READ_DISTANCE</item>
+        <item>androidx.health.permission.READ_TOTAL_CALORIES_BURNED</item>
+        <item>androidx.health.permission.READ_ACTIVE_CALORIES_BURNED</item>
+        <item>androidx.health.permission.READ_EXERCISE</item>
+        <item>androidx.health.permission.READ_HEALTH_DATA_HISTORY</item>
+    </array>
+</resources>

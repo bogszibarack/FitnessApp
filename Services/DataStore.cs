@@ -12,6 +12,7 @@ namespace FitnessBackend.Services
         private static readonly string ActiveWorkoutFile = Path.Combine(DataDir, "aktiv_edzes.json");
         private static readonly string PlansFile = Path.Combine(DataDir, "rutinok.json");
         private static readonly string NutritionFile = Path.Combine(DataDir, "nutrition_naplok.json");
+        private static readonly string CustomFoodsFile = Path.Combine(DataDir, "custom_foods.json");
         private static readonly string AccountsFile = Path.Combine(DataDir, "felhasznalok.json");
         private static readonly string ProgressFile = Path.Combine(DataDir, "progresszio.json");
         private static readonly string StreakFile = Path.Combine(DataDir, "naplo_streak.json");
@@ -154,11 +155,45 @@ namespace FitnessBackend.Services
 
                 LoadAccounts();
                 LoadUserSettings();
+                LoadCustomFoods();
             }
             catch (Exception ex)
             {
                 LastError = $"Betöltés: {ex.Message}";
                 Console.WriteLine($"[DataStore] Betöltési hiba: {ex.Message}");
+            }
+        }
+
+        public static void LoadCustomFoods()
+        {
+            try
+            {
+                var path = ReadableFile(CustomFoodsFile);
+                if (path == null) return;
+                var json = File.ReadAllText(path);
+                var list = JsonSerializer.Deserialize<List<CustomFood>>(json, Opts);
+                if (list == null) return;
+                NutritionStore.CustomFoods.Clear();
+                NutritionStore.CustomFoods.AddRange(list);
+                Console.WriteLine($"[DataStore] Loaded {list.Count} custom foods");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[DataStore] Custom foods load error: {ex.Message}");
+            }
+        }
+
+        public static void SaveCustomFoods()
+        {
+            try
+            {
+                var json = JsonSerializer.Serialize(NutritionStore.CustomFoods, Opts);
+                SafeWrite(CustomFoodsFile, json);
+            }
+            catch (Exception ex)
+            {
+                LastError = $"Custom foods mentés: {ex.Message}";
+                Console.WriteLine($"[DataStore] Custom foods save error: {ex.Message}");
             }
         }
 

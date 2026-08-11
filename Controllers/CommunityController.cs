@@ -63,8 +63,11 @@ namespace FitnessBackend.Controllers
 
         [HttpGet("feed")]
         [AllowAnonymous]
-        public async Task<ActionResult<List<CommunityPost>>> Feed() =>
-            Ok(await _community.GetFeedAsync());
+        public async Task<ActionResult<List<CommunityPost>>> Feed()
+        {
+            var viewer = await OptionalViewerAsync();
+            return Ok(await _community.GetFeedAsync(viewer));
+        }
 
         [HttpGet("feed/county/{countyId}")]
         [AllowAnonymous]
@@ -72,13 +75,17 @@ namespace FitnessBackend.Controllers
         {
             if (CommunityStore.FindCounty(countyId) == null)
                 return NotFound("Ismeretlen megye.");
-            return Ok(await _community.GetFeedAsync(countyId: countyId));
+            var viewer = await OptionalViewerAsync();
+            return Ok(await _community.GetFeedAsync(viewer, countyId: countyId));
         }
 
         [HttpGet("feed/region/{region}")]
         [AllowAnonymous]
-        public async Task<ActionResult<List<CommunityPost>>> FeedByRegion(string region) =>
-            Ok(await _community.GetFeedAsync(region: region));
+        public async Task<ActionResult<List<CommunityPost>>> FeedByRegion(string region)
+        {
+            var viewer = await OptionalViewerAsync();
+            return Ok(await _community.GetFeedAsync(viewer, region: region));
+        }
 
         [HttpPost("share")]
         [Authorize]
@@ -244,7 +251,8 @@ namespace FitnessBackend.Controllers
         [AllowAnonymous]
         public async Task<ActionResult<List<CommunityPost>>> UserPosts(string userName)
         {
-            var feed = await _community.GetFeedAsync();
+            var viewer = await OptionalViewerAsync();
+            var feed = await _community.GetFeedAsync(viewer);
             return Ok(feed
                 .Where(p => p.UserName.Equals(userName, StringComparison.OrdinalIgnoreCase))
                 .ToList());
@@ -258,7 +266,8 @@ namespace FitnessBackend.Controllers
         {
             if (!CommunityDbService.TryParsePostId(postId, out var id))
                 return NotFound("Nincs ilyen poszt.");
-            var post = await _community.GetPostByGuidAsync(id);
+            var viewer = await OptionalViewerAsync();
+            var post = await _community.GetPostByGuidAsync(id, viewer);
             if (post == null) return NotFound("Nincs ilyen poszt.");
             return Ok(post);
         }
@@ -333,7 +342,7 @@ namespace FitnessBackend.Controllers
             if (!CommunityDbService.TryParsePostId(postId, out var id))
                 return NotFound("Nincs ilyen poszt.");
 
-            var post = await _community.GetPostByGuidAsync(id);
+            var post = await _community.GetPostByGuidAsync(id, user);
             if (post == null) return NotFound("Nincs ilyen poszt.");
             if (post.Workout.Exercises.Count == 0)
                 return BadRequest("A poszton nincs gyakorlat, rutin nem mentheto.");
@@ -373,6 +382,13 @@ namespace FitnessBackend.Controllers
                 followingCount = names.Count,
                 followerCount = names.Count,
             });
+        }
+
+        private async Task<AppUser?> OptionalViewerAsync()
+        {
+            var userName = CurrentUser.UserName(User);
+            if (string.IsNullOrEmpty(userName)) return null;
+            return await _community.FindUserByNameAsync(userName);
         }
     }
 }

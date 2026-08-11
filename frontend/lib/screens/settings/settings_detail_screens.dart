@@ -3,8 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../config/api_config.dart';
+import '../../l10n/app_strings.dart';
+import '../../l10n/locale_controller.dart';
 import '../../models/beallitas_models.dart';
-import '../../services/apple_health_service.dart';
+import '../../models/integration_status.dart';
+import '../../services/integrations_service.dart';
+import '../../services/strava_service.dart';
+import '../../utils/platform_utils.dart';
 import '../../services/settings_service.dart';
 import '../../services/sound_service.dart';
 import '../../theme/app_theme.dart';
@@ -44,7 +49,7 @@ class _DetailScaffold extends StatelessWidget {
                 onPressed: mentesBetolt ? null : mentes,
                 child: mentesBetolt
                     ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Text('Kész', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: Color(0xFF1E88E5))),
+                    : Text(AppStrings.t('done'), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: Color(0xFF1E88E5))),
               ),
             ),
         ],
@@ -689,7 +694,7 @@ class PrivatSzocialScreen extends StatefulWidget {
 }
 
 class _PrivatSzocialScreenState extends State<PrivatSzocialScreen> {
-  String _lathatosag = 'kozosseg';
+  String _lathatosag = 'privat';
   bool _megosztas = true, _megye = true, _szelfi = false, _rutin = true;
   List<ValasztasiOpcio> _opcio = [];
   bool _betolt = true;
@@ -704,7 +709,7 @@ class _PrivatSzocialScreenState extends State<PrivatSzocialScreen> {
     final data = await widget.service.getSzekcio('/api/settings/${widget.service.userName}/privacy');
     final opcio = await widget.service.lathatosag();
     setState(() {
-      _lathatosag = data['profileVisibility'] as String? ?? 'kozosseg';
+      _lathatosag = data['profileVisibility'] as String? ?? 'privat';
       _megosztas = data['shareWorkoutsByDefault'] as bool? ?? true;
       _megye = data['showCounty'] as bool? ?? true;
       _szelfi = data['selfieFollowersOnly'] as bool? ?? false;
@@ -744,7 +749,14 @@ class _PrivatSzocialScreenState extends State<PrivatSzocialScreen> {
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
                       ),
                       items: _opcio.map((o) => DropdownMenuItem(value: o.id, child: Text(o.cimke))).toList(),
-                      onChanged: (v) => setState(() => _lathatosag = v ?? 'kozosseg'),
+                      onChanged: (v) => setState(() => _lathatosag = v ?? 'privat'),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                    child: Text(
+                      'Alapértelmezés: csak barátok látják a profilodat és az edzéselőzményt.',
+                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600, height: 1.35),
                     ),
                   ),
                 ]),
@@ -838,8 +850,12 @@ class NyelvScreen extends StatefulWidget {
 
 class _NyelvScreenState extends State<NyelvScreen> {
   String _nyelv = 'hu';
-  List<ValasztasiOpcio> _opcio = [];
   bool _betolt = true;
+
+  static const _supportedLanguages = [
+    ValasztasiOpcio(id: 'hu', cimke: 'Magyar'),
+    ValasztasiOpcio(id: 'en', cimke: 'English'),
+  ];
 
   @override
   void initState() {
@@ -848,35 +864,48 @@ class _NyelvScreenState extends State<NyelvScreen> {
   }
 
   Future<void> _init() async {
-    final data = await widget.service.getSzekcio('/api/settings/${widget.service.userName}/language');
-    final opcio = await widget.service.nyelvek();
-    setState(() { _nyelv = (data['language'] ?? data['nyelv']) as String? ?? 'hu'; _opcio = opcio; _betolt = false; });
+    var nyelv = LocaleController.currentId;
+    try {
+      final data = await widget.service.getSzekcio('/api/settings/${widget.service.userName}/language');
+      final backend = (data['language'] ?? data['nyelv']) as String?;
+      if (backend != null && backend.isNotEmpty) {
+        nyelv = LocaleController.normalizeId(backend);
+        await LocaleController.setFromId(nyelv);
+      }
+    } catch (_) {}
+    setState(() { _nyelv = nyelv; _betolt = false; });
   }
 
   Future<void> _mentes() async {
-    await widget.service.putSzekcio('/api/settings/${widget.service.userName}/language', {'language': _nyelv});
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Nyelv elmentve!')));
+    final id = LocaleController.normalizeId(_nyelv);
+    await widget.service.putSzekcio('/api/settings/${widget.service.userName}/language', {'language': id});
+    await LocaleController.setFromId(id);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppStrings.t('language_saved'))),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return _DetailScaffold(
-      cim: 'Nyelv',
+      cim: AppStrings.t('language_title'),
       mentes: _mentes,
       child: _betolt
           ? const Center(child: CircularProgressIndicator())
           : ListView(
               children: [
-                SettingsSectionHeader(title: 'Felület nyelve'),
+                SettingsSectionHeader(title: AppStrings.t('language_section')),
                 BeallitasSzekcio(
-                  children: _opcio.map((o) => Material(
+                  children: _supportedLanguages.map((o) => Material(
                     color: AppColors.kartya,
                     child: RadioListTile<String>(
                       title: Text(o.cimke, style: const TextStyle(fontSize: 15)),
                       value: o.id,
                       groupValue: _nyelv,
                       activeColor: const Color(0xFF1E88E5),
-                      onChanged: (v) => setState(() => _nyelv = v ?? 'hu'),
+                      onChanged: (v) => setState(() => _nyelv = LocaleController.normalizeId(v ?? 'hu')),
                     ),
                   )).toList(),
                 ),
@@ -997,18 +1026,39 @@ class IntegraciokScreen extends StatefulWidget {
 class _IntegraciokScreenState extends State<IntegraciokScreen> {
   bool _appleHealth = false, _appleWatch = false, _googleFit = false, _strava = false;
   bool _betolt = true;
+  bool _kapcsol = false;
+
+  IntegrationStatus? _appleHealthStatus;
+  IntegrationStatus? _googleFitStatus;
+  IntegrationStatus? _watchStatus;
+  IntegrationStatus? _stravaStatus;
+
+  final _integrations = IntegrationsService.instance;
 
   @override
   void initState() {
     super.initState();
-    widget.service.getSzekcio('/api/settings/${widget.service.userName}/integrations').then((d) {
-      setState(() {
-        _appleHealth = d['appleHealth'] as bool? ?? false;
-        _appleWatch = d['appleWatch'] as bool? ?? false;
-        _googleFit = d['googleFit'] as bool? ?? false;
-        _strava = d['strava'] as bool? ?? false;
-        _betolt = false;
-      });
+    _betoltes();
+  }
+
+  Future<void> _betoltes() async {
+    final d = await widget.service.getSzekcio('/api/settings/${widget.service.userName}/integrations');
+    final appleStatus = await _integrations.appleHealthStatus();
+    final googleStatus = await _integrations.googleFitStatus();
+    final watchStatus = await _integrations.watchStatus();
+    final stravaStatus = await _integrations.stravaStatus();
+
+    if (!mounted) return;
+    setState(() {
+      _appleHealth = d['appleHealth'] as bool? ?? appleStatus.connected;
+      _appleWatch = d['appleWatch'] as bool? ?? watchStatus.connected;
+      _googleFit = d['googleFit'] as bool? ?? googleStatus.connected;
+      _strava = d['strava'] as bool? ?? stravaStatus.connected;
+      _appleHealthStatus = appleStatus;
+      _googleFitStatus = googleStatus;
+      _watchStatus = watchStatus;
+      _stravaStatus = stravaStatus;
+      _betolt = false;
     });
   }
 
@@ -1021,22 +1071,128 @@ class _IntegraciokScreenState extends State<IntegraciokScreen> {
   }
 
   Future<void> _appleHealthValtas(bool v) async {
-    setState(() => _appleHealth = v);
-    if (v && AppleHealthService.instance.isSupported) {
-      final granted = await AppleHealthService.instance.requestPermissions();
-      if (!mounted) return;
-      if (!granted) {
-        setState(() => _appleHealth = false);
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Apple Health hozzáférés szükséges.')));
+    if (_kapcsol) return;
+    setState(() => _kapcsol = true);
+    try {
+      if (v) {
+        final ok = await _integrations.connectAppleHealth();
+        if (!mounted) return;
+        if (!ok) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Apple Health hozzáférés szükséges.')),
+          );
+        }
+      } else {
+        await _integrations.disconnectAppleHealth();
       }
+      final status = await _integrations.appleHealthStatus();
+      if (!mounted) return;
+      setState(() {
+        _appleHealth = status.connected;
+        _appleHealthStatus = status;
+      });
+    } finally {
+      if (mounted) setState(() => _kapcsol = false);
+    }
+  }
+
+  Future<void> _googleFitValtas(bool v) async {
+    if (_kapcsol) return;
+    setState(() => _kapcsol = true);
+    try {
+      if (v) {
+        final ok = await _integrations.connectGoogleFit();
+        if (!mounted) return;
+        if (!ok) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Health Connect engedély szükséges.')),
+          );
+        }
+      } else {
+        await _integrations.disconnectGoogleFit();
+      }
+      final status = await _integrations.googleFitStatus();
+      if (!mounted) return;
+      setState(() {
+        _googleFit = status.connected;
+        _googleFitStatus = status;
+      });
+    } finally {
+      if (mounted) setState(() => _kapcsol = false);
+    }
+  }
+
+  Future<void> _watchValtas(bool v) async {
+    if (_kapcsol) return;
+    setState(() => _kapcsol = true);
+    try {
+      if (v) {
+        final ok = await _integrations.connectWatch();
+        if (!mounted) return;
+        if (!ok) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Health engedély szükséges az óra adatokhoz.')),
+          );
+        }
+      } else {
+        await _integrations.disconnectWatch();
+      }
+      final status = await _integrations.watchStatus();
+      if (!mounted) return;
+      setState(() {
+        _appleWatch = status.connected;
+        _watchStatus = status;
+      });
+    } finally {
+      if (mounted) setState(() => _kapcsol = false);
+    }
+  }
+
+  Future<void> _stravaValtas(bool v) async {
+    if (_kapcsol) return;
+    setState(() => _kapcsol = true);
+    try {
+      if (v) {
+        try {
+          await _integrations.connectStrava();
+        } on StravaNotConfiguredException catch (e) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(e.message), duration: const Duration(seconds: 5)),
+          );
+        } catch (e) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Strava csatlakozás sikertelen: $e')),
+          );
+        }
+      } else {
+        await _integrations.disconnectStrava();
+      }
+      final status = await _integrations.stravaStatus();
+      if (!mounted) return;
+      setState(() {
+        _strava = status.connected;
+        _stravaStatus = status;
+      });
+    } finally {
+      if (mounted) setState(() => _kapcsol = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final watchTitle = isAppleHealthPlatform ? 'Apple Watch' : 'Okosóra';
+    final watchSubtitle = _watchStatus?.subtitle(
+      isAppleHealthPlatform
+          ? 'Apple Watch adatok Apple Health-en keresztül'
+          : 'Okosóra adatok Health Connect-en keresztül',
+    );
+
     return _DetailScaffold(
       cim: 'Integrációk',
       mentes: _mentes,
+      mentesBetolt: _kapcsol,
       child: _betolt
           ? const Center(child: CircularProgressIndicator())
           : ListView(
@@ -1047,15 +1203,54 @@ class _IntegraciokScreenState extends State<IntegraciokScreen> {
                     icon: Icons.favorite_rounded,
                     ikonSzin: const Color(0xFFE91E63),
                     title: 'Apple Health',
-                    subtitle: AppleHealthService.instance.isSupported ? 'Aktivitás és kalória adatok' : 'Csak iOS eszközön elérhető',
+                    subtitle: _appleHealthStatus?.subtitle(
+                      isAppleHealthPlatform ? 'Aktivitás és kalória adatok' : 'Csak iOS eszközön elérhető',
+                    ),
                     ertek: _appleHealth,
-                    letiltva: !AppleHealthService.instance.isSupported,
-                    onChange: AppleHealthService.instance.isSupported ? _appleHealthValtas : null,
+                    letiltva: !isAppleHealthPlatform || _kapcsol,
+                    onChange: isAppleHealthPlatform ? _appleHealthValtas : null,
                   ),
-                  KapcsoloTile(icon: Icons.watch_rounded, ikonSzin: const Color(0xFF1E88E5), title: 'Apple Watch', ertek: _appleWatch, onChange: (v) => setState(() => _appleWatch = v)),
-                  KapcsoloTile(icon: Icons.directions_run_rounded, ikonSzin: const Color(0xFF43A047), title: 'Google Fit', ertek: _googleFit, onChange: (v) => setState(() => _googleFit = v)),
-                  KapcsoloTile(icon: Icons.route_rounded, ikonSzin: const Color(0xFFFF7043), title: 'Strava', ertek: _strava, onChange: (v) => setState(() => _strava = v)),
+                  KapcsoloTile(
+                    icon: Icons.watch_rounded,
+                    ikonSzin: const Color(0xFF1E88E5),
+                    title: watchTitle,
+                    subtitle: watchSubtitle,
+                    ertek: _appleWatch,
+                    letiltva: !isDeviceHealthPlatform || _kapcsol,
+                    onChange: isDeviceHealthPlatform ? _watchValtas : null,
+                  ),
+                  KapcsoloTile(
+                    icon: Icons.directions_run_rounded,
+                    ikonSzin: const Color(0xFF43A047),
+                    title: isHealthConnectPlatform ? 'Health Connect' : 'Google Fit',
+                    subtitle: _googleFitStatus?.subtitle(
+                      isHealthConnectPlatform
+                          ? 'Health Connect aktivitás és lépések'
+                          : 'Csak Androidon (Health Connect)',
+                    ),
+                    ertek: _googleFit,
+                    letiltva: !isHealthConnectPlatform || _kapcsol,
+                    onChange: isHealthConnectPlatform ? _googleFitValtas : null,
+                  ),
+                  KapcsoloTile(
+                    icon: Icons.route_rounded,
+                    ikonSzin: const Color(0xFFFF7043),
+                    title: 'Strava',
+                    subtitle: _stravaStatus?.subtitle('Futás és kerékpár aktivitások'),
+                    ertek: _strava,
+                    letiltva: _kapcsol,
+                    onChange: _stravaValtas,
+                  ),
                 ]),
+                if (_stravaStatus != null && !_stravaStatus!.connected &&
+                    _stravaStatus!.detail?.contains('Nincs konfigurálva') == true)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                    child: Text(
+                      'Strava OAuth nincs beállítva. Build időben add meg: STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET, STRAVA_REDIRECT_URI.',
+                      style: TextStyle(fontSize: 12, color: Colors.orange.shade800, height: 1.4),
+                    ),
+                  ),
                 const SizedBox(height: 32),
               ],
             ),

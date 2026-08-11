@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../config/api_config.dart';
+import '../../l10n/app_strings.dart';
 import '../../models/community_models.dart';
 import '../../services/community_service.dart';
 import '../../theme/app_theme.dart';
@@ -34,12 +35,21 @@ class _CommunityScreenState extends State<CommunityScreen>
   Timer? _keresDebounce;
   String _keresKifejezes = '';
 
+  /// Feed filter: osszes | sajatMegye | regio | megye
+  String _feedFilter = 'osszes';
+  String? _selectedRegion;
+  String? _selectedCountyId;
+  String? _sajatMegyeId;
+  List<CountyInfoModel> _counties = [];
+  List<String> _regions = [];
+
   @override
   void initState() {
     super.initState();
     _tabCtrl = TabController(length: 2, vsync: this);
     _tabCtrl.addListener(_tabValtozas);
     _betoltes();
+    _filterMetaBetoltes();
     _felhasznalokBetoltes();
   }
 
@@ -52,10 +62,39 @@ class _CommunityScreenState extends State<CommunityScreen>
   }
 
   void _tabValtozas() {
-    if (!_tabCtrl.indexIsChanging) return;
+    if (_tabCtrl.indexIsChanging) return;
+    setState(() {});
     if (_tabCtrl.index == 1 && !_emberekBetolt) {
       _felhasznalokBetoltes();
     }
+  }
+
+  Future<void> _filterMetaBetoltes() async {
+    try {
+      final results = await Future.wait([
+        _service.counties(),
+        _service.regions(),
+        _service.profile(_sajtNev),
+      ]);
+      if (!mounted) return;
+      final counties = results[0] as List<CountyInfoModel>;
+      final profil = results[2] as CommunityProfileModel;
+      String? sajatId;
+      if (profil.county.isNotEmpty) {
+        for (final c in counties) {
+          if (c.name.toLowerCase() == profil.county.toLowerCase() ||
+              c.id.toLowerCase() == profil.county.toLowerCase()) {
+            sajatId = c.id;
+            break;
+          }
+        }
+      }
+      setState(() {
+        _counties = counties;
+        _regions = results[1] as List<String>;
+        _sajatMegyeId = sajatId;
+      });
+    } catch (_) {}
   }
 
   Future<void> _betoltes() async {
@@ -64,7 +103,26 @@ class _CommunityScreenState extends State<CommunityScreen>
       _hiba = null;
     });
     try {
-      final lista = await _service.feed();
+      final List<CommunityPostModel> lista;
+      switch (_feedFilter) {
+        case 'sajatMegye':
+          lista = _sajatMegyeId != null
+              ? await _service.feedByCounty(_sajatMegyeId!)
+              : await _service.feed();
+          break;
+        case 'regio':
+          lista = _selectedRegion != null && _selectedRegion!.isNotEmpty
+              ? await _service.feedByRegion(_selectedRegion!)
+              : await _service.feed();
+          break;
+        case 'megye':
+          lista = _selectedCountyId != null && _selectedCountyId!.isNotEmpty
+              ? await _service.feedByCounty(_selectedCountyId!)
+              : await _service.feed();
+          break;
+        default:
+          lista = await _service.feed();
+      }
       if (!mounted) return;
       setState(() {
         _feed = lista;
@@ -77,6 +135,33 @@ class _CommunityScreenState extends State<CommunityScreen>
         _betolt = false;
       });
     }
+  }
+
+  void _feedFilterValtozas(String filter) {
+    setState(() {
+      _feedFilter = filter;
+      if (filter != 'regio') _selectedRegion = null;
+      if (filter != 'megye') _selectedCountyId = null;
+    });
+    _betoltes();
+  }
+
+  void _regioValtozas(String? regio) {
+    setState(() {
+      _feedFilter = 'regio';
+      _selectedRegion = regio;
+      _selectedCountyId = null;
+    });
+    _betoltes();
+  }
+
+  void _megyeValtozas(String? countyId) {
+    setState(() {
+      _feedFilter = 'megye';
+      _selectedCountyId = countyId;
+      _selectedRegion = null;
+    });
+    _betoltes();
   }
 
   Future<void> _felhasznalokBetoltes([String? kereses]) async {
@@ -148,7 +233,7 @@ class _CommunityScreenState extends State<CommunityScreen>
             backgroundColor: AppColors.felulet,
             pinned: true,
             title: Text(
-              'Közösség',
+              AppStrings.t('community_title'),
               style: TextStyle(
                   fontWeight: FontWeight.w800,
                   fontSize: 22,
@@ -162,7 +247,7 @@ class _CommunityScreenState extends State<CommunityScreen>
                     child: Badge(
                       label: Text('${_pending.length}'),
                       child: IconButton(
-                        tooltip: 'Barátkérelmek',
+                        tooltip: AppStrings.t('friend_requests_tooltip'),
                         onPressed: () {
                           _tabCtrl.animateTo(1);
                           _felhasznalokBetoltes(_keresCtrl.text);
@@ -174,7 +259,7 @@ class _CommunityScreenState extends State<CommunityScreen>
                 ),
             ],
             bottom: PreferredSize(
-              preferredSize: const Size.fromHeight(96),
+              preferredSize: Size.fromHeight(_tabCtrl.index == 0 ? 148 : 96),
               child: Column(
                 children: [
                   Padding(
@@ -184,8 +269,8 @@ class _CommunityScreenState extends State<CommunityScreen>
                       onChanged: _keresValtozas,
                       decoration: InputDecoration(
                         hintText: _tabCtrl.index == 1
-                            ? 'Felhasználó keresése…'
-                            : 'Keresés a feedben…',
+                            ? AppStrings.t('search_users')
+                            : AppStrings.t('search_feed'),
                         prefixIcon: const Icon(Icons.search, size: 20),
                         filled: true,
                         fillColor: AppColors.halvanyKitoltes,
@@ -198,6 +283,7 @@ class _CommunityScreenState extends State<CommunityScreen>
                       ),
                     ),
                   ),
+                  if (_tabCtrl.index == 0) _buildFeedFilters(),
                   TabBar(
                     controller: _tabCtrl,
                     labelStyle: const TextStyle(
@@ -209,12 +295,12 @@ class _CommunityScreenState extends State<CommunityScreen>
                     indicatorColor: const Color(0xFF1E88E5),
                     indicatorWeight: 3,
                     tabs: [
-                      const Tab(text: 'Feed'),
+                      Tab(text: AppStrings.t('tab_feed')),
                       Tab(
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Text('Felhasználók'),
+                            Text(AppStrings.t('tab_users')),
                             if (_pending.isNotEmpty) ...[
                               const SizedBox(width: 6),
                               Container(
@@ -254,6 +340,120 @@ class _CommunityScreenState extends State<CommunityScreen>
     );
   }
 
+  Widget _buildFeedFilters() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _filterChip(AppStrings.t('filter_all'), 'osszes'),
+                _filterChip(AppStrings.t('filter_own_county'), 'sajatMegye',
+                    enabled: _sajatMegyeId != null),
+                _filterChip(AppStrings.t('filter_region'), 'regio'),
+                if (_counties.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 4),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: _feedFilter == 'megye' ? _selectedCountyId : null,
+                        hint: Text(
+                          AppStrings.t('county'),
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: _feedFilter == 'megye'
+                                ? const Color(0xFF1E88E5)
+                                : Colors.grey.shade700,
+                            fontWeight: _feedFilter == 'megye'
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                          ),
+                        ),
+                        icon: Icon(Icons.arrow_drop_down,
+                            color: Colors.grey.shade600, size: 20),
+                        items: _counties
+                            .map((c) => DropdownMenuItem(
+                                  value: c.id,
+                                  child: Text(c.name,
+                                      style: const TextStyle(fontSize: 13)),
+                                ))
+                            .toList(),
+                        onChanged: _megyeValtozas,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          if (_feedFilter == 'regio' && _regions.isNotEmpty)
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.only(top: 6),
+              child: Row(
+                children: _regions
+                    .map((r) => Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: FilterChip(
+                            label: Text(r,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: _selectedRegion == r
+                                      ? FontWeight.w700
+                                      : FontWeight.w500,
+                                )),
+                            selected: _selectedRegion == r,
+                            onSelected: (_) => _regioValtozas(r),
+                            selectedColor:
+                                const Color(0xFF1E88E5).withValues(alpha: 0.15),
+                            checkmarkColor: const Color(0xFF1E88E5),
+                            labelStyle: TextStyle(
+                              color: _selectedRegion == r
+                                  ? const Color(0xFF1E88E5)
+                                  : Colors.grey.shade700,
+                            ),
+                            visualDensity: VisualDensity.compact,
+                            materialTapTargetSize:
+                                MaterialTapTargetSize.shrinkWrap,
+                          ),
+                        ))
+                    .toList(),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _filterChip(String label, String value, {bool enabled = true}) {
+    final selected = _feedFilter == value;
+    return Padding(
+      padding: const EdgeInsets.only(right: 6),
+      child: FilterChip(
+        label: Text(label,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+            )),
+        selected: selected,
+        onSelected: enabled ? (_) => _feedFilterValtozas(value) : null,
+        selectedColor: const Color(0xFF1E88E5).withValues(alpha: 0.15),
+        checkmarkColor: const Color(0xFF1E88E5),
+        labelStyle: TextStyle(
+          color: selected
+              ? const Color(0xFF1E88E5)
+              : enabled
+                  ? Colors.grey.shade700
+                  : Colors.grey.shade400,
+        ),
+        visualDensity: VisualDensity.compact,
+        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
+    );
+  }
+
   Widget _buildFeed() {
     if (_betolt) {
       return const Center(child: CircularProgressIndicator());
@@ -265,10 +465,10 @@ class _CommunityScreenState extends State<CommunityScreen>
           children: [
             Icon(Icons.cloud_off, size: 48, color: Colors.grey.shade400),
             const SizedBox(height: 12),
-            const Text('Nem sikerült betölteni',
-                style: TextStyle(fontWeight: FontWeight.w600)),
+            Text(AppStrings.t('load_error'),
+                style: const TextStyle(fontWeight: FontWeight.w600)),
             const SizedBox(height: 12),
-            FilledButton(onPressed: _betoltes, child: const Text('Újra')),
+            FilledButton(onPressed: _betoltes, child: Text(AppStrings.t('retry'))),
           ],
         ),
       );
@@ -294,11 +494,11 @@ class _CommunityScreenState extends State<CommunityScreen>
           children: [
             Icon(Icons.fitness_center, size: 48, color: Colors.grey.shade400),
             const SizedBox(height: 12),
-            const Text('Még nincs megosztott edzés',
-                style: TextStyle(fontWeight: FontWeight.w600)),
+            Text(AppStrings.t('no_shared_workouts'),
+                style: const TextStyle(fontWeight: FontWeight.w600)),
             const SizedBox(height: 6),
             Text(
-              'Fejezz be egy edzést és oszd meg!',
+              AppStrings.t('share_workout_hint'),
               style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
             ),
           ],
@@ -329,7 +529,7 @@ class _CommunityScreenState extends State<CommunityScreen>
       return Center(
         child: ElevatedButton(
           onPressed: () => _felhasznalokBetoltes(),
-          child: const Text('Felhasználók betöltése'),
+          child: Text(AppStrings.t('load_users')),
         ),
       );
     }
@@ -346,16 +546,16 @@ class _CommunityScreenState extends State<CommunityScreen>
         padding: const EdgeInsets.only(top: 8, bottom: 32),
         children: [
           if (_pending.isNotEmpty) ...[
-            _szekcioCim('Barátkérelmek', _pending.length),
+            _szekcioCim(AppStrings.t('friend_requests'), _pending.length),
             ..._pending.map(_pendingTile),
             const SizedBox(height: 8),
           ],
-          _szekcioCim('Kit ismerhetek', ismerhetek.length),
+          _szekcioCim(AppStrings.t('people_you_may_know'), ismerhetek.length),
           if (ismerhetek.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
               child: Text(
-                'Nincs megjeleníthető felhasználó.',
+                AppStrings.t('no_users'),
                 style: TextStyle(color: Colors.grey.shade600),
               ),
             )
@@ -363,7 +563,7 @@ class _CommunityScreenState extends State<CommunityScreen>
             ...ismerhetek.map(_emberTile),
           if (baratok.isNotEmpty) ...[
             const SizedBox(height: 8),
-            _szekcioCim('Barátok', baratok.length),
+            _szekcioCim(AppStrings.t('friends'), baratok.length),
             ...baratok.map(_emberTile),
           ],
         ],
@@ -406,7 +606,7 @@ class _CommunityScreenState extends State<CommunityScreen>
         mainAxisSize: MainAxisSize.min,
         children: [
           IconButton(
-            tooltip: 'Elfogadás',
+            tooltip: AppStrings.t('accept'),
             onPressed: requestId == null
                 ? null
                 : () async {
@@ -422,7 +622,7 @@ class _CommunityScreenState extends State<CommunityScreen>
             icon: const Icon(Icons.check_circle, color: Color(0xFF43A047)),
           ),
           IconButton(
-            tooltip: 'Elutasítás',
+            tooltip: AppStrings.t('reject'),
             onPressed: requestId == null
                 ? null
                 : () async {
@@ -457,8 +657,8 @@ class _CommunityScreenState extends State<CommunityScreen>
       subtitle: Text(
         [
           if (f.county.isNotEmpty) f.county,
-          if (f.sameCounty) 'ugyanaz a megye',
-          '${f.postCount} megosztás',
+          if (f.sameCounty) AppStrings.t('same_county'),
+          '${f.postCount} ${AppStrings.t('posts')}',
         ].join(' · '),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
@@ -482,10 +682,10 @@ class _CommunityScreenState extends State<CommunityScreen>
                   .showSnackBar(SnackBar(content: Text('$e')));
             }
           },
-          child: const Text('Barátok'),
+          child: Text(AppStrings.t('friends')),
         );
       case 'outgoing':
-        return Text('Várakozik',
+        return Text(AppStrings.t('pending'),
             style: TextStyle(fontSize: 12, color: Colors.grey.shade600));
       case 'incoming':
         return const Icon(Icons.mark_email_unread_outlined,
@@ -506,7 +706,7 @@ class _CommunityScreenState extends State<CommunityScreen>
                   .showSnackBar(SnackBar(content: Text('$e')));
             }
           },
-          child: const Text('Jelölés'),
+          child: Text(AppStrings.t('add_friend')),
         );
     }
   }
@@ -526,14 +726,14 @@ class _CommunityScreenState extends State<CommunityScreen>
       if (!mounted) return;
       setState(() => _mentettPosztIds.add(posztId));
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Rutin elmentve a saját rutinjaid közé!')),
+        SnackBar(
+            content: Text(AppStrings.t('routine_saved'))),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content: Text('Hiba: $e'), backgroundColor: Colors.red.shade700),
+            content: Text('${AppStrings.t('error_prefix')} $e'), backgroundColor: Colors.red.shade700),
       );
     }
   }
@@ -642,13 +842,13 @@ class PosztKartya extends StatelessWidget {
                     if (v == 'mentes') onMentesRutinkent(poszt.id);
                   },
                   itemBuilder: (_) => [
-                    const PopupMenuItem(
+                    PopupMenuItem(
                       value: 'mentes',
                       child: Row(
                         children: [
-                          Icon(Icons.bookmark_add_outlined, size: 18),
-                          SizedBox(width: 8),
-                          Text('Mentés rutinként'),
+                          const Icon(Icons.bookmark_add_outlined, size: 18),
+                          const SizedBox(width: 8),
+                          Text(AppStrings.t('save_routine')),
                         ],
                       ),
                     ),
@@ -690,7 +890,7 @@ class PosztKartya extends StatelessWidget {
                     const SizedBox(width: 8),
                     StatBadge(
                         ikon: Icons.fitness_center,
-                        ertek: '${poszt.workout.osszSorozatSzam} sor'),
+                        ertek: '${poszt.workout.osszSorozatSzam} ${AppStrings.t('sets')}'),
                     const SizedBox(width: 8),
                     StatBadge(
                         ikon: Icons.monitor_weight_outlined,
@@ -745,7 +945,10 @@ class PosztKartya extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
                 child: Text(
-                  '+ ${poszt.workout.exercises.length - 3} további gyakorlat',
+                  AppStrings.t('more_exercises').replaceAll(
+                    '{n}',
+                    '${poszt.workout.exercises.length - 3}',
+                  ),
                   style: TextStyle(
                       fontSize: 12,
                       color: Colors.grey.shade400,
@@ -773,7 +976,7 @@ class PosztKartya extends StatelessWidget {
                 const Spacer(),
                 AkcioGomb(
                   ikon: mentett ? Icons.bookmark : Icons.bookmark_border,
-                  cimke: mentett ? 'Mentve' : 'Mentés',
+                  cimke: mentett ? AppStrings.t('saved') : AppStrings.t('save'),
                   szin: mentett
                       ? Colors.amber.shade700
                       : Colors.grey.shade600,

@@ -426,10 +426,10 @@ namespace FitnessBackend.Services
 
         public static List<ChoiceOption> VisibilityOptions() =>
         [
-            new() { Id = "mindenki", Label = "Mindenki" },
-            new() { Id = "kovetok", Label = "Csak kovetok" },
+            new() { Id = "privat", Label = "Csak baratok" },
+            new() { Id = "kovetok", Label = "Csak baratok / kovetok" },
             new() { Id = "kozosseg", Label = "Kozosseg (megye alapu)" },
-            new() { Id = "privat", Label = "Privat" }
+            new() { Id = "mindenki", Label = "Mindenki (nyilvanos)" }
         ];
 
         public static object GettingStartedGuide() => new

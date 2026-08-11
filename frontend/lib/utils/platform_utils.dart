@@ -4,3 +4,8 @@ import 'package:flutter/material.dart' show TargetPlatform;
 /// Platform ellenorzes dart:io nelkul (weben a dart:io hibat dob).
 bool get isAppleHealthPlatform =>
     !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+
+bool get isHealthConnectPlatform =>
+    !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+
+bool get isDeviceHealthPlatform => isAppleHealthPlatform || isHealthConnectPlatform;

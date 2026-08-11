@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_strings.dart';
+import '../l10n/locale_controller.dart';
 import '../theme/app_theme.dart';
 import '../widgets/modern_button.dart';
 import 'community/community_screen.dart';
@@ -36,32 +38,58 @@ class _MainShellState extends State<MainShell> {
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: ThemeController.mode,
       builder: (context, _, _) {
-        // Theme.of függőség: rendszer módban az OS váltását is követi.
-        final temaKulcs = Theme.of(context).brightness.name;
-        return Scaffold(
-          extendBody: true,
-          body: IndexedStack(
-            key: ValueKey('shell_$temaKulcs'),
-            index: _selectedIndex,
-            children: [
-              HomeScreen(key: ValueKey('home_${_homeVersion}_$temaKulcs')),
-              const NaploScreen(),
-              const WorkoutScreen(),
-              const CommunityScreen(),
-              const SettingsScreen(),
-            ],
-          ),
-          bottomNavigationBar: LebegoNavSav(
-            selectedIndex: _selectedIndex,
-            onValtas: _valtas,
-            elemek: const [
-              NavSavElem(ikon: Icons.home_outlined, aktivIkon: Icons.home_rounded, cimke: 'Home'),
-              NavSavElem(ikon: Icons.menu_book_outlined, aktivIkon: Icons.menu_book_rounded, cimke: 'Napló'),
-              NavSavElem(ikon: Icons.fitness_center_outlined, aktivIkon: Icons.fitness_center_rounded, cimke: 'Edzés'),
-              NavSavElem(ikon: Icons.people_outline, aktivIkon: Icons.people_rounded, cimke: 'Közösség'),
-              NavSavElem(ikon: Icons.person_outline, aktivIkon: Icons.person_rounded, cimke: 'Profil'),
-            ],
-          ),
+        return ValueListenableBuilder<Locale>(
+          valueListenable: LocaleController.locale,
+          builder: (context, locale, _) {
+            // Theme.of függőség: rendszer módban az OS váltását is követi.
+            final temaKulcs =
+                '${Theme.of(context).brightness.name}_${locale.languageCode}';
+            return Scaffold(
+              extendBody: true,
+              body: IndexedStack(
+                key: ValueKey('shell_$temaKulcs'),
+                index: _selectedIndex,
+                children: [
+                  HomeScreen(key: ValueKey('home_${_homeVersion}_$temaKulcs')),
+                  const NaploScreen(),
+                  const WorkoutScreen(),
+                  const CommunityScreen(),
+                  const SettingsScreen(),
+                ],
+              ),
+              bottomNavigationBar: LebegoNavSav(
+                selectedIndex: _selectedIndex,
+                onValtas: _valtas,
+                elemek: [
+                  NavSavElem(
+                    ikon: Icons.home_outlined,
+                    aktivIkon: Icons.home_rounded,
+                    cimke: AppStrings.t('nav_home'),
+                  ),
+                  NavSavElem(
+                    ikon: Icons.menu_book_outlined,
+                    aktivIkon: Icons.menu_book_rounded,
+                    cimke: AppStrings.t('nav_journal'),
+                  ),
+                  NavSavElem(
+                    ikon: Icons.fitness_center_outlined,
+                    aktivIkon: Icons.fitness_center_rounded,
+                    cimke: AppStrings.t('nav_workout'),
+                  ),
+                  NavSavElem(
+                    ikon: Icons.people_outline,
+                    aktivIkon: Icons.people_rounded,
+                    cimke: AppStrings.t('nav_community'),
+                  ),
+                  NavSavElem(
+                    ikon: Icons.person_outline,
+                    aktivIkon: Icons.person_rounded,
+                    cimke: AppStrings.t('nav_profile'),
+                  ),
+                ],
+              ),
+            );
+          },
         );
       },
     );

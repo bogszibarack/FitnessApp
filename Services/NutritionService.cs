@@ -21,12 +21,15 @@ namespace FitnessBackend.Services
              .Replace('ó', 'o').Replace('ö', 'o').Replace('ő', 'o')
              .Replace('ú', 'u').Replace('ü', 'u').Replace('ű', 'u');
 
-        public static async Task<List<FoodItem>> SearchFoodAsync(string query)
+        public static async Task<List<FoodItem>> SearchFoodAsync(string query, string? userName = null)
         {
             string key = query.Trim().ToLowerInvariant();
             if (key.Length < 2) return [];
 
-            if (_searchCache.TryGetValue(key, out var cached) &&
+            // Per-user cache key so custom foods don't leak across accounts.
+            string cacheKey = string.IsNullOrWhiteSpace(userName) ? key : $"{userName.Trim().ToLowerInvariant()}|{key}";
+
+            if (_searchCache.TryGetValue(cacheKey, out var cached) &&
                 DateTime.UtcNow - cached.At < CacheTtl &&
                 cached.Items.Count > 0)
                 return cached.Items;
@@ -43,6 +46,15 @@ namespace FitnessBackend.Services
                 }
             }
 
+            // User custom foods first
+            if (!string.IsNullOrWhiteSpace(userName))
+            {
+                var needle = StripAccents(key);
+                AddRange(NutritionStore.ListCustomFoods(userName)
+                    .Where(f => StripAccents(f.Name.ToLowerInvariant()).Contains(needle))
+                    .Select(f => f.ToFoodItem()));
+            }
+
             AddRange(SearchOffline(query));
 
             if (FatSecretConfig.HasCredentials)
@@ -57,7 +69,6 @@ namespace FitnessBackend.Services
                 }
             }
 
-            // FatSecret creds are often missing/invalid on Render — OFF fills the gap.
             if (results.Count < 12)
             {
                 try
@@ -72,12 +83,10 @@ namespace FitnessBackend.Services
                 }
             }
 
-            // Re-rank merged list by token overlap with the user query.
             results = RankFoodResults(query, results).Take(20).ToList();
 
-            // Cache even small curated hits (e.g. single offline "Rántott hús").
             if (results.Count > 0)
-                _searchCache[key] = (DateTime.UtcNow, results);
+                _searchCache[cacheKey] = (DateTime.UtcNow, results);
 
             return results;
         }
@@ -123,7 +132,8 @@ namespace FitnessBackend.Services
                         if (local > score) score = local;
                     }
 
-                    if (item.Id.StartsWith("hu_", StringComparison.Ordinal)) score += 40;
+                    if (item.Id.StartsWith("custom_", StringComparison.Ordinal)) score += 50;
+                    else if (item.Id.StartsWith("hu_", StringComparison.Ordinal)) score += 40;
                     else if (item.Id.StartsWith("off_", StringComparison.Ordinal)) score += 8;
                     return (Item: item, Score: score, Hits: hits);
                 })
@@ -247,12 +257,12 @@ namespace FitnessBackend.Services
             }
         }
 
-        public static DailyNutritionSession GetLog(DateTime date) =>
-            NutritionStore.GetOrCreateLog(date);
+        public static DailyNutritionSession GetLog(string userName, DateTime date) =>
+            NutritionStore.GetOrCreateLog(userName, date);
 
-        public static object MealSummary(string mealType)
+        public static object MealSummary(string userName, string mealType)
         {
-            var log = GetLog(DateTime.Today);
+            var log = GetLog(userName, DateTime.Today);
             var foods = log.EatenFoods
                 .Where(e => e.MealType.Equals(mealType, StringComparison.OrdinalIgnoreCase))
                 .ToList();
@@ -270,34 +280,35 @@ namespace FitnessBackend.Services
             };
         }
 
-        public static DailyNutritionSession SetTargetCalories(double target)
+        public static DailyNutritionSession SetTargetCalories(string userName, double target)
         {
-            var log = GetLog(DateTime.Today);
+            var log = GetLog(userName, DateTime.Today);
             log.TargetCalories = target;
             DataStore.SaveNutrition();
             return log;
         }
 
-        public static (DailyNutritionSession? Log, string? Error) AddFood(LoggedFood food)
+        public static (DailyNutritionSession? Log, string? Error) AddFood(string userName, LoggedFood food)
         {
             if (!food.FromRecipe && food.AmountGrams <= 0)
                 return (null, "Az AmountGrams (gramm) kotelezo es nagyobb mint 0.");
 
-            var log = GetLog(DateTime.Today);
+            var log = GetLog(userName, DateTime.Today);
             log.EatenFoods.Add(food);
             DataStore.SaveNutrition();
             return (log, null);
         }
 
-        public static Task<(DailyNutritionSession? log, LoggedFood? entry, string? error)> AddRecipeAsync(AddRecipeRequest request) =>
-            NutritionStore.AddRecipeAsync(request);
+        public static Task<(DailyNutritionSession? log, LoggedFood? entry, string? error)> AddRecipeAsync(
+            string userName, AddRecipeRequest request) =>
+            NutritionStore.AddRecipeAsync(userName, request);
 
-        public static List<LoggedFood> TodaysRecipes() =>
-            GetLog(DateTime.Today).EatenFoods.Where(e => e.FromRecipe).ToList();
+        public static List<LoggedFood> TodaysRecipes(string userName) =>
+            GetLog(userName, DateTime.Today).EatenFoods.Where(e => e.FromRecipe).ToList();
 
-        public static (DailyNutritionSession? Log, string? Error) UpdateFood(int index, LoggedFood food)
+        public static (DailyNutritionSession? Log, string? Error) UpdateFood(string userName, int index, LoggedFood food)
         {
-            var log = GetLog(DateTime.Today);
+            var log = GetLog(userName, DateTime.Today);
             if (index < 0 || index >= log.EatenFoods.Count)
                 return (null, "Nincs ilyen etel a mai naploban.");
             log.EatenFoods[index] = food;
@@ -305,15 +316,28 @@ namespace FitnessBackend.Services
             return (log, null);
         }
 
-        public static (DailyNutritionSession? Log, string? Error) DeleteFood(int index)
+        public static (DailyNutritionSession? Log, string? Error) DeleteFood(string userName, int index)
         {
-            var log = GetLog(DateTime.Today);
+            var log = GetLog(userName, DateTime.Today);
             if (index < 0 || index >= log.EatenFoods.Count)
                 return (null, "Nincs ilyen etel a mai naploban.");
             log.EatenFoods.RemoveAt(index);
             DataStore.SaveNutrition();
             return (log, null);
         }
+
+        public static (CustomFood? Food, string? Error) CreateCustomFood(string userName, CustomFoodRequest request)
+        {
+            var food = NutritionStore.AddCustomFood(userName, request);
+            if (food == null) return (null, "Nev es nem negativ makrok kotelezoek.");
+            return (food, null);
+        }
+
+        public static List<CustomFood> ListCustomFoods(string userName) =>
+            NutritionStore.ListCustomFoods(userName);
+
+        public static bool DeleteCustomFood(string userName, string foodId) =>
+            NutritionStore.DeleteCustomFood(userName, foodId);
 
         private static FoodItem? FromOffProduct(JsonElement product)
         {

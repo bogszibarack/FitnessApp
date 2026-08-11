@@ -196,6 +196,8 @@ class CommunityProfileModel {
     required this.posts,
     required this.workoutHistory,
     this.incomingRequestId,
+    this.isPrivate = false,
+    this.privateMessage,
   });
 
   final String userId;
@@ -210,6 +212,8 @@ class CommunityProfileModel {
   final int postCount;
   final List<CommunityPostModel> posts;
   final List<WorkoutSessionModel> workoutHistory;
+  final bool isPrivate;
+  final String? privateMessage;
 
   factory CommunityProfileModel.fromJson(Map<String, dynamic> json) {
     return CommunityProfileModel(
@@ -231,6 +235,28 @@ class CommunityProfileModel {
       workoutHistory: (json['workoutHistory'] as List<dynamic>? ?? [])
           .map((e) => WorkoutSessionModel.fromJson(e as Map<String, dynamic>))
           .toList(),
+      isPrivate: json['isPrivate'] as bool? ?? false,
+      privateMessage: json['privateMessage'] as String?,
+    );
+  }
+}
+
+class CountyInfoModel {
+  const CountyInfoModel({
+    required this.id,
+    required this.name,
+    required this.region,
+  });
+
+  final String id;
+  final String name;
+  final String region;
+
+  factory CountyInfoModel.fromJson(Map<String, dynamic> json) {
+    return CountyInfoModel(
+      id: json['id'] as String? ?? '',
+      name: json['name'] as String? ?? '',
+      region: json['region'] as String? ?? '',
     );
   }
 }

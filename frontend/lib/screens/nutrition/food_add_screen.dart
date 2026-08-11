@@ -112,6 +112,145 @@ class _FoodAddScreenState extends State<FoodAddScreen> {
     }
   }
 
+  Future<void> _sajatEtelDialog() async {
+    final nevCtrl = TextEditingController();
+    final kcalCtrl = TextEditingController(text: '100');
+    final feherjeCtrl = TextEditingController(text: '0');
+    final szenCtrl = TextEditingController(text: '0');
+    final zsirCtrl = TextEditingController(text: '0');
+    final formKey = GlobalKey<FormState>();
+    var mentes = false;
+
+    final etel = await showDialog<FoodItemModel>(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setLocal) {
+            return AlertDialog(
+              title: const Text('Saját étel', style: TextStyle(fontWeight: FontWeight.w700)),
+              content: Form(
+                key: formKey,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Makrók 100 g-ra',
+                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                      ),
+                      const SizedBox(height: 10),
+                      TextFormField(
+                        controller: nevCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Név',
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                        ),
+                        textCapitalization: TextCapitalization.sentences,
+                        validator: (v) =>
+                            (v == null || v.trim().isEmpty) ? 'Add meg az étel nevét' : null,
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(child: _szamMezo(kcalCtrl, 'kcal')),
+                          const SizedBox(width: 8),
+                          Expanded(child: _szamMezo(feherjeCtrl, 'Fehérje g')),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(child: _szamMezo(szenCtrl, 'Szénh. g')),
+                          const SizedBox(width: 8),
+                          Expanded(child: _szamMezo(zsirCtrl, 'Zsír g')),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: mentes ? null : () => Navigator.pop(ctx),
+                  child: const Text('Mégse'),
+                ),
+                FilledButton(
+                  onPressed: mentes
+                      ? null
+                      : () async {
+                          if (!formKey.currentState!.validate()) return;
+                          setLocal(() => mentes = true);
+                          try {
+                            final created = await _service.createCustomFood(
+                              name: nevCtrl.text.trim(),
+                              calories: double.tryParse(kcalCtrl.text.replaceAll(',', '.')) ?? 0,
+                              protein: double.tryParse(feherjeCtrl.text.replaceAll(',', '.')) ?? 0,
+                              carbs: double.tryParse(szenCtrl.text.replaceAll(',', '.')) ?? 0,
+                              fat: double.tryParse(zsirCtrl.text.replaceAll(',', '.')) ?? 0,
+                            );
+                            if (ctx.mounted) Navigator.pop(ctx, created);
+                          } catch (e) {
+                            setLocal(() => mentes = false);
+                            if (ctx.mounted) {
+                              ScaffoldMessenger.of(ctx).showSnackBar(
+                                SnackBar(
+                                  content: Text('$e'),
+                                  backgroundColor: Colors.red.shade700,
+                                ),
+                              );
+                            }
+                          }
+                        },
+                  style: FilledButton.styleFrom(backgroundColor: const Color(0xFF34C759)),
+                  child: mentes
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Text('Mentés'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    nevCtrl.dispose();
+    kcalCtrl.dispose();
+    feherjeCtrl.dispose();
+    szenCtrl.dispose();
+    zsirCtrl.dispose();
+
+    if (etel != null && mounted) {
+      setState(() {
+        _talalatok = [etel, ..._talalatok.where((e) => e.id != etel.id)];
+        _kivalasztottId = etel.id;
+        _gramm = 100;
+        _keresoController.text = etel.name;
+      });
+    }
+  }
+
+  Widget _szamMezo(TextEditingController ctrl, String label) {
+    return TextFormField(
+      controller: ctrl,
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      decoration: InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
+        isDense: true,
+      ),
+      validator: (v) {
+        final n = double.tryParse((v ?? '').replaceAll(',', '.'));
+        if (n == null || n < 0) return 'Érvénytelen';
+        return null;
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -122,6 +261,11 @@ class _FoodAddScreenState extends State<FoodAddScreen> {
         foregroundColor: AppColors.szoveg,
         elevation: 0.5,
         actions: [
+          IconButton(
+            onPressed: _sajatEtelDialog,
+            icon: const Icon(Icons.add_box_outlined),
+            tooltip: 'Saját étel felvétele',
+          ),
           IconButton(
             onPressed: _vonalkod,
             icon: const Icon(Icons.qr_code_scanner),
@@ -148,6 +292,21 @@ class _FoodAddScreenState extends State<FoodAddScreen> {
               ),
               onChanged: _onKereses,
               onSubmitted: _kereses,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: _sajatEtelDialog,
+                icon: const Icon(Icons.restaurant_menu, size: 18),
+                label: const Text('Saját étel felvétele'),
+                style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xFF34C759),
+                  padding: EdgeInsets.zero,
+                ),
+              ),
             ),
           ),
           Expanded(child: _lista()),

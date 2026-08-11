@@ -58,9 +58,11 @@ namespace FitnessBackend.Controllers
         }
 
         [HttpPost("{id}/log")]
+        [Microsoft.AspNetCore.Authorization.Authorize]
         public async Task<ActionResult<object>> AddToLog(string id, [FromBody] AddRecipeRequest request)
         {
-            var (result, err) = await RecipeService.AddToLogAsync(id, request);
+            if (CurrentUser.RequireUser(this, out var user) is { } deny) return deny;
+            var (result, err) = await RecipeService.AddToLogAsync(user, id, request);
             if (err != null)
                 return err.Contains("Nincs") ? NotFound(err) : BadRequest(err);
             return Ok(result);

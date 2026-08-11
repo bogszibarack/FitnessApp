@@ -2,6 +2,7 @@ import 'package:flutter/services.dart';
 import 'package:health/health.dart';
 
 import '../models/daily_health_data.dart';
+import '../models/health_workout.dart';
 import '../utils/platform_utils.dart';
 
 class AppleHealthService {
@@ -24,6 +25,7 @@ class AppleHealthService {
     HealthDataType.EXERCISE_TIME,
     HealthDataType.STEPS,
     HealthDataType.DISTANCE_WALKING_RUNNING,
+    HealthDataType.WORKOUT,
   ];
 
   Future<void> _ensureConfigured() async {
@@ -133,6 +135,41 @@ class AppleHealthService {
       fatGoalGrams: fatGoal,
       isFromAppleHealth: true,
     );
+  }
+
+  Future<List<HealthWorkout>> fetchRecentWorkouts({int days = 7}) async {
+    if (!isSupported) return [];
+    await _ensureConfigured();
+
+    final end = DateTime.now();
+    final start = end.subtract(Duration(days: days));
+
+    try {
+      final points = await _health.getHealthDataFromTypes(
+        types: [HealthDataType.WORKOUT],
+        startTime: start,
+        endTime: end,
+      );
+
+      return points.map((point) {
+        final value = point.value;
+        String title = 'Edzés';
+        double? distanceM;
+        if (value is WorkoutHealthValue) {
+          title = value.workoutActivityType.name;
+          distanceM = value.totalDistance;
+        }
+        final durationMin = point.dateTo.difference(point.dateFrom).inMinutes;
+        return HealthWorkout(
+          title: title,
+          startedAt: point.dateFrom,
+          durationMinutes: durationMin,
+          distanceKm: distanceM != null ? distanceM / 1000 : null,
+        );
+      }).toList();
+    } catch (_) {
+      return [];
+    }
   }
 
   Future<Map<String, int>?> _fetchActivitySummary() async {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../config/api_config.dart';
+import '../../l10n/app_strings.dart';
 import '../../models/beallitas_models.dart';
 import '../../services/apple_health_service.dart';
 import '../../services/auth_service.dart';
@@ -203,7 +204,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 children: [
                   Text(_nev, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.szoveg)),
                   const SizedBox(height: 4),
-                  Text('Profil szerkesztése', style: TextStyle(fontSize: 13, color: AppColors.halvanySzoveg)),
+                  Text(AppStrings.t('edit_profile'), style: TextStyle(fontSize: 13, color: AppColors.halvanySzoveg)),
                 ],
               ),
             ),
@@ -450,7 +451,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     color: Colors.red.shade600, size: 18),
               ),
               title: Text(
-                'Kijelentkezés',
+                AppStrings.t('logout'),
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
@@ -458,7 +459,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
               subtitle: Text(
-                'Visszatérés a bejelentkezési képernyőre',
+                AppStrings.t('logout_subtitle'),
                 style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
               ),
               trailing:
@@ -476,17 +477,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        title: const Text(
-          'Kijelentkezés',
-          style: TextStyle(fontWeight: FontWeight.w700),
+        title: Text(
+          AppStrings.t('logout'),
+          style: const TextStyle(fontWeight: FontWeight.w700),
         ),
-        content: const Text(
-          'Biztosan ki szeretnél jelentkezni? A beállításaid és edzéseid megmaradnak.',
-        ),
+        content: Text(AppStrings.t('logout_confirm_message')),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Mégse'),
+            child: Text(AppStrings.t('cancel')),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
@@ -495,7 +494,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   borderRadius: BorderRadius.circular(10)),
             ),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Kijelentkezés'),
+            child: Text(AppStrings.t('logout')),
           ),
         ],
       ),

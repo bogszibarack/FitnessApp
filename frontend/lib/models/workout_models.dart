@@ -1,3 +1,34 @@
+/// Edzés beállítások — GET /api/settings/{userName}/workout
+class WorkoutSettings {
+  const WorkoutSettings({
+    this.restTimerSeconds = 90,
+    this.trackRpe = true,
+    this.smartSuperset = true,
+    this.sounds = true,
+    this.prSound = true,
+  });
+
+  final int restTimerSeconds;
+  final bool trackRpe;
+  final bool smartSuperset;
+  final bool sounds;
+  final bool prSound;
+
+  bool get restTimerEnabled => restTimerSeconds > 0;
+
+  factory WorkoutSettings.fromJson(Map<String, dynamic> json) {
+    return WorkoutSettings(
+      restTimerSeconds: json['restTimerSeconds'] as int? ?? 90,
+      trackRpe: json['trackRpe'] as bool? ?? true,
+      smartSuperset: json['smartSuperset'] as bool? ?? true,
+      sounds: json['sounds'] as bool? ?? true,
+      prSound: json['prSound'] as bool? ?? true,
+    );
+  }
+
+  static const alap = WorkoutSettings();
+}
+
 class ProgressSettings {
   const ProgressSettings({
     this.mode = 'szazalek',

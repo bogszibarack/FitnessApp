@@ -163,9 +163,9 @@ using (var scope = app.Services.CreateScope())
         if (!string.IsNullOrWhiteSpace(legacyOwner))
         {
             FitnessBackend.Controllers.WorkoutController.AssignLegacyOwner(legacyOwner);
-            // One-time fix: earlier fallback may have attached shared data to the wrong account.
             FitnessBackend.Controllers.WorkoutController.ConsolidateAllToOwnerOnce(legacyOwner);
-            logger.LogInformation("[Workout] Legacy data owner: {User}", legacyOwner);
+            var nLogs = FitnessBackend.Models.NutritionStore.AssignLegacyOwner(legacyOwner);
+            logger.LogInformation("[Workout] Legacy data owner: {User} (nutrition logs assigned: {N})", legacyOwner, nLogs);
         }
         else
         {

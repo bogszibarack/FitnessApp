@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'l10n/app_strings.dart';
+import 'l10n/locale_controller.dart';
 import 'screens/main_shell.dart';
 import 'screens/onboarding/onboarding_screen.dart';
 import 'services/local_store.dart';
@@ -9,6 +11,8 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await SoundService.instance.init();
   await ThemeController.load();
+  await LocaleController.load();
+  await LocaleController.syncFromBackend();
   await LocalStore.instance.loadSession();
   runApp(const FitnessApp());
 }
@@ -43,14 +47,22 @@ class _FitnessAppState extends State<FitnessApp> with WidgetsBindingObserver {
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: ThemeController.mode,
       builder: (context, mod, _) {
-        AppColors.refresh();
-        return MaterialApp(
-          title: 'Flexio',
-          debugShowCheckedModeBanner: false,
-          theme: lightTheme(),
-          darkTheme: darkTheme(),
-          themeMode: mod,
-          home: const _SplashRouter(),
+        return ValueListenableBuilder<Locale>(
+          valueListenable: LocaleController.locale,
+          builder: (context, locale, _) {
+            AppColors.refresh();
+            return MaterialApp(
+              title: 'Flexio',
+              debugShowCheckedModeBanner: false,
+              theme: lightTheme(),
+              darkTheme: darkTheme(),
+              themeMode: mod,
+              locale: locale,
+              supportedLocales: LocaleController.supportedLocales,
+              localizationsDelegates: LocaleController.localizationsDelegates,
+              home: const _SplashRouter(),
+            );
+          },
         );
       },
     );
@@ -135,7 +147,7 @@ class _SplashRouterState extends State<_SplashRouter>
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Lépj szintet!',
+                    AppStrings.t('splash_tagline'),
                     style: TextStyle(
                       fontSize: 15,
                       color: Colors.grey.shade500,

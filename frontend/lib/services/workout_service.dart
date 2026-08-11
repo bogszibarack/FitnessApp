@@ -170,6 +170,7 @@ class WorkoutService {
     required double weight,
     required int reps,
     String? targetReps,
+    int? rpe,
   }) async {
     final response = await ApiHttp.put(
       Uri.parse('$_base/api/workout/aktiv/gyakorlat/${Uri.encodeComponent(exerciseId)}/sorozat/$setNumber'),
@@ -177,6 +178,7 @@ class WorkoutService {
         'weight': weight,
         'reps': reps,
         if (targetReps != null) 'targetReps': targetReps,
+        if (rpe != null) 'rpe': rpe,
       }),
     );
     _check(response);
@@ -188,10 +190,15 @@ class WorkoutService {
     int setNumber, {
     required double weight,
     required int reps,
+    int? rpe,
   }) async {
     final response = await ApiHttp.post(
       Uri.parse('$_base/api/workout/aktiv/gyakorlat/${Uri.encodeComponent(exerciseId)}/sorozat/$setNumber/pipa'),
-      body: jsonEncode({'weight': weight, 'reps': reps}),
+      body: jsonEncode({
+        'weight': weight,
+        'reps': reps,
+        if (rpe != null && rpe > 0) 'rpe': rpe,
+      }),
     );
     _check(response);
     return LoggedSetModel.fromJson(jsonDecode(response.body) as Map<String, dynamic>);

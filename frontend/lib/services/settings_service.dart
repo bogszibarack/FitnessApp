@@ -5,12 +5,31 @@ import 'package:image_picker/image_picker.dart';
 
 import '../config/api_config.dart';
 import '../models/beallitas_models.dart';
+import '../models/workout_models.dart';
+import '../services/local_store.dart';
 
 class SettingsService {
   SettingsService({String? userName}) : userName = userName ?? ApiConfig.defaultUserName;
 
   final String userName;
   final String _base = ApiConfig.baseUrl;
+
+  /// Felhasználónév: AuthService / LocalStore / ApiConfig.defaultUserName.
+  static Future<String> aktualisUserName() async {
+    if (ApiConfig.defaultUserName.isNotEmpty) return ApiConfig.defaultUserName;
+    final session = await LocalStore.instance.loadSession();
+    return session.userName ?? ApiConfig.defaultUserName;
+  }
+
+  static Future<SettingsService> letrehozasa() async {
+    final nev = await aktualisUserName();
+    return SettingsService(userName: nev.isNotEmpty ? nev : ApiConfig.defaultUserName);
+  }
+
+  Future<WorkoutSettings> getWorkoutSettings() async {
+    final data = await getSzekcio('/api/settings/$userName/workout');
+    return WorkoutSettings.fromJson(data);
+  }
 
   Future<List<BeallitasMenuSzekcio>> menuLekerdezes() async {
     final response = await http.get(
