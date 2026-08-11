@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using FitnessBackend.Data;
 using FitnessBackend.Models;
 using FitnessBackend.Services;
 
