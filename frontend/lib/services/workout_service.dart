@@ -265,11 +265,43 @@ class WorkoutService {
     await saveProgressSettings(current.copyWith(percent: percent.clamp(0.0, 20.0)));
   }
 
+  /// Import Strava / Health / Watch activities into Flexio workout history (deduped on server).
+  Future<WorkoutImportResult> importExternalWorkouts(
+    List<Map<String, dynamic>> items,
+  ) async {
+    if (items.isEmpty) {
+      return const WorkoutImportResult(imported: 0, skipped: 0);
+    }
+    final response = await ApiHttp.post(
+      Uri.parse('$_base/api/workout/import'),
+      body: jsonEncode({'items': items}),
+    );
+    _check(response);
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    return WorkoutImportResult(
+      imported: data['imported'] as int? ?? 0,
+      skipped: data['skipped'] as int? ?? 0,
+      message: data['message'] as String?,
+    );
+  }
+
   void _check(http.Response response) {
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception('API hiba (${response.statusCode}): ${response.body}');
     }
   }
+}
+
+class WorkoutImportResult {
+  const WorkoutImportResult({
+    required this.imported,
+    required this.skipped,
+    this.message,
+  });
+
+  final int imported;
+  final int skipped;
+  final String? message;
 }
 
 extension ProgressSettingsCopy on ProgressSettings {

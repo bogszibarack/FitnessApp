@@ -793,5 +793,81 @@ namespace FitnessBackend.Controllers
             DataStore.SaveHistory(workoutHistory);
             return Ok($"Sikeres mentés! Az edzésed elmentve {workout.Id} azonosítóval. Összesen {workout.Exercises.Count} gyakorlatot végeztél.");
         }
+
+        /// <summary>
+        /// Import external activities (Strava / Health / Watch) into workout history.
+        /// Dedupes by ExternalId + ExternalSource per user.
+        /// </summary>
+        [HttpPost("import")]
+        public ActionResult<object> ImportExternal([FromBody] ExternalWorkoutImportRequest request)
+        {
+            var auth = CurrentUser.RequireUser(this, out var user);
+            if (auth != null) return auth;
+
+            if (request?.Items == null || request.Items.Count == 0)
+                return BadRequest("Nincs importálandó edzés.");
+
+            var imported = 0;
+            var skipped = 0;
+            var ids = new List<int>();
+
+            foreach (var item in request.Items)
+            {
+                var externalId = (item.ExternalId ?? "").Trim();
+                var source = (item.Source ?? "").Trim().ToLowerInvariant();
+                if (string.IsNullOrEmpty(externalId) || string.IsNullOrEmpty(source))
+                {
+                    skipped++;
+                    continue;
+                }
+
+                var exists = workoutHistory.Any(w =>
+                    w.UserName.Equals(user, StringComparison.OrdinalIgnoreCase) &&
+                    w.ExternalId.Equals(externalId, StringComparison.OrdinalIgnoreCase) &&
+                    w.ExternalSource.Equals(source, StringComparison.OrdinalIgnoreCase));
+                if (exists)
+                {
+                    skipped++;
+                    continue;
+                }
+
+                var duration = Math.Max(0, item.DurationSeconds);
+                var title = string.IsNullOrWhiteSpace(item.Title)
+                    ? (string.IsNullOrWhiteSpace(item.ActivityType) ? "Importált edzés" : item.ActivityType!)
+                    : item.Title.Trim();
+
+                var session = new WorkoutSession
+                {
+                    Id = NextHistoryId(),
+                    UserName = user,
+                    Title = title,
+                    StartTime = item.StartTime ?? DateTime.UtcNow,
+                    DurationSeconds = duration,
+                    IsActive = false,
+                    Exercises = new List<LoggedExercise>(),
+                    ExternalId = externalId,
+                    ExternalSource = source,
+                    DistanceKm = item.DistanceKm,
+                    ActivityType = item.ActivityType?.Trim() ?? "",
+                };
+
+                workoutHistory.Add(session);
+                ids.Add(session.Id);
+                imported++;
+            }
+
+            if (imported > 0)
+                DataStore.SaveHistory(workoutHistory);
+
+            return Ok(new
+            {
+                imported,
+                skipped,
+                ids,
+                message = imported > 0
+                    ? $"{imported} edzés bekerült a naplóba ({skipped} kihagyva / már megvolt)."
+                    : "Nincs új edzés a naplóba (mind már importálva volt).",
+            });
+        }
     }
 }

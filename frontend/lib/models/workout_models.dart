@@ -185,6 +185,10 @@ class WorkoutSessionModel {
     this.totalVolumeKg = 0,
     this.completedSets = 0,
     this.elapsedSeconds = 0,
+    this.externalId = '',
+    this.externalSource = '',
+    this.distanceKm,
+    this.activityType = '',
   });
 
   final int id;
@@ -196,6 +200,12 @@ class WorkoutSessionModel {
   final double totalVolumeKg;
   final int completedSets;
   final int elapsedSeconds;
+  final String externalId;
+  final String externalSource;
+  final double? distanceKm;
+  final String activityType;
+
+  bool get isImported => externalId.isNotEmpty && externalSource.isNotEmpty;
 
   // Legacy aliases
   double get osszTomegKg => totalVolumeKg;
@@ -215,6 +225,10 @@ class WorkoutSessionModel {
       totalVolumeKg: ((json['totalVolumeKg'] ?? json['osszTomegKg']) as num?)?.toDouble() ?? 0,
       completedSets: (json['completedSets'] ?? json['osszSorozatSzam']) as int? ?? 0,
       elapsedSeconds: (json['elapsedSeconds'] ?? json['elteltMasodperc']) as int? ?? 0,
+      externalId: json['externalId'] as String? ?? '',
+      externalSource: json['externalSource'] as String? ?? '',
+      distanceKm: (json['distanceKm'] as num?)?.toDouble(),
+      activityType: json['activityType'] as String? ?? '',
     );
   }
 
@@ -228,6 +242,21 @@ class WorkoutSessionModel {
   }
 
   String get megjelenitettCim => title == 'Empty Workout' ? 'Üres edzés' : title;
+
+  String get forrasCimke {
+    switch (externalSource) {
+      case 'strava':
+        return 'Strava';
+      case 'apple_health':
+        return 'Apple Health';
+      case 'health_connect':
+        return 'Health Connect';
+      case 'watch':
+        return 'Okosóra';
+      default:
+        return externalSource.isEmpty ? '' : externalSource;
+    }
+  }
 
   String get datumSzoveg {
     if (startTime == null) return 'Ismeretlen dátum';
@@ -244,6 +273,14 @@ class WorkoutSessionModel {
   }
 
   String get gyakorlatOsszefoglalo {
+    if (isImported) {
+      final parts = <String>[
+        if (forrasCimke.isNotEmpty) forrasCimke,
+        if (activityType.isNotEmpty) activityType,
+        if (distanceKm != null && distanceKm! > 0) '${distanceKm!.toStringAsFixed(1)} km',
+      ];
+      return parts.isEmpty ? 'Importált edzés' : parts.join(' · ');
+    }
     if (exercises.isEmpty) return 'Nincs gyakorlat';
     final nevek = exercises.map((e) => e.exerciseName).take(3).join(', ');
     return exercises.length > 3 ? '$nevek...' : nevek;
@@ -256,6 +293,10 @@ class WorkoutSessionModel {
         'durationSeconds': durationSeconds,
         'isActive': false,
         'exercises': exercises.map((e) => e.toJson()).toList(),
+        if (externalId.isNotEmpty) 'externalId': externalId,
+        if (externalSource.isNotEmpty) 'externalSource': externalSource,
+        if (distanceKm != null) 'distanceKm': distanceKm,
+        if (activityType.isNotEmpty) 'activityType': activityType,
       };
 
   WorkoutSessionModel copyWith({
@@ -272,6 +313,10 @@ class WorkoutSessionModel {
       totalVolumeKg: totalVolumeKg,
       completedSets: completedSets,
       elapsedSeconds: elapsedSeconds,
+      externalId: externalId,
+      externalSource: externalSource,
+      distanceKm: distanceKm,
+      activityType: activityType,
     );
   }
 }

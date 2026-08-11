@@ -1055,7 +1055,9 @@ class _BefejezettEdzesKartya extends StatelessWidget {
                   Text(edzes.idoSzoveg, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
                   const SizedBox(height: 4),
                   Text(
-                    '${edzes.osszSorozatSzam} sor · ${edzes.osszTomegKg.toStringAsFixed(0)} kg',
+                    edzes.isImported
+                        ? (edzes.forrasCimke.isNotEmpty ? edzes.forrasCimke : 'Import')
+                        : '${edzes.osszSorozatSzam} sor · ${edzes.osszTomegKg.toStringAsFixed(0)} kg',
                     style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
                   ),
                 ],

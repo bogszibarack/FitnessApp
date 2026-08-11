@@ -1091,6 +1091,11 @@ class _IntegraciokScreenState extends State<IntegraciokScreen> {
         _appleHealth = status.connected;
         _appleHealthStatus = status;
       });
+      if (v && status.connected) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(status.detail ?? 'Apple Health szinkron kész — napló frissítve.')),
+        );
+      }
     } finally {
       if (mounted) setState(() => _kapcsol = false);
     }
@@ -1117,6 +1122,11 @@ class _IntegraciokScreenState extends State<IntegraciokScreen> {
         _googleFit = status.connected;
         _googleFitStatus = status;
       });
+      if (v && status.connected) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(status.detail ?? 'Health Connect szinkron kész — napló frissítve.')),
+        );
+      }
     } finally {
       if (mounted) setState(() => _kapcsol = false);
     }
@@ -1143,6 +1153,11 @@ class _IntegraciokScreenState extends State<IntegraciokScreen> {
         _appleWatch = status.connected;
         _watchStatus = status;
       });
+      if (v && status.connected) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(status.detail ?? 'Óra edzések a Flexio naplóban.')),
+        );
+      }
     } finally {
       if (mounted) setState(() => _kapcsol = false);
     }
@@ -1175,6 +1190,11 @@ class _IntegraciokScreenState extends State<IntegraciokScreen> {
         _strava = status.connected;
         _stravaStatus = status;
       });
+      if (v && status.connected) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(status.detail ?? 'Strava aktivitások a Flexio naplóban.')),
+        );
+      }
     } finally {
       if (mounted) setState(() => _kapcsol = false);
     }

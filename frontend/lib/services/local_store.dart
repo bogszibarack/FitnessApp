@@ -19,13 +19,17 @@ class LocalStore {
   static const stravaRefreshToken = 'stravaRefreshToken';
   static const stravaExpiresAt = 'stravaExpiresAt';
   static const stravaActivityCount = 'stravaActivityCount';
+  static const stravaImportedCount = 'stravaImportedCount';
   static const appleHealthLastSync = 'appleHealthLastSync';
   static const appleHealthLastError = 'appleHealthLastError';
+  static const appleHealthImportedCount = 'appleHealthImportedCount';
   static const googleFitLastSync = 'googleFitLastSync';
   static const googleFitLastError = 'googleFitLastError';
+  static const googleFitImportedCount = 'googleFitImportedCount';
   static const watchLastSync = 'watchLastSync';
   static const watchLastError = 'watchLastError';
   static const watchWorkoutCount = 'watchWorkoutCount';
+  static const watchImportedCount = 'watchImportedCount';
   static const stravaLastSync = 'stravaLastSync';
   static const stravaLastError = 'stravaLastError';
   static const themeMode = 'themeMode';
@@ -197,6 +201,46 @@ class LocalStore {
   Future<void> setStravaActivityCount(int count) async {
     final prefs = await _prefs;
     await prefs.setInt(stravaActivityCount, count);
+  }
+
+  Future<int> getStravaImportedCount() async {
+    final prefs = await _prefs;
+    return prefs.getInt(stravaImportedCount) ?? 0;
+  }
+
+  Future<void> setStravaImportedCount(int count) async {
+    final prefs = await _prefs;
+    await prefs.setInt(stravaImportedCount, count);
+  }
+
+  Future<int> getAppleHealthImportedCount() async {
+    final prefs = await _prefs;
+    return prefs.getInt(appleHealthImportedCount) ?? 0;
+  }
+
+  Future<void> setAppleHealthImportedCount(int count) async {
+    final prefs = await _prefs;
+    await prefs.setInt(appleHealthImportedCount, count);
+  }
+
+  Future<int> getGoogleFitImportedCount() async {
+    final prefs = await _prefs;
+    return prefs.getInt(googleFitImportedCount) ?? 0;
+  }
+
+  Future<void> setGoogleFitImportedCount(int count) async {
+    final prefs = await _prefs;
+    await prefs.setInt(googleFitImportedCount, count);
+  }
+
+  Future<int> getWatchImportedCount() async {
+    final prefs = await _prefs;
+    return prefs.getInt(watchImportedCount) ?? 0;
+  }
+
+  Future<void> setWatchImportedCount(int count) async {
+    final prefs = await _prefs;
+    await prefs.setInt(watchImportedCount, count);
   }
 
   Future<DateTime?> _readSync(String key) async {

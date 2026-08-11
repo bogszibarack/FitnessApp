@@ -23,9 +23,10 @@ class IntegrationStatus {
     if (lastError != null && lastError!.isNotEmpty) {
       return 'Hiba: $lastError';
     }
-    if (lastSyncLabel != null) {
-      return 'Utolsó szinkron: $lastSyncLabel';
-    }
-    return detail ?? fallback;
+    final parts = <String>[];
+    if (detail != null && detail!.isNotEmpty) parts.add(detail!);
+    if (lastSyncLabel != null) parts.add('Utolsó: $lastSyncLabel');
+    if (parts.isNotEmpty) return parts.join(' · ');
+    return fallback;
   }
 }
