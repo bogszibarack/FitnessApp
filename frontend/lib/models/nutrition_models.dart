@@ -148,10 +148,16 @@ class DailyNutritionModel {
     required this.totalCarbs,
     required this.totalFat,
     required this.remainingCalories,
+    this.targetProtein = 0,
+    this.targetCarbs = 0,
+    this.targetFat = 0,
   });
 
   final DateTime date;
   final double targetCalories;
+  final double targetProtein;
+  final double targetCarbs;
+  final double targetFat;
   final List<LoggedFoodModel> eatenFoods;
   final double totalCalories;
   final double totalProtein;
@@ -163,10 +169,17 @@ class DailyNutritionModel {
     final eaten = (json['eatenFoods'] as List<dynamic>? ?? [])
         .map((e) => LoggedFoodModel.fromJson(e as Map<String, dynamic>))
         .toList();
+    final targetKcal = (json['targetCalories'] as num?)?.toDouble() ?? 2000;
 
     return DailyNutritionModel(
       date: DateTime.tryParse(json['date'] as String? ?? '') ?? DateTime.now(),
-      targetCalories: (json['targetCalories'] as num?)?.toDouble() ?? 2000,
+      targetCalories: targetKcal,
+      targetProtein: (json['targetProtein'] as num?)?.toDouble() ??
+          (targetKcal * 0.25 / 4),
+      targetCarbs: (json['targetCarbs'] as num?)?.toDouble() ??
+          (targetKcal * 0.5 / 4),
+      targetFat: (json['targetFat'] as num?)?.toDouble() ??
+          (targetKcal * 0.25 / 9),
       eatenFoods: eaten,
       totalCalories: (json['totalCalories'] as num?)?.toDouble() ?? 0,
       totalProtein: (json['totalProtein'] as num?)?.toDouble() ?? 0,
@@ -190,6 +203,61 @@ class DailyNutritionModel {
       }
     }
     return lista;
+  }
+}
+
+class NutritionGoalsModel {
+  const NutritionGoalsModel({
+    required this.targetCalories,
+    required this.targetProtein,
+    required this.targetCarbs,
+    required this.targetFat,
+  });
+
+  final double targetCalories;
+  final double targetProtein;
+  final double targetCarbs;
+  final double targetFat;
+
+  factory NutritionGoalsModel.fromJson(Map<String, dynamic> json) {
+    final kcal = (json['targetCalories'] as num?)?.toDouble() ?? 2200;
+    return NutritionGoalsModel(
+      targetCalories: kcal,
+      targetProtein: (json['targetProtein'] as num?)?.toDouble() ?? (kcal * 0.25 / 4),
+      targetCarbs: (json['targetCarbs'] as num?)?.toDouble() ?? (kcal * 0.5 / 4),
+      targetFat: (json['targetFat'] as num?)?.toDouble() ?? (kcal * 0.25 / 9),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'targetCalories': targetCalories,
+        'targetProtein': targetProtein,
+        'targetCarbs': targetCarbs,
+        'targetFat': targetFat,
+      };
+
+  NutritionGoalsModel copyWith({
+    double? targetCalories,
+    double? targetProtein,
+    double? targetCarbs,
+    double? targetFat,
+  }) {
+    return NutritionGoalsModel(
+      targetCalories: targetCalories ?? this.targetCalories,
+      targetProtein: targetProtein ?? this.targetProtein,
+      targetCarbs: targetCarbs ?? this.targetCarbs,
+      targetFat: targetFat ?? this.targetFat,
+    );
+  }
+
+  /// Recalculate P/C/F from kcal using 25/50/25 split.
+  NutritionGoalsModel withCalories(double kcal) {
+    return NutritionGoalsModel(
+      targetCalories: kcal,
+      targetProtein: (kcal * 0.25 / 4).roundToDouble(),
+      targetCarbs: (kcal * 0.5 / 4).roundToDouble(),
+      targetFat: (kcal * 0.25 / 9).roundToDouble(),
+    );
   }
 }
 

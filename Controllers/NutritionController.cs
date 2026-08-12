@@ -87,6 +87,24 @@ namespace FitnessBackend.Controllers
         }
 
         [Authorize]
+        [HttpGet("goals")]
+        public ActionResult<NutritionGoalsSettings> GetGoals()
+        {
+            if (CurrentUser.RequireUser(this, out var user) is { } deny) return deny;
+            return Ok(NutritionService.GetGoals(user));
+        }
+
+        [Authorize]
+        [HttpPut("goals")]
+        public ActionResult<object> SetGoals([FromBody] NutritionGoalsSettings goals)
+        {
+            if (CurrentUser.RequireUser(this, out var user) is { } deny) return deny;
+            var (saved, log, err) = NutritionService.SetGoals(user, goals);
+            if (err != null) return BadRequest(err);
+            return Ok(new { goals = saved, log, message = "Makró célok elmentve." });
+        }
+
+        [Authorize]
         [HttpPost("food")]
         public ActionResult<DailyNutritionSession> AddFood([FromBody] LoggedFood food)
         {

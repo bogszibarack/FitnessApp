@@ -56,6 +56,9 @@ namespace FitnessBackend.Models
         public string UserName { get; set; } = "";
         public DateTime Date { get; set; } = DateTime.Today;
         public double TargetCalories { get; set; } = 2000;
+        public double TargetProtein { get; set; } = 125;
+        public double TargetCarbs { get; set; } = 250;
+        public double TargetFat { get; set; } = 67;
         public List<LoggedFood> EatenFoods { get; set; } = new();
 
         public double TotalCalories => Math.Round(EatenFoods.Sum(f => f.CalculatedCalories), 1);

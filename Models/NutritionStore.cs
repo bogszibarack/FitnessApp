@@ -15,11 +15,15 @@ namespace FitnessBackend.Models
                 n.UserName.Equals(key, StringComparison.OrdinalIgnoreCase));
             if (log == null)
             {
+                var goals = UserSettingsStore.GetOrCreate(key).NutritionGoals;
                 log = new DailyNutritionSession
                 {
                     UserName = key,
                     Date = date.Date,
-                    TargetCalories = 2200,
+                    TargetCalories = goals.TargetCalories,
+                    TargetProtein = goals.TargetProtein,
+                    TargetCarbs = goals.TargetCarbs,
+                    TargetFat = goals.TargetFat,
                 };
                 DailyLogs.Add(log);
             }
@@ -27,6 +31,15 @@ namespace FitnessBackend.Models
             {
                 log.UserName = key;
             }
+
+            // Backfill macro targets for older logs that only had calories.
+            if (log.TargetProtein <= 0 && log.TargetCarbs <= 0 && log.TargetFat <= 0 && log.TargetCalories > 0)
+            {
+                log.TargetProtein = Math.Round(log.TargetCalories * 0.25 / 4, 0);
+                log.TargetCarbs = Math.Round(log.TargetCalories * 0.5 / 4, 0);
+                log.TargetFat = Math.Round(log.TargetCalories * 0.25 / 9, 0);
+            }
+
             return log;
         }
 

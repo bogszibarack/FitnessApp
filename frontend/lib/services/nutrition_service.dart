@@ -101,6 +101,23 @@ class NutritionService {
     return DailyNutritionModel.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
   }
 
+  Future<NutritionGoalsModel> getGoals() async {
+    final response = await ApiHttp.get(Uri.parse('$_base/api/nutrition/goals'));
+    _check(response);
+    return NutritionGoalsModel.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
+  }
+
+  Future<NutritionGoalsModel> setGoals(NutritionGoalsModel goals) async {
+    final response = await ApiHttp.put(
+      Uri.parse('$_base/api/nutrition/goals'),
+      body: jsonEncode(goals.toJson()),
+    );
+    _check(response);
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    final g = data['goals'] as Map<String, dynamic>? ?? data;
+    return NutritionGoalsModel.fromJson(g);
+  }
+
   Future<List<FoodItemModel>> listCustomFoods() async {
     final response = await ApiHttp.get(Uri.parse('$_base/api/nutrition/custom-foods'));
     _check(response);

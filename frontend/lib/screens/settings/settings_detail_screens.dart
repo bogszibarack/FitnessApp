@@ -7,7 +7,9 @@ import '../../l10n/app_strings.dart';
 import '../../l10n/locale_controller.dart';
 import '../../models/beallitas_models.dart';
 import '../../models/integration_status.dart';
+import '../../models/nutrition_models.dart';
 import '../../services/integrations_service.dart';
+import '../../services/nutrition_service.dart';
 import '../../services/strava_service.dart';
 import '../../utils/platform_utils.dart';
 import '../../services/settings_service.dart';
@@ -768,6 +770,149 @@ class _PrivatSzocialScreenState extends State<PrivatSzocialScreen> {
                   KapcsoloTile(icon: Icons.content_copy_rounded, ikonSzin: const Color(0xFF00897B), title: 'Rutin másolható mások által', ertek: _rutin, onChange: (v) => setState(() => _rutin = v)),
                 ]),
                 const SizedBox(height: 32),
+              ],
+            ),
+    );
+  }
+}
+
+// ─── Makró célok ────────────────────────────────────────────────────────────
+
+class MakroCelokScreen extends StatefulWidget {
+  const MakroCelokScreen({super.key, this.service});
+  final SettingsService? service;
+
+  @override
+  State<MakroCelokScreen> createState() => _MakroCelokScreenState();
+}
+
+class _MakroCelokScreenState extends State<MakroCelokScreen> {
+  final _nutrition = NutritionService.instance;
+  final _kcalCtrl = TextEditingController();
+  final _feherjeCtrl = TextEditingController();
+  final _szenCtrl = TextEditingController();
+  final _zsirCtrl = TextEditingController();
+  bool _betolt = true;
+  bool _ment = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _init();
+  }
+
+  @override
+  void dispose() {
+    _kcalCtrl.dispose();
+    _feherjeCtrl.dispose();
+    _szenCtrl.dispose();
+    _zsirCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _init() async {
+    try {
+      final g = await _nutrition.getGoals();
+      if (!mounted) return;
+      _kcalCtrl.text = g.targetCalories.round().toString();
+      _feherjeCtrl.text = g.targetProtein.round().toString();
+      _szenCtrl.text = g.targetCarbs.round().toString();
+      _zsirCtrl.text = g.targetFat.round().toString();
+    } catch (_) {
+      _kcalCtrl.text = '2200';
+      _feherjeCtrl.text = '138';
+      _szenCtrl.text = '275';
+      _zsirCtrl.text = '61';
+    }
+    if (mounted) setState(() => _betolt = false);
+  }
+
+  void _szazalekbol() {
+    final kcal = double.tryParse(_kcalCtrl.text.replaceAll(',', '.')) ?? 2200;
+    final g = NutritionGoalsModel(
+      targetCalories: kcal,
+      targetProtein: 0,
+      targetCarbs: 0,
+      targetFat: 0,
+    ).withCalories(kcal);
+    setState(() {
+      _feherjeCtrl.text = g.targetProtein.round().toString();
+      _szenCtrl.text = g.targetCarbs.round().toString();
+      _zsirCtrl.text = g.targetFat.round().toString();
+    });
+  }
+
+  Future<void> _mentes() async {
+    setState(() => _ment = true);
+    try {
+      await _nutrition.setGoals(NutritionGoalsModel(
+        targetCalories: double.tryParse(_kcalCtrl.text.replaceAll(',', '.')) ?? 2200,
+        targetProtein: double.tryParse(_feherjeCtrl.text.replaceAll(',', '.')) ?? 0,
+        targetCarbs: double.tryParse(_szenCtrl.text.replaceAll(',', '.')) ?? 0,
+        targetFat: double.tryParse(_zsirCtrl.text.replaceAll(',', '.')) ?? 0,
+      ));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Makró célok elmentve!')),
+      );
+      Navigator.of(context).pop(true);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+    } finally {
+      if (mounted) setState(() => _ment = false);
+    }
+  }
+
+  Widget _mezo(TextEditingController c, String label, String suffix) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      child: TextField(
+        controller: c,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        decoration: InputDecoration(
+          labelText: label,
+          suffixText: suffix,
+          filled: true,
+          fillColor: Colors.grey.shade50,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _DetailScaffold(
+      cim: 'Makró célok',
+      mentes: _mentes,
+      mentesBetolt: _ment,
+      child: _betolt
+          ? const Center(child: CircularProgressIndicator())
+          : ListView(
+              children: [
+                SettingsSectionHeader(title: 'Napi célok'),
+                BeallitasSzekcio(children: [
+                  _mezo(_kcalCtrl, 'Kalória', 'kcal'),
+                  _mezo(_feherjeCtrl, 'Fehérje', 'g'),
+                  _mezo(_szenCtrl, 'Szénhidrát', 'g'),
+                  _mezo(_zsirCtrl, 'Zsír', 'g'),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+                    child: TextButton.icon(
+                      onPressed: _szazalekbol,
+                      icon: const Icon(Icons.auto_fix_rounded, size: 18),
+                      label: const Text('Makrók kalóriából (25/50/25 %)'),
+                    ),
+                  ),
+                ]),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                  child: Text(
+                    'A célok minden napra érvényesek, és a Napló / Home gyűrűkön megjelennek.',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600, height: 1.35),
+                  ),
+                ),
               ],
             ),
     );

@@ -12,6 +12,7 @@ namespace FitnessBackend.Models
         public WorkoutSettings Workout { get; set; } = new();
         public PrivacySettings Privacy { get; set; } = new();
         public UnitSettings Units { get; set; } = new();
+        public NutritionGoalsSettings NutritionGoals { get; set; } = new();
         public string Language { get; set; } = "hu";
         public ThemeSettings Theme { get; set; } = new();
         public IntegrationSettings Integrations { get; set; } = new();
@@ -25,11 +26,26 @@ namespace FitnessBackend.Models
         public WorkoutSettings Edzes { set => Workout = value; }
         public PrivacySettings PrivatSzocial { set => Privacy = value; }
         public UnitSettings Egyseg { set => Units = value; }
+        public NutritionGoalsSettings TaplalkozasCelok { set => NutritionGoals = value; }
         public string Nyelv { set => Language = value; }
         public ThemeSettings Tema { set => Theme = value; }
         public IntegrationSettings Integraciok { set => Integrations = value; }
         public DateTime Letrehozva { set => CreatedAt = value; }
         public DateTime Modositva { set => UpdatedAt = value; }
+    }
+
+    /// <summary>User-level daily macro targets (persisted across days).</summary>
+    public class NutritionGoalsSettings
+    {
+        public double TargetCalories { get; set; } = 2200;
+        public double TargetProtein { get; set; } = 138; // ~25% of 2200
+        public double TargetCarbs { get; set; } = 275;   // ~50%
+        public double TargetFat { get; set; } = 61;      // ~25%
+
+        public double CelKaloria { set => TargetCalories = value; }
+        public double CelFeherje { set => TargetProtein = value; }
+        public double CelSzenhidrat { set => TargetCarbs = value; }
+        public double CelZsir { set => TargetFat = value; }
     }
 
     public class ProfileSettings
@@ -400,6 +416,7 @@ namespace FitnessBackend.Models
                     Items =
                     [
                         new() { Id = "edzes", Label = "Edzések", Icon = "dumbbell", ApiPath = $"{api}/workout" },
+                        new() { Id = "makro-celok", Label = "Makró célok", Icon = "flame", ApiPath = "/api/nutrition/goals" },
                         new() { Id = "privat-szocial", Label = "Adatvédelem & közösség", Icon = "shield", ApiPath = $"{api}/privacy" },
                         new() { Id = "egyseg", Label = "Mértékegységek", Icon = "ruler", ApiPath = $"{api}/units" },
                         new() { Id = "nyelv", Label = "Nyelv", Icon = "flag", ApiPath = $"{api}/language" }

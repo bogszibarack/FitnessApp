@@ -75,6 +75,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       case 'tagsag':       kepernyo = TagsagScreen(service: _service); break;
       case 'ertesitesek':  kepernyo = ErtesitesekScreen(service: _service); break;
       case 'edzes':        kepernyo = EdzesBeallitasokScreen(service: _service); break;
+      case 'makro-celok':  kepernyo = MakroCelokScreen(service: _service); break;
       case 'privat-szocial': kepernyo = PrivatSzocialScreen(service: _service); break;
       case 'egyseg':       kepernyo = EgysegScreen(service: _service); break;
       case 'nyelv':        kepernyo = NyelvScreen(service: _service); break;

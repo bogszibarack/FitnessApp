@@ -8,6 +8,7 @@ import '../../services/streak_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/health_data_panel.dart';
 import '../../widgets/nutrition_diary_widgets.dart';
+import '../settings/settings_detail_screens.dart';
 import 'food_add_screen.dart';
 import 'meal_detail_screen.dart';
 import 'recipes_screen.dart';
@@ -102,6 +103,13 @@ class _NaploScreenState extends State<NaploScreen> {
     if (friss == true) await _loadData();
   }
 
+  Future<void> _makroCelok() async {
+    final friss = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => const MakroCelokScreen()),
+    );
+    if (friss == true) await _loadData();
+  }
+
   String _napRovid() {
     const napok = ['H', 'K', 'Sze', 'Cs', 'P', 'Szo', 'V'];
     return napok[DateTime.now().weekday - 1];
@@ -143,7 +151,7 @@ class _NaploScreenState extends State<NaploScreen> {
                           child: Center(child: CircularProgressIndicator(color: _accentGreen)),
                         )
                       else if (_naplo != null) ...[
-                        _buildSectionHeader('Összefoglaló', 'Részletek', onTap: () => _etkezesMegnyitasa(EtkezesTipus.ebed)),
+                        _buildSectionHeader('Összefoglaló', 'Célok', onTap: _makroCelok),
                         const SizedBox(height: 10),
                         NutritionDiarySummaryCard(
                           consumed: _data.caloriesConsumed,
@@ -250,6 +258,12 @@ class _NaploScreenState extends State<NaploScreen> {
       children: [
         _buildStreakChip(),
         const Spacer(),
+        IconButton(
+          onPressed: _makroCelok,
+          icon: const Icon(Icons.flag_outlined),
+          color: AppColors.szoveg,
+          tooltip: 'Makró célok',
+        ),
         IconButton(onPressed: _loadData, icon: const Icon(Icons.refresh), color: AppColors.szoveg),
       ],
     );

@@ -225,31 +225,31 @@ namespace FitnessBackend.Services
 
         public static async Task<(FoodItem? Food, string? Error, int Status)> LookupBarcodeAsync(string barcode)
         {
+            var variants = BarcodeVariants(barcode);
+            if (variants.Count == 0)
+                return (null, "Ervenytelen vonalkod.", 400);
+
             try
             {
                 if (FatSecretConfig.HasCredentials)
                 {
-                    var fs = await FatSecretApi.LookupBarcodeAsync(barcode);
-                    if (fs != null) return (fs, null, 200);
+                    foreach (var code in variants)
+                    {
+                        var fs = await FatSecretApi.LookupBarcodeAsync(code);
+                        if (fs != null) return (fs, null, 200);
+                    }
                 }
 
-                using var client = new HttpClient();
-                client.DefaultRequestHeaders.Add("User-Agent", OffUserAgent);
+                using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(12) };
+                client.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", OffUserAgent);
 
-                string url = $"{OffApiBase}/api/v2/product/{barcode}.json" +
-                             "?fields=code,product_name,product_name_hu,product_name_en,brands,nutriments,image_front_thumb_url";
-                string raw = await client.GetStringAsync(url);
+                foreach (var code in variants)
+                {
+                    var food = await LookupOffProductAsync(client, code);
+                    if (food != null) return (food, null, 200);
+                }
 
-                using JsonDocument doc = JsonDocument.Parse(raw);
-                int status = doc.RootElement.TryGetProperty("status", out var s) ? s.GetInt32() : 0;
-
-                if (status != 1 || !doc.RootElement.TryGetProperty("product", out var product))
-                    return (null, "Nem talalhato termek ehhez a vonalkodhoz.", 404);
-
-                var food = FromOffProduct(product);
-                if (food == null) return (null, "A termek adatai hianyosak.", 404);
-
-                return (food, null, 200);
+                return (null, "Nem talalhato termek ehhez a vonalkodhoz.", 404);
             }
             catch (Exception)
             {
@@ -257,8 +257,92 @@ namespace FitnessBackend.Services
             }
         }
 
+        private static List<string> BarcodeVariants(string raw)
+        {
+            var digits = new string((raw ?? "").Where(char.IsDigit).ToArray());
+            if (string.IsNullOrEmpty(digits)) return [];
+
+            var list = new List<string>();
+            void add(string s)
+            {
+                if (!string.IsNullOrEmpty(s) && !list.Contains(s)) list.Add(s);
+            }
+
+            add(digits);
+            if (digits.Length == 12) add("0" + digits);          // UPC-A → EAN-13
+            if (digits.Length == 13 && digits.StartsWith('0'))
+                add(digits[1..]);                                // EAN-13 → UPC-A
+            if (digits.Length < 13) add(digits.PadLeft(13, '0'));
+            if (digits.Length < 12) add(digits.PadLeft(12, '0'));
+
+            return list;
+        }
+
+        private static async Task<FoodItem?> LookupOffProductAsync(HttpClient client, string barcode)
+        {
+            // Prefer v2, then classic v0 product endpoint.
+            var urls = new[]
+            {
+                $"{OffApiBase}/api/v2/product/{barcode}.json?fields=code,product_name,product_name_hu,product_name_en,generic_name,brands,nutriments,image_front_thumb_url,image_front_small_url,image_thumb_url",
+                $"{OffApiBase}/api/v0/product/{barcode}.json",
+            };
+
+            foreach (var url in urls)
+            {
+                try
+                {
+                    using var resp = await client.GetAsync(url);
+                    if (!resp.IsSuccessStatusCode) continue;
+                    var raw = await resp.Content.ReadAsStringAsync();
+                    using var doc = JsonDocument.Parse(raw);
+                    var status = doc.RootElement.TryGetProperty("status", out var s) ? s.GetInt32() : 0;
+                    if (status != 1 || !doc.RootElement.TryGetProperty("product", out var product))
+                        continue;
+                    var food = FromOffProduct(product);
+                    if (food != null) return food;
+                }
+                catch
+                {
+                    // try next URL
+                }
+            }
+
+            return null;
+        }
+
         public static DailyNutritionSession GetLog(string userName, DateTime date) =>
             NutritionStore.GetOrCreateLog(userName, date);
+
+        public static NutritionGoalsSettings GetGoals(string userName) =>
+            UserSettingsStore.GetOrCreate(userName).NutritionGoals;
+
+        public static (NutritionGoalsSettings? Goals, DailyNutritionSession Log, string? Error)
+            SetGoals(string userName, NutritionGoalsSettings goals)
+        {
+            if (goals.TargetCalories < 800 || goals.TargetCalories > 10000)
+                return (null, GetLog(userName, DateTime.Today), "A kaloriacel 800 es 10000 kozott legyen.");
+            if (goals.TargetProtein < 0 || goals.TargetCarbs < 0 || goals.TargetFat < 0)
+                return (null, GetLog(userName, DateTime.Today), "A makrok nem lehetnek negativak.");
+
+            var user = UserSettingsStore.GetOrCreate(userName);
+            user.NutritionGoals = new NutritionGoalsSettings
+            {
+                TargetCalories = Math.Round(goals.TargetCalories, 0),
+                TargetProtein = Math.Round(goals.TargetProtein, 0),
+                TargetCarbs = Math.Round(goals.TargetCarbs, 0),
+                TargetFat = Math.Round(goals.TargetFat, 0),
+            };
+            UserSettingsStore.Save(user);
+
+            var log = GetLog(userName, DateTime.Today);
+            log.TargetCalories = user.NutritionGoals.TargetCalories;
+            log.TargetProtein = user.NutritionGoals.TargetProtein;
+            log.TargetCarbs = user.NutritionGoals.TargetCarbs;
+            log.TargetFat = user.NutritionGoals.TargetFat;
+            DataStore.SaveNutrition();
+
+            return (user.NutritionGoals, log, null);
+        }
 
         public static object MealSummary(string userName, string mealType)
         {
@@ -282,9 +366,13 @@ namespace FitnessBackend.Services
 
         public static DailyNutritionSession SetTargetCalories(string userName, double target)
         {
-            var log = GetLog(userName, DateTime.Today);
-            log.TargetCalories = target;
-            DataStore.SaveNutrition();
+            var (_, log, _) = SetGoals(userName, new NutritionGoalsSettings
+            {
+                TargetCalories = target,
+                TargetProtein = Math.Round(target * 0.25 / 4, 0),
+                TargetCarbs = Math.Round(target * 0.5 / 4, 0),
+                TargetFat = Math.Round(target * 0.25 / 9, 0),
+            });
             return log;
         }
 
@@ -362,14 +450,20 @@ namespace FitnessBackend.Services
             if (product.TryGetProperty("nutriments", out var nu))
             {
                 kcal = OffNutrient(nu, "energy-kcal_100g");
+                if (kcal <= 0) kcal = OffNutrient(nu, "energy-kcal");
                 if (kcal <= 0)
                 {
                     double kj = OffNutrient(nu, "energy-kj_100g");
+                    if (kj <= 0) kj = OffNutrient(nu, "energy_100g");
+                    if (kj <= 0) kj = OffNutrient(nu, "energy");
                     if (kj > 0) kcal = kj / 4.184;
                 }
                 protein = OffNutrient(nu, "proteins_100g");
+                if (protein <= 0) protein = OffNutrient(nu, "proteins");
                 carbs = OffNutrient(nu, "carbohydrates_100g");
+                if (carbs <= 0) carbs = OffNutrient(nu, "carbohydrates");
                 fat = OffNutrient(nu, "fat_100g");
+                if (fat <= 0) fat = OffNutrient(nu, "fat");
             }
 
             return new FoodItem
@@ -386,7 +480,7 @@ namespace FitnessBackend.Services
 
         private static string OffProductName(JsonElement product)
         {
-            foreach (var field in new[] { "product_name_hu", "product_name_en", "product_name" })
+            foreach (var field in new[] { "product_name_hu", "product_name_en", "product_name", "generic_name" })
             {
                 if (product.TryGetProperty(field, out var v) && v.ValueKind == JsonValueKind.String)
                 {
@@ -399,12 +493,21 @@ namespace FitnessBackend.Services
 
         private static double OffNutrient(JsonElement nu, string field)
         {
-            if (!nu.TryGetProperty(field, out var e)) return 0;
-            if (e.ValueKind == JsonValueKind.Number) return e.GetDouble();
-            if (e.ValueKind == JsonValueKind.String &&
-                double.TryParse(e.GetString(), System.Globalization.NumberStyles.Any,
-                    System.Globalization.CultureInfo.InvariantCulture, out var v))
-                return v;
+            // Try exact + common OFF aliases.
+            foreach (var key in new[]
+                     {
+                         field,
+                         field.Replace("_100g", ""),
+                         field.Replace("-", "_"),
+                     }.Distinct())
+            {
+                if (!nu.TryGetProperty(key, out var e)) continue;
+                if (e.ValueKind == JsonValueKind.Number) return e.GetDouble();
+                if (e.ValueKind == JsonValueKind.String &&
+                    double.TryParse(e.GetString(), System.Globalization.NumberStyles.Any,
+                        System.Globalization.CultureInfo.InvariantCulture, out var v))
+                    return v;
+            }
             return 0;
         }
     }

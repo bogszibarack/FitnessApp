@@ -62,9 +62,15 @@ class HomeService {
     );
 
     final target = naplo.targetCalories.round();
-    final carbsGoal = (target * 0.5 / 4).round();
-    final proteinGoal = (target * 0.25 / 4).round();
-    final fatGoal = (target * 0.25 / 9).round();
+    final carbsGoal = naplo.targetCarbs > 0
+        ? naplo.targetCarbs.round()
+        : (target * 0.5 / 4).round();
+    final proteinGoal = naplo.targetProtein > 0
+        ? naplo.targetProtein.round()
+        : (target * 0.25 / 4).round();
+    final fatGoal = naplo.targetFat > 0
+        ? naplo.targetFat.round()
+        : (target * 0.25 / 9).round();
 
     var burned = 0;
     var steps = 0;

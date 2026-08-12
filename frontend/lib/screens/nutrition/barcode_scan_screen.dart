@@ -49,8 +49,14 @@ class _BarcodeScanScreenState extends State<BarcodeScanScreen> {
       Navigator.of(context).pop(etel);
     } catch (e) {
       if (!mounted) return;
+      final msg = '$e';
       setState(() {
-        _hiba = 'Nincs termék ehhez a vonalkódhoz: $kod';
+        if (msg.contains('503')) {
+          _hiba = 'Az adatbázis most nem elérhető. Próbáld újra később.';
+        } else {
+          _hiba =
+              'Nincs találat: $kod\nPróbálj kézi keresést, vagy vedd fel saját ételként.';
+        }
         _feldolgoz = false;
       });
     }
