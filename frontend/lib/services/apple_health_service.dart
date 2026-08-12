@@ -157,7 +157,7 @@ class AppleHealthService {
         double? distanceM;
         if (value is WorkoutHealthValue) {
           title = value.workoutActivityType.name;
-          distanceM = value.totalDistance;
+          distanceM = value.totalDistance?.toDouble();
         }
         final durationMin = point.dateTo.difference(point.dateFrom).inMinutes;
         return HealthWorkout(

@@ -852,7 +852,7 @@ class _NyelvScreenState extends State<NyelvScreen> {
   String _nyelv = 'hu';
   bool _betolt = true;
 
-  static const _supportedLanguages = [
+  static final _supportedLanguages = [
     ValasztasiOpcio(id: 'hu', cimke: 'Magyar'),
     ValasztasiOpcio(id: 'en', cimke: 'English'),
   ];

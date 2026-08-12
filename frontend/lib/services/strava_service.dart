@@ -171,7 +171,8 @@ class StravaService {
 
     if (access != null &&
         access.isNotEmpty &&
-        (expiresAt == null || expiresAt.isAfter(DateTime.now().add(const Duration(minutes: 5)))) {
+        (expiresAt == null ||
+            expiresAt.isAfter(DateTime.now().add(const Duration(minutes: 5))))) {
       return access;
     }
 
@@ -195,7 +196,7 @@ class StravaService {
 
     final data = jsonDecode(response.body) as Map<String, dynamic>;
     final newAccess = data['access_token'] as String? ?? '';
-    final newRefresh = data['refresh_token'] as String? ?? refresh;
+    final newRefresh = (data['refresh_token'] as String?) ?? refresh;
     final expires = data['expires_at'] as int?;
 
     await LocalStore.instance.setStravaTokens(
