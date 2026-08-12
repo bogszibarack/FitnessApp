@@ -901,7 +901,7 @@ class _MakroCelokScreenState extends State<MakroCelokScreen> {
                     padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
                     child: TextButton.icon(
                       onPressed: _szazalekbol,
-                      icon: const Icon(Icons.auto_fix_rounded, size: 18),
+                      icon: const Icon(Icons.auto_fix_high_rounded, size: 18),
                       label: const Text('Makrók kalóriából (25/50/25 %)'),
                     ),
                   ),
