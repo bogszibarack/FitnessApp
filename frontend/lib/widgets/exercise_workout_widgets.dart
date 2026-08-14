@@ -412,6 +412,10 @@ class _SorozatSorState extends State<SorozatSor> {
   bool _mentes = false;
   Timer? _debounce;
 
+  void _billentyuzetElrejtese() {
+    FocusManager.instance.primaryFocus?.unfocus();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -468,12 +472,16 @@ class _SorozatSorState extends State<SorozatSor> {
 
   Future<void> _rpeValasztas() async {
     if (!widget.trackRpe || widget.onRpeMent == null) return;
+    _billentyuzetElrejtese();
+    await _mentesHaKell();
+    if (!mounted) return;
     final valasztott = await rpeValasztoMutat(context, jelenlegi: widget.sorozat.rpe > 0 ? widget.sorozat.rpe : null);
     if (valasztott == null) return;
     await widget.onRpeMent!(valasztott);
   }
 
   Future<void> _pipaNyomas() async {
+    _billentyuzetElrejtese();
     final suly = _sulyErtek();
     final prDetek = _prErzekeles(suly);
     final keszrePipal = !widget.sorozat.isDone;
@@ -554,15 +562,20 @@ class _SorozatSorState extends State<SorozatSor> {
               child: TextField(
                 controller: _sulyController,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                textInputAction: TextInputAction.next,
                 textAlign: TextAlign.center,
                 inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[\d.,]'))],
                 style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   hintText: 'kg',
                   isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 6),
                   border: InputBorder.none,
                 ),
+                onTapOutside: (_) {
+                  _billentyuzetElrejtese();
+                  _mentesHaKell();
+                },
                 onSubmitted: (_) => _mentesHaKell(),
               ),
             ),
@@ -570,6 +583,7 @@ class _SorozatSorState extends State<SorozatSor> {
               child: TextField(
                 controller: _ismController,
                 keyboardType: TextInputType.number,
+                textInputAction: TextInputAction.done,
                 textAlign: TextAlign.center,
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
@@ -579,7 +593,18 @@ class _SorozatSorState extends State<SorozatSor> {
                   contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
                   border: InputBorder.none,
                 ),
-                onSubmitted: (_) => _mentesHaKell(),
+                onTapOutside: (_) {
+                  _billentyuzetElrejtese();
+                  _mentesHaKell();
+                },
+                onEditingComplete: () {
+                  _billentyuzetElrejtese();
+                  _mentesHaKell();
+                },
+                onSubmitted: (_) {
+                  _billentyuzetElrejtese();
+                  _mentesHaKell();
+                },
               ),
             ),
             if (widget.trackRpe)
@@ -728,6 +753,10 @@ class _HelyiSorozatSorState extends State<_HelyiSorozatSor> {
   late final TextEditingController _sulyController;
   late final TextEditingController _ismController;
 
+  void _billentyuzetElrejtese() {
+    FocusManager.instance.primaryFocus?.unfocus();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -787,6 +816,7 @@ class _HelyiSorozatSorState extends State<_HelyiSorozatSor> {
               child: TextField(
                 controller: _sulyController,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                textInputAction: TextInputAction.next,
                 textAlign: TextAlign.center,
                 inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[\d.,]'))],
                 style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
@@ -796,6 +826,7 @@ class _HelyiSorozatSorState extends State<_HelyiSorozatSor> {
                   contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 6),
                   border: InputBorder.none,
                 ),
+                onTapOutside: (_) => _billentyuzetElrejtese(),
                 onChanged: (v) => widget.onSuly(double.tryParse(v.replaceAll(',', '.')) ?? 0),
               ),
             ),
@@ -803,6 +834,7 @@ class _HelyiSorozatSorState extends State<_HelyiSorozatSor> {
               child: TextField(
                 controller: _ismController,
                 keyboardType: TextInputType.number,
+                textInputAction: TextInputAction.done,
                 textAlign: TextAlign.center,
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
@@ -812,6 +844,9 @@ class _HelyiSorozatSorState extends State<_HelyiSorozatSor> {
                   contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
                   border: InputBorder.none,
                 ),
+                onTapOutside: (_) => _billentyuzetElrejtese(),
+                onEditingComplete: _billentyuzetElrejtese,
+                onSubmitted: (_) => _billentyuzetElrejtese(),
                 onChanged: (v) => widget.onIsmetles(int.tryParse(v) ?? 0),
               ),
             ),
@@ -821,7 +856,10 @@ class _HelyiSorozatSorState extends State<_HelyiSorozatSor> {
                   ? IconButton(
                       padding: EdgeInsets.zero,
                       icon: Icon(Icons.close, size: 20, color: Colors.grey.shade500),
-                      onPressed: widget.onTorles,
+                      onPressed: () {
+                        _billentyuzetElrejtese();
+                        widget.onTorles!();
+                      },
                     )
                   : null,
             ),

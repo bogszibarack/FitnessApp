@@ -85,6 +85,7 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
   }
 
   Future<void> _gyakorlatHozzaadasa() async {
+    FocusManager.instance.primaryFocus?.unfocus();
     final hozzaadva = await Navigator.of(context).push<bool>(
       MaterialPageRoute(builder: (_) => const AddExerciseScreen()),
     );
@@ -92,9 +93,14 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
   }
 
   void _gyakorlatNyitasa(String exerciseId) {
+    FocusManager.instance.primaryFocus?.unfocus();
     setState(() {
       _nyitottGyakorlatId = _nyitottGyakorlatId == exerciseId ? null : exerciseId;
     });
+  }
+
+  void _billentyuzetElrejtese() {
+    FocusManager.instance.primaryFocus?.unfocus();
   }
 
   bool _pihenoIndithato(int gyakorlatIndex) {
@@ -397,7 +403,10 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
               kicsi: true,
               kitoltott: false,
               szin: Colors.red,
-              onTap: _elvetes,
+              onTap: () {
+                _billentyuzetElrejtese();
+                _elvetes();
+              },
             ),
           ),
           const SizedBox(width: 8),
@@ -407,7 +416,10 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
               kicsi: true,
               ikon: Icons.check_rounded,
               szin: const Color(0xFF00897B),
-              onTap: _befejezes,
+              onTap: () {
+                _billentyuzetElrejtese();
+                _befejezes();
+              },
             ),
           ),
           const SizedBox(width: 12),
@@ -421,73 +433,88 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
               szin: const Color(0xFF1E88E5),
               onTap: _gyakorlatHozzaadasa,
             ),
-      body: _betolt
-          ? const Center(child: CircularProgressIndicator())
-          : _edzes == null
-              ? const Center(child: Text('Nincs aktív edzés'))
-              : Stack(
-                  children: [
-                    Column(
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                          child: Row(
-                            children: [
-                              Expanded(child: _infoKartya('Sorozat', '${_edzes!.osszSorozatSzam}')),
-                              const SizedBox(width: 8),
-                              Expanded(child: _infoKartya('Térfogat', '${_edzes!.osszTomegKg.toStringAsFixed(0)} kg')),
-                              const SizedBox(width: 8),
-                              Expanded(child: _infoKartya('Gyakorlat', '${gyakorlatok.length}')),
-                            ],
+      body: GestureDetector(
+        onTap: _billentyuzetElrejtese,
+        behavior: HitTestBehavior.deferToChild,
+        child: _betolt
+            ? const Center(child: CircularProgressIndicator())
+            : _edzes == null
+                ? const Center(child: Text('Nincs aktív edzés'))
+                : Stack(
+                    children: [
+                      Column(
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                            child: Row(
+                              children: [
+                                Expanded(child: _infoKartya('Sorozat', '${_edzes!.osszSorozatSzam}')),
+                                const SizedBox(width: 8),
+                                Expanded(child: _infoKartya('Térfogat', '${_edzes!.osszTomegKg.toStringAsFixed(0)} kg')),
+                                const SizedBox(width: 8),
+                                Expanded(child: _infoKartya('Gyakorlat', '${gyakorlatok.length}')),
+                              ],
+                            ),
                           ),
-                        ),
-                        if (gyakorlatok.isEmpty)
-                          Expanded(
-                            child: Center(
-                              child: Padding(
-                                padding: const EdgeInsets.all(32),
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(Icons.fitness_center, size: 56, color: Colors.grey.shade400),
-                                    const SizedBox(height: 16),
-                                    const Text(
-                                      'Adj hozzá az első gyakorlatot',
-                                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                                    ),
-                                    const SizedBox(height: 20),
-                                    ModernButton(
-                                      cimke: 'Gyakorlat keresése',
-                                      ikon: Icons.search,
-                                      onTap: _gyakorlatHozzaadasa,
-                                    ),
-                                  ],
+                          if (gyakorlatok.isEmpty)
+                            Expanded(
+                              child: Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(32),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.fitness_center, size: 56, color: Colors.grey.shade400),
+                                      const SizedBox(height: 16),
+                                      const Text(
+                                        'Adj hozzá az első gyakorlatot',
+                                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                                      ),
+                                      const SizedBox(height: 20),
+                                      ModernButton(
+                                        cimke: 'Gyakorlat keresése',
+                                        ikon: Icons.search,
+                                        onTap: _gyakorlatHozzaadasa,
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
+                            )
+                          else
+                            Expanded(
+                              child: ListView(
+                                keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                                padding: EdgeInsets.fromLTRB(16, 16, 16, pihenoAktiv ? 100 : 16),
+                                children: [
+                                  ..._gyakorlatListaElemek(gyakorlatok),
+                                  // Üres terület a billentyűzet elrejtéséhez koppintással
+                                  SizedBox(
+                                    height: 120,
+                                    child: GestureDetector(
+                                      behavior: HitTestBehavior.opaque,
+                                      onTap: _billentyuzetElrejtese,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          )
-                        else
-                          Expanded(
-                            child: ListView(
-                              padding: EdgeInsets.fromLTRB(16, 16, 16, pihenoAktiv ? 100 : 16),
-                              children: _gyakorlatListaElemek(gyakorlatok),
-                            ),
-                          ),
-                      ],
-                    ),
-                    if (pihenoAktiv)
-                      Positioned(
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        child: PihenoIdozitoBanner(
-                          hatralevoMp: _pihenoHatralevo!,
-                          osszesMp: _pihenoOsszes,
-                          onKihagyas: _pihenoKihagyasa,
-                        ),
+                        ],
                       ),
-                  ],
-                ),
+                      if (pihenoAktiv)
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          child: PihenoIdozitoBanner(
+                            hatralevoMp: _pihenoHatralevo!,
+                            osszesMp: _pihenoOsszes,
+                            onKihagyas: _pihenoKihagyasa,
+                          ),
+                        ),
+                    ],
+                  ),
+      ),
     );
   }
 
